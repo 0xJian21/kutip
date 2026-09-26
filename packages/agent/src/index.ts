@@ -1,1 +1,11 @@
-export {};
+export { DEFAULT_RULEBOOK, parseRulebook, rulebookSchema, type Rulebook } from "./rulebook";
+export type { Decision, InvoiceStatus, RuleId } from "./rules/decision";
+export { nextReminder, type ReminderInput, type ReminderPlan, type Tone } from "./rules/reminders";
+export { decideReply, LOW_CONFIDENCE, MAX_PROMISE_DAYS, type ReplyDecision } from "./rules/replies";
+export { cashOutAlert, discountGuard, parseDiscountBps, sweepGuard, treasuryMove, type MoveDecision, type SweepInput, type TreasuryMove } from "./rules/guards";
+export { buildBuyerContext, renderBuyerContext, type BuyerContext, type BuyerRecord, type InvoiceRecord, type MessageRecord } from "./context";
+export { haikuClassifier, jevClassifier, REPLY_LABELS, type InboundEmail, type ReplyClassification, type ReplyClassifier, type ReplyLabel } from "./classifier";
+export { explainAction, writeReceipt, writeReminder, type AgentActionKind, type Email } from "./writer";
+export { extractInvoice, type ExtractedInvoice } from "./extract";
+export { formatUsdc, parseUsdc } from "./money";
+export { HAIKU } from "./llm";
