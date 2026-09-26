@@ -72,7 +72,14 @@ importers:
 
   apps/worker: {}
 
-  packages/agent: {}
+  packages/agent:
+    dependencies:
+      '@anthropic-ai/sdk':
+        specifier: 0.128.0
+        version: 0.128.0(zod@4.6.5)
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/db:
     dependencies:

@@ -37,11 +37,11 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - [ ] Privy passkey login; owner approves proposals from UI
 
 ## Session 6 — Agent (Sep 29–30) · Opus · `feat/agent` · owns `packages/agent`
-- [ ] Rules engine + rulebook schema
-- [ ] Jev classifiers (reply intent, tone, sweep, escalate) + Haiku fallback
-- [ ] Haiku: reminder emails, PDF extraction
-- [ ] Buyer-scoped context + leak test
-- [ ] Reminder scheduler, cash-out alert (BNM rate)
+- [x] Rules engine + rulebook schema (6a: `rulebook.ts`, `rules/*`: reminders C1/C2/C4/C5/C6, replies, discount C3, sweep T2–T4, cash-out T5, each returns `{allowed, ruleId, reason}`)
+- [ ] Jev classifiers (reply intent, tone, sweep, escalate) + Haiku fallback (6a: `ReplyClassifier` interface + Haiku classifier done, 11/11 on eval; `jevClassifier` is a stub waiting on Spike D → 6b)
+- [x] Haiku: reminder emails (friendly/firm/final), receipts, agent-log explanations, PDF extraction (3 fixture PDFs, `pnpm --filter @kutip/agent eval`)
+- [x] Buyer-scoped context + leak test (`BuyerContext` branded, one buyer only; `privacy.test.ts` asserts on the HTTP body sent)
+- [x] Reminder scheduler, cash-out alert (6a: pure `nextReminder` / `cashOutAlert`; the worker runs them on a timer and fetches the BNM rate, see Requests)
 
 ## Session 7 — Integration (Sep 30) · Opus · `feat/integration`
 - [ ] UI wired to real data; full demo path end-to-end on mainnet
@@ -69,3 +69,14 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - **Session 4a (db) → Session 5 (treasury)**: use `updateTreasuryAccounts(E, …)` and `updateBuyerAccounts(E, buyerId, { multisig, vault, usdcAta, spendingLimitPda })` after provisioning. **The seeded addresses and reference keys are fake base58-shaped strings.** Before the live demo, provision real multisigs, write them back, and create the live demo invoices with `createInvoice` and a real reference key. The seeded `inv_demo`/`inv_bot` can't be paid on-chain. After a rehearsal, run `pnpm --filter @kutip/db db:seed --reset`.
 - **Session 4a (db) → Session 6 (agent)**: `getBuyerContext(E, buyerId)` is the L4-scoped context: that buyer's invoices, messages and actions only, with multi-buyer sweep actions excluded. A leak test is in `packages/db/src/buyer-scope.test.ts`. Writes: `recordAgentAction`, `recordMessage` (with `classification`), `setActionStatus(E, id, "executed", txSig)`, `setInvoiceStatus(E, id, "disputed")`.
 - **Session 4a (db) → docs owner**: the schema differs from ARCHITECTURE.md "Data model". `exporters.owner_user_id` is replaced by `users.role` (`owner`/`admin`). New additions are the `fx_rates` table, cached `treasury_usdc_balance`/`vault_usdc_balance`, `sweeps.exporter_id`, and UI fields (buyer contact/city, invoice `received_usdc` + `sent/seen/paid/settled_at`, payment `quoted_input`/`via`/timestamps, action `reason`, message `from`/`subject`). Source of truth is `packages/db/src/schema.ts`.
+- **Session 6a (agent) → Session 4 (worker / db)**: `@kutip/agent` is pure except the Haiku calls; the worker drives it.
+  - Reminders: on a timer, call `nextReminder({invoiceId, dueDate, timezone, status, sent, now, rulebook, promisedDate})` per open invoice. `sent` = every outbound message to that buyer (any invoice) as `{invoiceId, at}`. Send when `sendAt <= now`, with `writeReminder(client, ctx, {invoiceId, tone, now})`. `escalate: true` → insert an `escalate` agent_action (C4) and stop.
+  - Needs a column for the buyer's promised date (e.g. `invoices.promised_date date null`), set when `decideReply` returns `action: "pause"` (C5).
+  - Replies: `haikuClassifier(client).classifyReply(ctx, {subject, body, receivedAt})` → store `messages.classification = { intent: label, confidence }` (UI calls it `intent`), then `decideReply(...)`; `markDisputed` → invoice status `disputed`.
+  - `rulebook` jsonb: bigints (`agentDailyLimitUsdc`, `cashOutAlertMarginBps`) stored as digit strings; read back with `parseRulebook(json)`.
+  - agent_actions: `ruleId` and one-sentence `reason` come from every decision; `explainAction(client, ctx, {kind, decision, facts})` gives the UI's `decision`/`reason` pair for buyer-scoped actions. `confidence` = classifier confidence, or 1 for pure rule decisions.
+  - BuyerContext: build per call with `buildBuyerContext({exporterName, buyer, invoices, messages})` from a query filtered on ONE `buyer_id`; it throws on any row from another buyer.
+  - Cash-out alert: worker fetches the BNM USD/MYR rate + 30-day average (bigint, 4 implied decimals like `BnmRate.myrPerUsd`) and calls `cashOutAlert(...)` (T5).
+- **Session 6a → Session 5 (sweeper)**: call `treasuryMove({kind: "sweep", sweep: {amountUsdc, destination, treasuryUsdcAta, sweptTodayUsdc, rulebook}})` before building a sweep: `autonomous` → spending-limit sweep (T2); `proposal` → Squads proposal (T4); `refused` → do nothing. The on-chain spending limit stays the real guard.
+- **Session 6a → Session 7 (integration)**: new-invoice PDF drop → `extractInvoice(client, pdfBytes)` returns `lineItems` with bigint `unitPriceUsdc` (same shape as UI `LineItem`), `totalUsdc`, `dueDate`, `warnings[]`, and an I1 decision (`allowed: false` = show warnings, owner checks before sending).
+- **Session 6a → Session 6b (Jev)**: implement `jevClassifier()` in `packages/agent/src/classifier.ts` behind the same `ReplyClassifier` interface, falling back to `haikuClassifier` when Jev is unavailable (SPEC §3).
