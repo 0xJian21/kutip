@@ -8,11 +8,11 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - [x] `.env.example`
 
 ## Session 1 — Risk spikes (Sep 27) · model: Fable · branch `feat/spikes` · owns `spikes/`
-- [ ] A. Solana Pay tx request: fee payer partial-sign, USDC transfer + reference + memo; tested in Phantom / Solflare / Backpack; Jupiter ExactOut variant fits in a v0 tx
-- [ ] B. Squads v4: create multisig (owner + agent), add spending limit (USDC, Day, destination allowlist), `spendingLimitUse` sweep on mainnet
-- [ ] C. Solami gRPC: subscription detects a payment by reference key; record processed/confirmed/finalized timings; send one tx via Solami SWQoS
-- [ ] D. Jev: TS/REST hello-world classification with confidence; Haiku fallback with same interface
-- [ ] Results appended to DECISIONS.md "Spike results"
+- [x] A. Solana Pay tx request: fee payer partial-sign, USDC transfer + reference + memo; tested in Phantom / Solflare (Backpack untested — not installed); Jupiter ExactOut variant fits in a v0 tx (854–889 B)
+- [x] B. Squads v4: create multisig (owner + agent), add spending limit (USDC, Day, destination allowlist), `spendingLimitUse` sweep on mainnet
+- [x] C. Solami gRPC: subscription detects a payment by reference key; record processed/confirmed/finalized timings; send one tx via Solami SWQoS (SWQoS key → 401, untested; normal send measured)
+- [x] D. Jev: TS/REST hello-world classification with confidence (client typechecked; not run — TypeSafe waitlist); Haiku fallback with same interface — 6/6
+- [x] Results appended to DECISIONS.md "Spike results"
 
 ## Session 2 — Design direction + UI shell on mocks (Sep 27–28) · Fable · `feat/ui-shell` · owns `docs/DESIGN.md`, `docs/PRODUCT.md`, `apps/web/app/**` (except `app/api/**`), `apps/web/components/**`, `apps/web/lib/ui/**`, `apps/web/lib/mock/**`, `apps/web/public/**`, `apps/web/package.json` (UI deps only), `.claude/launch.json`
 - [x] DESIGN.md: direction, tokens, type scale, components (+ PRODUCT.md for the impeccable skill; `/design` style tile)

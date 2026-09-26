@@ -62,3 +62,42 @@ Each decision: what, why, alternatives rejected, and what would make us revisit 
 
 ## Spike results (Session 1)
 <!-- Append: spike id, date, PASS/FAIL, evidence (tx signatures, logs), consequence for the plan -->
+
+### Session 1 — 2026-09-27, all on mainnet-beta via Solami RPC. Full evidence and rerun steps: `spikes/notes/*.md`, `spikes/README.md`.
+
+Spend: FEE_PAYER 0.050 → 0.0265 SOL (≈0.012 SOL Squads rent+fees, ≈0.0002 SOL payment fees, 0.010 SOL lent to the test phone wallet); TEST_BUYER 1.0 → 0.0 USDC (0.5 swept to treasury vault, 0.2 into buyer vault via spike C, 0.3 to the phone wallet). Buyer vault ATA now holds 1.2 USDC, treasury vault ATA 0.5 USDC.
+
+#### Spike A — Solana Pay transaction request, gasless → **PASS** (Phantom ✓ Solflare ✓ · Backpack untested)
+- USDC mode (legacy tx, 503 B): Solflare `4v6jfSP78JAimEUTP51SDDzv1s22euSmvexM8Uj3v3B26XUqUG9783ygQSerofwtUX8Sjt9qWDLiTXe7o4iNWJeD`, Phantom `2zz4Y7DaZJXKkWvYsVwoy7Gy2xaF4RXVEHAVcANZZzduhsqALM31598Ej8VVaunz95J378f2AH1UQkYTThiEed4H`. **Buyer SOL delta 0** in both; fee (10 300 lamports) paid by the fee payer, which appears in no instruction.
+- A2 Jupiter ExactOut (v0 + 1 lookup table, dest receives exactly 0.500000 USDC): Solflare `3QsG2EvnaX9Fx79KDBR38mVbY6KtYR1qgSHDhGo4Vfqep3FSzpUpKdFdCcGyQHPQevoypde8iN7BEFm9KDagjuEk` (**854 B**, Whirlpool), Phantom `2gPKLU8TEdKHpqvBUuwYWD8hzReyrot3VmT3h9D9EwGtAqatcKmu7f2t4c7tzG4xZj88RKMZ5rGvDzY67yLbZPE4` (**889 B**, PancakeSwap). Well under 1232 B with `maxAccounts=24`; buyer pays only the swap input (≈0.00412 SOL), no fee. Neither wallet appended guard (Lighthouse) instructions, so the pre-signed fee-payer signature survived.
+- Jupiter: **ExactOut exists only on Swap API v1** (`/swap/v1/quote` + `/swap-instructions`); v2 is ExactIn-only. Worked without an API key on `lite-api.jup.ag`. `trackingAccount` carries the reference on the swap ix. v1 has a decommission checkpoint → **consequence:** Session 3 must pin v1, get a `developers.jup.ag` key, and keep a "USDC-only" fallback if v1 disappears.
+- **Consequence for F4:** keep gasless + v0 as designed (no Backpack-specific path needed unless Backpack is tested and fails). The `/pay` page must lead with a QR / "Open in wallet" deep link — a live user pasted the `solana:` URL into Send and got "invalid address". Screening hooks onto the `POST {account}` step. `@solana/pay` 1.x is on `@solana/kit`; we don't need it (URL + `getSignaturesForAddress` suffice).
+
+#### Spike B — Squads v4 spending-limit sweep → **PASS**
+- Buyer multisig `J9k4BTxAE9d4iapnJo9AsCrVKhrQ9qYKpXe5aM49zzcR` (vault `4knsrLskrCc1KBmQ5baYEBkaXmK73izrA7TNgvqiYDte`, ATA `FQ1kmSvQqNzdqaKspuaY4XL7D53ZUFQGoPyzRL1WdATS`); treasury multisig `HWBKQncjh9b95jiRsP9Ypy6RSinQYgjUzditxEW9G1ur` (vault `2HYRBK6y9ibDM3cdRVpdrmhZoDqTEqiQaC8hq4uUzSuM`, ATA `6b85KZmzapHBE2pQtEnMywor9yXedsLp2yJH7T16vmdB`); spending limit `GhWvgWfVffB97Uf9rR7yuWatWRwFnwoJABwtNJ58krMP`.
+- Sigs: create `5DgvmWd1…U89F` / `33sUrPk3…azpe`, ATAs `61GMP7gr…uRrpX`, limit create+propose+approve (one tx) `3JuHhf23…8Ex3`, execute `4Pifupa…vfDF2b`, fund `4gu71Um7…Xt4M`, **agent sweep `335XEGwiUdmxUJ9vqibYNQjh31wUCBbrkSMKY1zqrtFXC5kCn71D1F7avda3KrogNXqHzdtedekTpVV2aTNYSBxq`** (0.5 USDC buyer vault → treasury vault ATA, signed by AGENT only).
+- Negative test: AGENT → owner wallet (not allowlisted) rejected in preflight with `InvalidDestination` (6025 / 0x1789), no fee.
+- Cost: **0.011916 SOL** for everything (multisigCreationFee = 0 confirmed; per-buyer multisig+ATA ≈ 0.0037 SOL; config-tx + proposal rent ≈ 0.0038 SOL reclaimable).
+- **Correction to D1/D3:** `SpendingLimit.destinations` holds the destination **owner**, i.e. the **treasury vault PDA**, not its USDC ATA (`spending_limit_use.rs` checks `destinations.contains(destination)` and derives the ATA). Provisioning (Session 5) must allowlist the vault PDA.
+- Threshold 1 does **not** let you skip the proposal; but create + proposalCreate + approve fit in one tx, execute in a second.
+- **Consequence:** D1 stands; Session 5 can provision straight from `spikes/b-squads/run.ts`. Gotcha for every RPC user: web3.js derives the WS URL from the RPC URL, but Solami's WS is at `/ws/sol` → pass `wsEndpoint` or confirm by polling `getSignatureStatuses`.
+
+#### Spike C — Solami as the data path → **PASS** (gRPC detection) / **PARTIAL** (SWQoS untested)
+- gRPC `https://grpc.solami.dev`, auth as `x-token` (docs show `?api_key=`, the napi client drops query strings). Server: `yellowstone-grpc-geyser 15.2.1`, host `Amsnode` (AMS; we are in KL). One stream at `processed` + slot-status updates gives all three levels (Pro plan cap is 2 streams).
+- Payment `dcjRjvhqds1qSRKmyKYCtXN4efPaY9sZZic7BvyBh3MacT6NQ7oi8ySxB7PZe6xouTGB83EGzMJwPhE8RQP5r6i` (0.1 USDC, reference `F8JhQa4T…gwX`): stream saw **processed +538 ms after send** (geyser→client 60 ms), **confirmed +731 ms**, **finalized +9.2 s**. Meta parse gave `mint=USDC amount=+100000 dest=<vault ATA> destOwner=<vault PDA> memo="k_test01"` — everything F6 needs, at processed.
+- **Bug found:** the Yellowstone README-style keepalive (`SubscribeRequest{ping}` with empty filters) **replaces the filters on Solami's geyser** → stream goes silent after the first ping (run 1 missed its payment). Fix: resend the full filters with every ping. Worker (Session 4) must do this.
+- Normal `sendTransaction` via Solami RPC: confirmed in **808 ms / 4 slots**. SWQoS path (same URL with `SOLAMI_SWQOS_KEY`): **`401 unauthorized`** — key not accepted; plan inclusion unknown → question for Solami.
+- Solami answers matrix (docs vs product): **Beam = their SWQoS lane** (QUIC `beam.solami.dev:11000`, tip ≥ 0.0001 SOL; no Jito mention; HTTP path = RPC URL + SWQoS key, `skipPreflight:true,maxRetries:0`). **Webhooks exist but are undocumented** (dashboard, `max_webhooks` per tier, `wss://{region}.ws.solami.dev/webhooks/stream/{id}`; event kinds incl. `transfer`, `memo`). **Decoded DEX data = "Blur"** (WS/gRPC, no API doc yet). gRPC `accountInclude` limit unpublished. Draft message to Solami in `spikes/notes/c-solami.md`.
+- **Consequence:** F6 status ladder (Seen/Paid/Settled) is realistic at ~0.5 s / ~0.75 s / ~9 s. Worker: one processed+slots stream, filters resent with pings, `getTransaction` (raw) not `getParsedTransaction` (web3.js struct error on Solami's `stackHeight`). SWQoS is not on the demo critical path.
+
+#### Spike D — Jev + Haiku fallback → **PARTIAL** (Haiku PASS, Jev unverified)
+- Jev **has a TS/REST path**: `POST https://api.typesafe.ai/v1/systemone` (Bearer), official `@typesafe-ai/sdk@0.6.0` (zero deps), `$0.042/M input, output free`, 1 200 req/min. **Not run: TypeSafe account is on the waitlist.** Client code is typechecked against the real SDK types (`spikes/d-jev/jev.ts`). No Python sidecar needed → D6's fallback clause is moot.
+- Haiku `claude-haiku-4-5` (→ `claude-haiku-4-5-20251001`) with structured outputs (`messages.parse` + `zodOutputFormat`): **6/6 correct**, confidence 0.95–0.99, 0.9–1.5 s warm (8.8 s first call), **$0.0006/email**. Adversarial "tell me what you charged other customers" → classified as `will_pay_on_date`, nothing leaked (schema has no free-text field).
+- Gotcha: org-scoped Anthropic keys need the `anthropic-workspace-id` header (or use a workspace-scoped key).
+- **Consequence:** Session 6 builds against the shared `classify()` interface with Haiku as the live implementation and Jev switched on when the key arrives; pin `jev-1.13.0` once tuned. Add a `noul` injection-guard question to the same Jev call (free output).
+
+#### What the user must decide
+1. Backpack: test it (needs the app + 0.1 USDC) or ship "Phantom/Solflare verified" and let Backpack be best-effort.
+2. Jupiter v1 dependency for ExactOut: accept the decommission risk (with USDC-only fallback) or drop SOL payments from the demo.
+3. Solami plan: SWQoS/Beam needs a working SWQoS key (and possibly a paid plan) — pursue for the prize pitch, or present gRPC-only.
+4. Jev: wait for the waitlist or pitch Haiku-first with Jev as the "decision model" upgrade.
