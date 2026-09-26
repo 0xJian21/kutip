@@ -27,7 +27,7 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - [ ] Payment verification function (mint, amount, destination, memo)
 
 ## Session 4 — Worker (Sep 28–29) · Opus · `feat/worker` · owns `apps/worker`, `packages/db`
-- [x] DB schema + migrations (Session 4a, `feat/db`): Drizzle schema, RLS on every table, Realtime publication on invoices/payments/agent_actions, typed store in `@kutip/db`, `db:seed` loads Session 2 fixtures (query-for-query parity test vs `mockData`). Verified on local Postgres 17; **applying to Supabase is waiting on `DATABASE_URL` in `.env`** (`pnpm --filter @kutip/db db:migrate && pnpm --filter @kutip/db db:seed`).
+- [x] DB schema + migrations (Session 4a, `feat/db`): Drizzle schema, RLS on every table, Realtime publication on invoices/payments/agent_actions, typed store in `@kutip/db`, `db:seed` loads Session 2 fixtures (query-for-query parity test vs `mockData`). Applied to Supabase 2026-09-27: both migrations applied, demo seeded, RLS on for all 10 tables, Realtime publishing the 3 tables, parity with `mockData` re-checked on the live DB, anon REST read of `invoices` returns `[]`.
 - [ ] Solami gRPC listener → verification → status updates (Realtime)
 - [ ] Execution receipt, fee-payer health monitor
 
