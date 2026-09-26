@@ -1,26 +1,206 @@
 @import "tailwindcss";
 
+/*
+  Kutip design tokens: "calm ledger".
+  Canonical values are OKLCH. See docs/DESIGN.md for the reasoning.
+  Light = cream ledger paper with teal stamp ink. Dark = the same paper at night.
+*/
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* Surfaces */
+  --paper: oklch(97.5% 0.008 85);
+  --paper-2: oklch(95% 0.01 85);
+  --surface: oklch(99.2% 0.004 85);
+
+  /* Ink */
+  --ink: oklch(23% 0.015 70);
+  --ink-2: oklch(46% 0.012 70);
+  --ink-3: oklch(54% 0.01 70);
+
+  /* Lines */
+  --line: oklch(88% 0.01 80);
+  --line-strong: oklch(78% 0.012 80);
+
+  /* Accent: the teal of the RM50 note */
+  --accent: oklch(44% 0.085 195);
+  --accent-hover: oklch(38% 0.085 195);
+  --accent-soft: oklch(93% 0.03 195);
+  --on-accent: oklch(97.5% 0.008 85);
+
+  /* Status */
+  --seen-fg: oklch(44% 0.12 255);
+  --seen-bg: oklch(93% 0.03 255);
+  --paid-fg: oklch(42% 0.11 150);
+  --paid-bg: oklch(93% 0.05 150);
+  --settled-bg: oklch(44% 0.12 150);
+  --settled-fg: oklch(97.5% 0.008 85);
+  --overdue-fg: oklch(46% 0.15 35);
+  --overdue-bg: oklch(94% 0.04 35);
+  --disputed-fg: oklch(44% 0.16 20);
+  --disputed-bg: oklch(94% 0.04 20);
+  --partial-fg: oklch(46% 0.12 70);
+  --partial-bg: oklch(94% 0.05 70);
+
+  /* Elevation: flat by default; one shadow for things that float */
+  --shadow-float: 0 8px 24px oklch(20% 0.02 70 / 0.14), 0 1px 2px oklch(20% 0.02 70 / 0.08);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+  --dur-slow: 450ms;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: oklch(17% 0.01 70);
+  --paper-2: oklch(20% 0.01 70);
+  --surface: oklch(22.5% 0.01 70);
+
+  --ink: oklch(92% 0.01 85);
+  --ink-2: oklch(72% 0.01 85);
+  --ink-3: oklch(58% 0.01 85);
+
+  --line: oklch(30% 0.01 70);
+  --line-strong: oklch(38% 0.01 70);
+
+  --accent: oklch(74% 0.1 195);
+  --accent-hover: oklch(80% 0.1 195);
+  --accent-soft: oklch(27% 0.04 195);
+  --on-accent: oklch(15% 0.02 195);
+
+  --seen-fg: oklch(78% 0.1 255);
+  --seen-bg: oklch(27% 0.04 255);
+  --paid-fg: oklch(78% 0.12 150);
+  --paid-bg: oklch(26% 0.05 150);
+  --settled-bg: oklch(66% 0.14 150);
+  --settled-fg: oklch(15% 0.02 150);
+  --overdue-fg: oklch(80% 0.12 35);
+  --overdue-bg: oklch(27% 0.05 35);
+  --disputed-fg: oklch(80% 0.13 20);
+  --disputed-bg: oklch(27% 0.05 20);
+  --partial-fg: oklch(82% 0.11 70);
+  --partial-bg: oklch(27% 0.05 70);
+
+  --shadow-float: 0 8px 24px oklch(0% 0 0 / 0.5), 0 1px 2px oklch(0% 0 0 / 0.4);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-*: initial;
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-seen-fg: var(--seen-fg);
+  --color-seen-bg: var(--seen-bg);
+  --color-paid-fg: var(--paid-fg);
+  --color-paid-bg: var(--paid-bg);
+  --color-settled-fg: var(--settled-fg);
+  --color-settled-bg: var(--settled-bg);
+  --color-overdue-fg: var(--overdue-fg);
+  --color-overdue-bg: var(--overdue-bg);
+  --color-disputed-fg: var(--disputed-fg);
+  --color-disputed-bg: var(--disputed-bg);
+  --color-partial-fg: var(--partial-fg);
+  --color-partial-bg: var(--partial-bg);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), ui-serif, Georgia, serif;
+
+  /* Type scale (fixed rem, ratio ~1.2). UI text is 14px; prose is 16px. */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.125rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.25rem;
+  --text-md: 1rem;
+  --text-md--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 2.25rem;
+  --text-3xl--line-height: 2.5rem;
+  /* Money display sizes (serif) */
+  --text-money-md: 1.5rem;
+  --text-money-md--line-height: 1.75rem;
+  --text-money-lg: 2.5rem;
+  --text-money-lg--line-height: 2.75rem;
+  --text-money-xl: 3.5rem;
+  --text-money-xl--line-height: 3.75rem;
+  --text-money-2xl: 4.5rem;
+  --text-money-2xl--line-height: 4.5rem;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-float: var(--shadow-float);
+
+  --ease-out: var(--ease-out);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "tnum" 1, "kern" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility money {
+  font-family: var(--font-serif);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }

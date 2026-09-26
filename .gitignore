@@ -9,3 +9,4 @@ keys/
 .DS_Store
 .vercel
 coverage
+.playwright-mcp/

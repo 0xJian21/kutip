@@ -14,7 +14,7 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - [ ] D. Jev: TS/REST hello-world classification with confidence; Haiku fallback with same interface
 - [ ] Results appended to DECISIONS.md "Spike results"
 
-## Session 2 — Design direction + UI shell on mocks (Sep 27–28) · Opus · `feat/ui-shell` · owns `apps/web/app/(ui)`, `apps/web/components`, `docs/DESIGN.md`
+## Session 2 — Design direction + UI shell on mocks (Sep 27–28) · Fable · `feat/ui-shell` · owns `docs/DESIGN.md`, `docs/PRODUCT.md`, `apps/web/app/**` (except `app/api/**`), `apps/web/components/**`, `apps/web/lib/ui/**`, `apps/web/lib/mock/**`, `apps/web/public/**`, `apps/web/package.json` (UI deps only), `.claude/launch.json`
 - [ ] DESIGN.md: direction, tokens, type scale, components
 - [ ] Screens on mock data: onboarding, dashboard, invoice list/detail (live status bar, execution receipt), new invoice (PDF drop), agent log, rulebook, treasury, buyer pay page (mobile-first)
 - [ ] Browser-pane screenshots at desktop + mobile, impeccable critique pass
