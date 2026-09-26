@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLoginWithPasskey, useSignupWithPasskey } from "@privy-io/react-auth";
 import { Check, Fingerprint } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Address } from "@/components/ui/address";
+import { useOwnerWallet } from "@/lib/treasury/owner-wallet";
 import { formatUsdc } from "@/lib/ui/money";
 import type { Exporter, Rulebook } from "@/lib/ui/types";
 
@@ -22,21 +24,10 @@ const TREASURY_TASKS = [
 export function Onboarding({ exporter, rulebook }: { exporter: Exporter; rulebook: Rulebook }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [auth, setAuth] = useState<"idle" | "checking" | "ok">("idle");
   const [company, setCompany] = useState({ name: "", reg: "", city: "", owner: "", email: "" });
   const [tasksDone, setTasksDone] = useState(0);
   const c = rulebook.collections;
   const t = rulebook.treasury;
-
-  useEffect(() => {
-    if (auth !== "checking") return;
-    const a = setTimeout(() => setAuth("ok"), 1400);
-    const b = setTimeout(() => setStep(1), 2300);
-    return () => {
-      clearTimeout(a);
-      clearTimeout(b);
-    };
-  }, [auth]);
 
   useEffect(() => {
     if (step !== 2 || tasksDone >= TREASURY_TASKS.length) return;
@@ -57,19 +48,7 @@ export function Onboarding({ exporter, rulebook }: { exporter: Exporter; ruleboo
         ))}
       </ol>
 
-      {step === 0 ? (
-        <section className="rounded-lg border border-line bg-surface p-6 sm:p-8">
-          <h1 className="text-xl font-semibold text-ink">Sign in to Kutip</h1>
-          <p className="mt-2 text-base text-ink-2">Your fingerprint or face unlocks a key held securely on your device. There is no password and no seed phrase to keep.</p>
-          <Button size="lg" className="mt-6 w-full" onClick={() => setAuth("checking")} disabled={auth !== "idle"}>
-            {auth === "ok" ? <Check size={18} aria-hidden="true" /> : <Fingerprint size={18} aria-hidden="true" />}
-            {auth === "idle" ? "Continue with fingerprint / Face ID" : auth === "checking" ? "Checking with your device…" : "Signed in"}
-          </Button>
-          <p className="mt-3 text-center text-sm text-ink-3" aria-live="polite">
-            {auth === "ok" ? `Signed in as ${exporter.ownerName}` : "Works with Touch ID, Face ID and Windows Hello"}
-          </p>
-        </section>
-      ) : null}
+      {step === 0 ? <SignInStep onDone={() => setStep(1)} /> : null}
 
       {step === 1 ? (
         <section className="rounded-lg border border-line bg-surface p-6 sm:p-8">
@@ -172,5 +151,54 @@ export function Onboarding({ exporter, rulebook }: { exporter: Exporter; ruleboo
         Already set up? <Link href="/dashboard" className={buttonClass("ghost", "md", "h-auto px-1 py-0 text-accent")}>Go to the overview</Link>
       </p>
     </div>
+  );
+}
+
+/**
+ * Real passkey sign-in (Privy). "Continue" logs in with an existing passkey;
+ * first-time users create one. Privy creates the Solana embedded wallet on
+ * login; its address is the owner of the treasury multisig.
+ */
+function SignInStep({ onDone }: { onDone: () => void }) {
+  const owner = useOwnerWallet();
+  const [error, setError] = useState<string | null>(null);
+  const { loginWithPasskey, state: loginState } = useLoginWithPasskey({ onError: (e) => setError(String(e)) });
+  const { signupWithPasskey, state: signupState } = useSignupWithPasskey({ onError: (e) => setError(String(e)) });
+  const busy = !["initial", "error", "done"].includes(loginState.status) || !["initial", "error", "done"].includes(signupState.status);
+  const signedIn = owner.ready && owner.authenticated;
+
+  return (
+    <section className="rounded-lg border border-line bg-surface p-6 sm:p-8">
+      <h1 className="text-xl font-semibold text-ink">Sign in to Kutip</h1>
+      <p className="mt-2 text-base text-ink-2">Your fingerprint or face unlocks a key held securely on your device. There is no password and no seed phrase to keep.</p>
+      {signedIn ? (
+        <>
+          <div className="mt-6 grid gap-2 rounded-md bg-paper p-4 text-sm">
+            <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Signed in</span><span className="inline-flex items-center gap-1 text-ink"><Check size={14} aria-hidden="true" /> Passkey</span></div>
+            <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Your wallet</span>{owner.address ? <Address value={owner.address} /> : <span className="text-ink-3">Creating…</span>}</div>
+          </div>
+          <Button size="lg" className="mt-6 w-full" onClick={onDone} disabled={!owner.address}>Continue</Button>
+          <p className="mt-3 text-center text-sm text-ink-3">
+            Not you? <button type="button" onClick={() => owner.logout()} className="font-medium text-accent underline-offset-4 hover:underline">Sign out</button>
+          </p>
+        </>
+      ) : (
+        <>
+          <Button size="lg" className="mt-6 w-full" onClick={() => { setError(null); void loginWithPasskey(); }} disabled={!owner.ready || busy}>
+            <Fingerprint size={18} aria-hidden="true" />
+            {busy ? "Checking with your device…" : "Continue with fingerprint / Face ID"}
+          </Button>
+          <p className="mt-3 text-center text-sm text-ink-3" aria-live="polite">
+            {error ? <span className="text-overdue-fg">{error}</span> : "Works with Touch ID, Face ID and Windows Hello"}
+          </p>
+          <p className="mt-4 text-center text-sm text-ink-3">
+            First time here?{" "}
+            <button type="button" onClick={() => { setError(null); void signupWithPasskey(); }} disabled={!owner.ready || busy} className="font-medium text-accent underline-offset-4 hover:underline">
+              Create your passkey
+            </button>
+          </p>
+        </>
+      )}
+    </section>
   );
 }
