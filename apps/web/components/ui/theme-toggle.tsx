@@ -1,37 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 type Theme = "light" | "dark";
 
-function readTheme(): Theme {
-  if (typeof document === "undefined") return "light";
+function subscribe(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
+}
+
+function getSnapshot(): Theme {
   return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
 }
 
+function getServerSnapshot(): Theme {
+  return "light";
+}
+
+export function useTheme(): Theme {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+export function setTheme(next: Theme) {
+  document.documentElement.setAttribute("data-theme", next);
+  try {
+    localStorage.setItem("kutip-theme", next);
+  } catch {}
+}
+
 export function ThemeToggle({ className = "" }: { className?: string }) {
-  const [theme, setTheme] = useState<Theme>("light");
-
-  useEffect(() => {
-    setTheme(readTheme());
-  }, []);
-
-  function toggle() {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", next);
-    try {
-      localStorage.setItem("kutip-theme", next);
-    } catch {}
-    setTheme(next);
-  }
+  const theme = useTheme();
+  const next: Theme = theme === "dark" ? "light" : "dark";
 
   return (
     <button
       type="button"
-      onClick={toggle}
-      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      title={theme === "dark" ? "Light mode" : "Dark mode"}
-      className={`inline-flex h-8 w-8 items-center justify-center rounded-sm text-ink-2 hover:bg-paper-2 hover:text-ink transition-colors duration-(--dur-fast) ${className}`}
+      onClick={() => setTheme(next)}
+      aria-label={next === "dark" ? "Switch to dark mode" : "Switch to light mode"}
+      title={next === "dark" ? "Dark mode" : "Light mode"}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-sm text-ink-2 transition-colors duration-(--dur-fast) hover:bg-paper-2 hover:text-ink ${className}`}
     >
       {theme === "dark" ? (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
