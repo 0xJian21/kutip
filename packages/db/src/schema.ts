@@ -147,6 +147,8 @@ export const invoices = pgTable(
     seenAt: ts("seen_at"),
     paidAt: ts("paid_at"),
     settledAt: ts("settled_at"),
+    /** Date the buyer promised to pay (C5); reminders pause until the day after. */
+    promisedDate: date("promised_date", { mode: "string" }),
   },
   (t) => [
     unique("invoices_exporter_number_uq").on(t.exporterId, t.number),
@@ -182,6 +184,21 @@ export const payments = pgTable(
     finalizedAt: ts("finalized_at"),
   },
   (t) => [index("payments_invoice_idx").on(t.invoiceId)],
+).enableRLS();
+
+/** Jupiter ExactOut quote taken when the swap tx was built (Session 3); the execution receipt compares against it. */
+export const quotes = pgTable(
+  "quotes",
+  {
+    id: text("id").primaryKey(),
+    referencePubkey: text("reference_pubkey").notNull().references(() => invoices.referencePubkey),
+    /** Token the buyer pays with: "SOL" | "USDT". */
+    inputMint: text("input_mint").notNull(),
+    quotedInput: bigint("quoted_input", { mode: "bigint" }).notNull(), // lamports or USDT base units
+    quotedOut: usdc("quoted_out").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("quotes_reference_idx").on(t.referencePubkey, t.createdAt)],
 ).enableRLS();
 
 export const screenings = pgTable(

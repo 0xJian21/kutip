@@ -143,6 +143,8 @@ export async function resetDemo(db: Db): Promise<void> {
   await db.transaction(async (tx) => {
     const invoiceIds = tx.select({ id: s.invoices.id }).from(s.invoices).where(eq(s.invoices.exporterId, EXPORTER.id));
     await tx.delete(s.payments).where(inArray(s.payments.invoiceId, invoiceIds));
+    const refs = tx.select({ ref: s.invoices.referencePubkey }).from(s.invoices).where(eq(s.invoices.exporterId, EXPORTER.id));
+    await tx.delete(s.quotes).where(inArray(s.quotes.referencePubkey, refs));
     await tx.delete(s.messages).where(inArray(s.messages.invoiceId, invoiceIds));
     await tx.delete(s.screenings).where(inArray(s.screenings.invoiceId, invoiceIds));
     await tx.delete(s.agentActions).where(eq(s.agentActions.exporterId, EXPORTER.id));

@@ -139,6 +139,22 @@ export type MessageInput = {
 
 export type RateInput = { date: string; myrPerUsd: bigint; avg30dMyrPerUsd: bigint };
 
+/** Jupiter ExactOut quote for a swap payment. `inputMint` is the token the buyer pays with. */
+export type Quote = { inputMint: "SOL" | "USDT"; quotedInput: bigint; quotedOut: bigint };
+
+/** What the collections scheduler needs per open invoice. */
+export type OpenInvoice = {
+  invoiceId: string;
+  buyerId: string;
+  dueDate: string;
+  status: InvoiceStatus;
+  timezone: string;
+  promisedDate?: string;
+};
+
+/** A USDC token account whose balance the worker caches: the treasury (no buyerId) or a buyer vault. */
+export type BalanceAccount = { exporterId: string; buyerId?: string; usdcAta: string };
+
 /** Owner-facing groupings, same as the mock data layer. */
 const OPEN: InvoiceStatus[] = ["sent", "seen", "overdue", "partially_paid", "disputed"];
 const ATTENTION: InvoiceStatus[] = ["overdue", "disputed", "partially_paid", "seen"];
@@ -427,17 +443,81 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       };
     },
 
-    /** Listener: accounts for the gRPC subscription (all exporters). */
-    async listWatchedAccounts(): Promise<{ references: Array<{ invoiceId: string; referencePubkey: string }>; vaultAtas: string[] }> {
-      const [refs, vaults] = await Promise.all([
+    /**
+     * Listener: accounts for the gRPC subscription (all exporters). `balances`
+     * maps every treasury and vault USDC ATA to its owner for updateBalances.
+     */
+    async listWatchedAccounts(): Promise<{
+      references: Array<{ invoiceId: string; referencePubkey: string }>;
+      vaultAtas: string[];
+      balances: BalanceAccount[];
+    }> {
+      const [refs, vaults, treasuries] = await Promise.all([
         db
           .select({ invoiceId: s.invoices.id, referencePubkey: s.invoices.referencePubkey })
           .from(s.invoices)
           .where(inArray(s.invoices.status, WATCHED))
           .orderBy(asc(s.invoices.createdAt)),
-        db.select({ ata: s.buyers.usdcAta }).from(s.buyers),
+        db.select({ exporterId: s.buyers.exporterId, buyerId: s.buyers.id, usdcAta: s.buyers.usdcAta }).from(s.buyers),
+        db.select({ exporterId: s.exporters.id, usdcAta: s.exporters.treasuryUsdcAta }).from(s.exporters),
       ]);
-      return { references: refs, vaultAtas: vaults.map((v) => v.ata) };
+      return { references: refs, vaultAtas: vaults.map((v) => v.usdcAta), balances: [...treasuries, ...vaults] };
+    },
+
+    /** Payments (Session 3): store the Jupiter quote when building a swap payment tx. */
+    async recordQuote(referencePubkey: string, quote: Quote & { at?: Date }): Promise<void> {
+      await db.insert(s.quotes).values({
+        id: newId("qte"),
+        referencePubkey,
+        inputMint: quote.inputMint,
+        quotedInput: quote.quotedInput,
+        quotedOut: quote.quotedOut,
+        createdAt: quote.at ?? new Date(),
+      });
+    },
+
+    /** Listener: the most recent quote for this reference and input token (the tx the buyer signed). */
+    async latestQuote(referencePubkey: string, inputMint: Quote["inputMint"]): Promise<Quote | null> {
+      const [q] = await db
+        .select()
+        .from(s.quotes)
+        .where(and(eq(s.quotes.referencePubkey, referencePubkey), eq(s.quotes.inputMint, inputMint)))
+        .orderBy(desc(s.quotes.createdAt), desc(s.quotes.id))
+        .limit(1);
+      return q ? { inputMint, quotedInput: q.quotedInput, quotedOut: q.quotedOut } : null;
+    },
+
+    async listExporterIds(): Promise<string[]> {
+      const rows = await db.select({ id: s.exporters.id }).from(s.exporters).orderBy(asc(s.exporters.createdAt));
+      return rows.map((r) => r.id);
+    },
+
+    /** Scheduler: invoices that still expect money, earliest due first. */
+    async listOpenInvoices(exporterId: string): Promise<OpenInvoice[]> {
+      const rows = await db
+        .select({
+          invoiceId: s.invoices.id,
+          buyerId: s.invoices.buyerId,
+          dueDate: s.invoices.dueDate,
+          status: s.invoices.status,
+          timezone: s.buyers.timezone,
+          promisedDate: s.invoices.promisedDate,
+        })
+        .from(s.invoices)
+        .innerJoin(s.buyers, eq(s.buyers.id, s.invoices.buyerId))
+        .where(and(eq(s.invoices.exporterId, exporterId), inArray(s.invoices.status, OPEN)))
+        .orderBy(asc(s.invoices.dueDate), asc(s.invoices.id));
+      return rows.map(({ promisedDate, ...r }) => (promisedDate ? { ...r, promisedDate } : r));
+    },
+
+    /** Agent (C5): the buyer promised to pay on `date`; null clears it. */
+    async setPromisedDate(exporterId: string, invoiceId: string, date: string | null): Promise<void> {
+      const rows = await db
+        .update(s.invoices)
+        .set({ promisedDate: date })
+        .where(and(eq(s.invoices.id, invoiceId), eq(s.invoices.exporterId, exporterId)))
+        .returning({ id: s.invoices.id });
+      if (rows.length === 0) throw new Error(`invoice not found for this exporter: ${invoiceId}`);
     },
 
     async listBuyers(exporterId: string): Promise<Buyer[]> {

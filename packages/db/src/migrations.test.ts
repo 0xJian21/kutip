@@ -8,7 +8,7 @@ test("migrations apply on plain Postgres and create every table with RLS on", as
     sql`select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' order by relname`,
   )) as unknown as { rows: Array<{ relname: string; relrowsecurity: boolean }> };
   expect(result.rows).toEqual(
-    ["agent_actions", "buyers", "exporters", "fx_rates", "invoices", "messages", "payments", "screenings", "sweeps", "users"].map(
+    ["agent_actions", "buyers", "exporters", "fx_rates", "invoices", "messages", "payments", "quotes", "screenings", "sweeps", "users"].map(
       (relname) => ({ relname, relrowsecurity: true }),
     ),
   );

@@ -15,6 +15,20 @@
       "when": 1790453552717,
       "tag": "0001_realtime",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790457099001,
+      "tag": "0002_worker",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790457104830,
+      "tag": "0003_realtime_broadcast",
+      "breakpoints": true
     }
   ]
 }
