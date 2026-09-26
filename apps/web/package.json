@@ -11,6 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@kutip/db": "workspace:*",
+    "@kutip/solana": "workspace:*",
     "lucide-react": "^1.48.0",
     "next": "16.3.6",
     "qrcode": "^1.5.4",

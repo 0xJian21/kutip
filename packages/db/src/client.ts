@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -15,4 +17,5 @@ export function connect(url: string, opts: { max?: number } = {}): { db: Db; clo
   return { db: drizzle({ client, schema }), close: () => client.end() };
 }
 
-export const MIGRATIONS_FOLDER = new URL("../drizzle", import.meta.url).pathname;
+// Not `new URL("../drizzle", import.meta.url)`: bundlers (Next/Turbopack) treat that pattern as an asset reference and fail.
+export const MIGRATIONS_FOLDER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle");
