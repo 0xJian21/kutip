@@ -4,5 +4,20 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests" }
+  "scripts": {
+    "typecheck": "tsc --noEmit && tsc --noEmit -p seed",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file=../../.env src/migrate.ts",
+    "db:seed": "tsx --tsconfig seed/tsconfig.json --env-file=../../.env seed/run.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.3",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "^26.6.3",
+    "drizzle-kit": "^0.31.11"
+  }
 }

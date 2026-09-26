@@ -1,0 +1,1265 @@
+{
+  "id": "82fc7cc9-5730-4224-a0c5-8d03011104f6",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.agent_actions": {
+      "name": "agent_actions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "exporter_id": {
+          "name": "exporter_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer_id": {
+          "name": "buyer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invoice_id": {
+          "name": "invoice_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "agent_action_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_summary": {
+          "name": "input_summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision": {
+          "name": "decision",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rule_id": {
+          "name": "rule_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "agent_action_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_signature": {
+          "name": "tx_signature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_actions_exporter_created_idx": {
+          "name": "agent_actions_exporter_created_idx",
+          "columns": [
+            {
+              "expression": "exporter_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_actions_buyer_idx": {
+          "name": "agent_actions_buyer_idx",
+          "columns": [
+            {
+              "expression": "buyer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_actions_exporter_id_exporters_id_fk": {
+          "name": "agent_actions_exporter_id_exporters_id_fk",
+          "tableFrom": "agent_actions",
+          "tableTo": "exporters",
+          "columnsFrom": [
+            "exporter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "agent_actions_buyer_id_buyers_id_fk": {
+          "name": "agent_actions_buyer_id_buyers_id_fk",
+          "tableFrom": "agent_actions",
+          "tableTo": "buyers",
+          "columnsFrom": [
+            "buyer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "agent_actions_invoice_id_invoices_id_fk": {
+          "name": "agent_actions_invoice_id_invoices_id_fk",
+          "tableFrom": "agent_actions",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.buyers": {
+      "name": "buyers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "exporter_id": {
+          "name": "exporter_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country_name": {
+          "name": "country_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "multisig": {
+          "name": "multisig",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vault": {
+          "name": "vault",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usdc_ata": {
+          "name": "usdc_ata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "spending_limit_pda": {
+          "name": "spending_limit_pda",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vault_usdc_balance": {
+          "name": "vault_usdc_balance",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "buyers_exporter_idx": {
+          "name": "buyers_exporter_idx",
+          "columns": [
+            {
+              "expression": "exporter_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "buyers_exporter_id_exporters_id_fk": {
+          "name": "buyers_exporter_id_exporters_id_fk",
+          "tableFrom": "buyers",
+          "tableTo": "exporters",
+          "columnsFrom": [
+            "exporter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.exporters": {
+      "name": "exporters",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_no": {
+          "name": "registration_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "treasury_multisig": {
+          "name": "treasury_multisig",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "treasury_vault": {
+          "name": "treasury_vault",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "treasury_usdc_ata": {
+          "name": "treasury_usdc_ata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "treasury_usdc_balance": {
+          "name": "treasury_usdc_balance",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "rulebook": {
+          "name": "rulebook",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cash_out_whitelist": {
+          "name": "cash_out_whitelist",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.fx_rates": {
+      "name": "fx_rates",
+      "schema": "",
+      "columns": {
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "myr_per_usd": {
+          "name": "myr_per_usd",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "avg_30d_myr_per_usd": {
+          "name": "avg_30d_myr_per_usd",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.invoices": {
+      "name": "invoices",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "exporter_id": {
+          "name": "exporter_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer_id": {
+          "name": "buyer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_items": {
+          "name": "line_items",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_usdc": {
+          "name": "amount_usdc",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_usdc": {
+          "name": "received_usdc",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "invoice_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "reference_pubkey": {
+          "name": "reference_pubkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memo_code": {
+          "name": "memo_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seen_at": {
+          "name": "seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "settled_at": {
+          "name": "settled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "invoices_exporter_idx": {
+          "name": "invoices_exporter_idx",
+          "columns": [
+            {
+              "expression": "exporter_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invoices_buyer_idx": {
+          "name": "invoices_buyer_idx",
+          "columns": [
+            {
+              "expression": "buyer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "invoices_exporter_id_exporters_id_fk": {
+          "name": "invoices_exporter_id_exporters_id_fk",
+          "tableFrom": "invoices",
+          "tableTo": "exporters",
+          "columnsFrom": [
+            "exporter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "invoices_buyer_id_buyers_id_fk": {
+          "name": "invoices_buyer_id_buyers_id_fk",
+          "tableFrom": "invoices",
+          "tableTo": "buyers",
+          "columnsFrom": [
+            "buyer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "invoices_reference_pubkey_unique": {
+          "name": "invoices_reference_pubkey_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reference_pubkey"
+          ]
+        },
+        "invoices_memo_code_unique": {
+          "name": "invoices_memo_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "memo_code"
+          ]
+        },
+        "invoices_exporter_number_uq": {
+          "name": "invoices_exporter_number_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "exporter_id",
+            "number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "invoices_amount_positive": {
+          "name": "invoices_amount_positive",
+          "value": "\"invoices\".\"amount_usdc\" > 0"
+        },
+        "invoices_received_nonneg": {
+          "name": "invoices_received_nonneg",
+          "value": "\"invoices\".\"received_usdc\" >= 0"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.messages": {
+      "name": "messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "invoice_id": {
+          "name": "invoice_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "direction": {
+          "name": "direction",
+          "type": "message_direction",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'email'"
+        },
+        "from": {
+          "name": "from",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "classification": {
+          "name": "classification",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "messages_invoice_idx": {
+          "name": "messages_invoice_idx",
+          "columns": [
+            {
+              "expression": "invoice_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "messages_invoice_id_invoices_id_fk": {
+          "name": "messages_invoice_id_invoices_id_fk",
+          "tableFrom": "messages",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.payments": {
+      "name": "payments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "invoice_id": {
+          "name": "invoice_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signature": {
+          "name": "signature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payer": {
+          "name": "payer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mint": {
+          "name": "mint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'USDC'"
+        },
+        "amount": {
+          "name": "amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_mint": {
+          "name": "input_mint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "input_amount": {
+          "name": "input_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quoted_input": {
+          "name": "quoted_input",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quoted_out": {
+          "name": "quoted_out",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commitment": {
+          "name": "commitment",
+          "type": "commitment",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slot": {
+          "name": "slot",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verified": {
+          "name": "verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "issues": {
+          "name": "issues",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "via": {
+          "name": "via",
+          "type": "payment_via",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finalized_at": {
+          "name": "finalized_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "payments_invoice_idx": {
+          "name": "payments_invoice_idx",
+          "columns": [
+            {
+              "expression": "invoice_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "payments_invoice_id_invoices_id_fk": {
+          "name": "payments_invoice_id_invoices_id_fk",
+          "tableFrom": "payments",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "payments_signature_unique": {
+          "name": "payments_signature_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "signature"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.screenings": {
+      "name": "screenings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "wallet": {
+          "name": "wallet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoice_id": {
+          "name": "invoice_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result": {
+          "name": "result",
+          "type": "screening_result",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reasons": {
+          "name": "reasons",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "screenings_wallet_idx": {
+          "name": "screenings_wallet_idx",
+          "columns": [
+            {
+              "expression": "wallet",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "screenings_invoice_id_invoices_id_fk": {
+          "name": "screenings_invoice_id_invoices_id_fk",
+          "tableFrom": "screenings",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.sweeps": {
+      "name": "sweeps",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "exporter_id": {
+          "name": "exporter_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer_ids": {
+          "name": "buyer_ids",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_usdc": {
+          "name": "amount_usdc",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "signature": {
+          "name": "signature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scheduled_for": {
+          "name": "scheduled_for",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "executed_at": {
+          "name": "executed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "sweeps_exporter_idx": {
+          "name": "sweeps_exporter_idx",
+          "columns": [
+            {
+              "expression": "exporter_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sweeps_exporter_id_exporters_id_fk": {
+          "name": "sweeps_exporter_id_exporters_id_fk",
+          "tableFrom": "sweeps",
+          "tableTo": "exporters",
+          "columnsFrom": [
+            "exporter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sweeps_signature_unique": {
+          "name": "sweeps_signature_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "signature"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "exporter_id": {
+          "name": "exporter_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "privy_user_id": {
+          "name": "privy_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wallet_pubkey": {
+          "name": "wallet_pubkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "user_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "users_exporter_idx": {
+          "name": "users_exporter_idx",
+          "columns": [
+            {
+              "expression": "exporter_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "users_exporter_id_exporters_id_fk": {
+          "name": "users_exporter_id_exporters_id_fk",
+          "tableFrom": "users",
+          "tableTo": "exporters",
+          "columnsFrom": [
+            "exporter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_privy_user_id_unique": {
+          "name": "users_privy_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "privy_user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    }
+  },
+  "enums": {
+    "public.agent_action_kind": {
+      "name": "agent_action_kind",
+      "schema": "public",
+      "values": [
+        "reminder",
+        "classify_reply",
+        "sweep",
+        "sweep_proposal",
+        "escalate",
+        "cash_out_alert",
+        "extract_invoice",
+        "cancel_reminders"
+      ]
+    },
+    "public.agent_action_status": {
+      "name": "agent_action_status",
+      "schema": "public",
+      "values": [
+        "proposed",
+        "approved",
+        "executed",
+        "rejected",
+        "escalated"
+      ]
+    },
+    "public.commitment": {
+      "name": "commitment",
+      "schema": "public",
+      "values": [
+        "processed",
+        "confirmed",
+        "finalized"
+      ]
+    },
+    "public.invoice_status": {
+      "name": "invoice_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "sent",
+        "seen",
+        "paid",
+        "settled",
+        "partially_paid",
+        "overdue",
+        "disputed"
+      ]
+    },
+    "public.message_direction": {
+      "name": "message_direction",
+      "schema": "public",
+      "values": [
+        "out",
+        "in"
+      ]
+    },
+    "public.payment_via": {
+      "name": "payment_via",
+      "schema": "public",
+      "values": [
+        "solana_pay",
+        "x402"
+      ]
+    },
+    "public.screening_result": {
+      "name": "screening_result",
+      "schema": "public",
+      "values": [
+        "pass",
+        "flag"
+      ]
+    },
+    "public.user_role": {
+      "name": "user_role",
+      "schema": "public",
+      "values": [
+        "owner",
+        "admin"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
