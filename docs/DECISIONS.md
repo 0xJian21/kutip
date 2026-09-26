@@ -60,6 +60,16 @@ Each decision: what, why, alternatives rejected, and what would make us revisit 
 
 ---
 
+## Decisions after the spikes (2026-09-27, user)
+1. **Wallets:** ship "verified on Phantom and Solflare". Backpack dropped.
+2. **SOL payments stay** (Jupiter ExactOut, Swap API v1 pinned) with a USDC-only fallback flag. If v1 breaks, drop SOL from the demo rather than burn time.
+3. **Solami SWQoS/Beam:** not on the critical path. If it can't work with current resources, skip it; the user contacts Solami only if it matters for the demo. Pitch = gRPC as the data path (+ webhooks/Blur only if trivially available).
+4. **Agent:** Haiku first. Jev via OpenRouter (`typesafe/jev-1.13`, no waitlist, `OPENROUTER_API_KEY`) as the upgrade behind the same interface.
+5. **Realtime:** Broadcast from DB triggers on per-invoice topics (Session 4a option (a)); anon key keeps zero table access.
+6. **Squads allowlist correction:** spending-limit `destinations` = treasury **vault PDA**, not its USDC ATA (applies to Session 5 and to `@kutip/agent` `treasuryMove`'s destination check).
+7. **Data model:** `packages/db/src/schema.ts` is the source of truth; ARCHITECTURE.md's table list is indicative only.
+8. **Git (hackathon):** commits straight to `main` are allowed during this build; sessions still use their own worktree + `feat/*` branch and are merged into `main` by the integrator.
+
 ## Spike results (Session 1)
 <!-- Append: spike id, date, PASS/FAIL, evidence (tx signatures, logs), consequence for the plan -->
 

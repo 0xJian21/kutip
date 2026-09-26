@@ -35,7 +35,7 @@
 | `packages/db` | Drizzle schema, migrations, typed queries | Business logic |
 | `scripts/` | One-shot provisioning (read-only phase first, skip-if-done) | Be imported by apps |
 
-## Data model (initial)
+## Data model (initial — source of truth is `packages/db/src/schema.ts`)
 
 ```
 exporters        id, name, owner_user_id, treasury_multisig, treasury_vault, treasury_usdc_ata, rulebook jsonb

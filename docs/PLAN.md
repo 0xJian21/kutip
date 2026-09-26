@@ -20,25 +20,28 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - [x] Screens on mock data: landing, onboarding, dashboard, invoice list/detail (live status bar, execution receipt), new invoice (PDF drop), agent log, rulebook, treasury, buyer pay page (mobile-first); loading/empty/error states (`?mock=empty|error|slow`)
 - [x] Screenshots at desktop + mobile, light + dark in `docs/screenshots/`; critique fixes applied; simulate-payment rehearsal (invoice tab + phone tab) verified
 
-## Session 3 — Payments core (Sep 28) · Fable · `feat/payments` · owns `packages/solana`, `apps/web/app/api`
-- [ ] Tx-request endpoint (GET/POST), screening, fee-payer guardrails
-- [ ] Jupiter ExactOut path
+## Session 3 — Payments core (Sep 28) · Fable · `feat/payments` · owns `packages/solana/src/payments/**`, `packages/solana/src/shared/**`, `apps/web/app/api/pay/**`, `apps/web/app/api/x402/**`
+- [ ] Tx-request endpoint (GET/POST), screening, fee-payer guardrails (start from `spikes/a-solana-pay`)
+- [ ] Jupiter ExactOut path — **pinned to Swap API v1**; check v1 decommission date first; USDC-only fallback behind a flag
 - [ ] x402 endpoint + self-hosted facilitator verify/settle
 - [ ] Payment verification function (mint, amount, destination, memo)
 
-## Session 4 — Worker (Sep 28–29) · Opus · `feat/worker` · owns `apps/worker`, `packages/db`
+## Session 4 — Worker (Sep 28–29) · Opus · `feat/worker` · owns `apps/worker`, `packages/db`, `apps/web/app/api/realtime/**` (if SSE is needed)
 - [x] DB schema + migrations (Session 4a, `feat/db`): Drizzle schema, RLS on every table, Realtime publication on invoices/payments/agent_actions, typed store in `@kutip/db`, `db:seed` loads Session 2 fixtures (query-for-query parity test vs `mockData`). Applied to Supabase 2026-09-27: both migrations applied, demo seeded, RLS on for all 10 tables, Realtime publishing the 3 tables, parity with `mockData` re-checked on the live DB, anon REST read of `invoices` returns `[]`.
-- [ ] Solami gRPC listener → verification → status updates (Realtime)
+- [ ] Solami gRPC listener → verification → status updates (start from `spikes/c-solami/listen.ts`; resend full filters with every ping; raw `getTransaction`)
+- [ ] Realtime: **Broadcast from DB triggers on per-invoice topics** (decided: option (a) in Requests) + `invoices.promised_date` column (6a request)
+- [ ] Scheduler: reminders via `@kutip/agent` `nextReminder`, overdue marking, BNM rate + 30-day avg → `recordRate`, cash-out alert
 - [ ] Execution receipt, fee-payer health monitor
+- [ ] Known flake: `packages/db` `owner.test.ts > treasury` fails only under `pnpm -r test` load (passes alone) — raise its timeout
 
-## Session 5 — Treasury + login (Sep 29) · Fable · `feat/treasury` · owns `scripts/`, treasury parts of `packages/solana`
-- [ ] Provision treasury + per-buyer multisigs + ATAs + spending limits
+## Session 5 — Treasury + login (Sep 29) · Fable · `feat/treasury` · owns `scripts/`, `packages/solana/src/treasury/**`, `apps/web/app/api/treasury/**`, auth wiring in `apps/web` (Privy provider + login page only)
+- [ ] Provision treasury + per-buyer multisigs + ATAs + spending limits (start from `spikes/b-squads/run.ts`; **allowlist = treasury vault PDA, not its ATA**)
 - [ ] Sweeper (batched, randomised), proposals for owner approval
 - [ ] Privy passkey login; owner approves proposals from UI
 
 ## Session 6 — Agent (Sep 29–30) · Opus · `feat/agent` · owns `packages/agent`
 - [x] Rules engine + rulebook schema (6a: `rulebook.ts`, `rules/*`: reminders C1/C2/C4/C5/C6, replies, discount C3, sweep T2–T4, cash-out T5, each returns `{allowed, ruleId, reason}`)
-- [ ] Jev classifiers (reply intent, tone, sweep, escalate) + Haiku fallback (6a: `ReplyClassifier` interface + Haiku classifier done, 11/11 on eval; `jevClassifier` is a stub waiting on Spike D → 6b)
+- [ ] 6b: Jev via **OpenRouter** (`typesafe/jev-1.13`, no waitlist) behind `ReplyClassifier`, falling back to Haiku; Haiku stays the default until Jev matches the 11/11 eval (6a: `ReplyClassifier` interface + Haiku classifier done, 11/11 on eval; `jevClassifier` is a stub waiting on Spike D → 6b)
 - [x] Haiku: reminder emails (friendly/firm/final), receipts, agent-log explanations, PDF extraction (3 fixture PDFs, `pnpm --filter @kutip/agent eval`)
 - [x] Buyer-scoped context + leak test (`BuyerContext` branded, one buyer only; `privacy.test.ts` asserts on the HTTP body sent)
 - [x] Reminder scheduler, cash-out alert (6a: pure `nextReminder` / `cashOutAlert`; the worker runs them on a timer and fetches the BNM rate, see Requests)
