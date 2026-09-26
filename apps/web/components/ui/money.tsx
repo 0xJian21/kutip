@@ -19,6 +19,7 @@ export function MoneyFigure({
   size = "lg",
   label,
   align = "left",
+  footnote = true,
   className = "",
 }: {
   usdc: bigint;
@@ -26,6 +27,8 @@ export function MoneyFigure({
   size?: Size;
   label?: string;
   align?: "left" | "right" | "center";
+  /** Show "at BNM reference rate x" under the USD line. Once per screen is enough. */
+  footnote?: boolean;
   className?: string;
 }) {
   const myr = toMyr(usdc, rate);
@@ -39,7 +42,7 @@ export function MoneyFigure({
       </div>
       <div className="mt-1 text-base tabular text-ink-2">
         {formatUsdc(usdc)} USD
-        <span className="text-ink-3"> · at BNM reference rate {formatRate(rate)}</span>
+        {footnote ? <span className="text-ink-3"> · at BNM reference rate {formatRate(rate)}</span> : null}
       </div>
     </div>
   );

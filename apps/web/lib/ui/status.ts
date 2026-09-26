@@ -61,3 +61,24 @@ export const AGENT_STATUS_CLASS: Record<AgentActionStatus, string> = {
   rejected: "bg-paper-2 text-ink-2",
   escalated: "bg-overdue-bg text-overdue-fg",
 };
+
+export type AgentActionKind =
+  | "reminder"
+  | "classify_reply"
+  | "sweep"
+  | "sweep_proposal"
+  | "escalate"
+  | "cash_out_alert"
+  | "extract_invoice"
+  | "cancel_reminders";
+
+export const AGENT_KIND_LABEL: Record<AgentActionKind, string> = {
+  reminder: "Reminder",
+  classify_reply: "Buyer reply",
+  sweep: "Sweep",
+  sweep_proposal: "Sweep proposal",
+  escalate: "Escalation",
+  cash_out_alert: "Cash-out alert",
+  extract_invoice: "Invoice read",
+  cancel_reminders: "Payment received",
+};

@@ -5,9 +5,9 @@
  * components only ever import these types and that interface.
  */
 import type { BnmRate } from "./money";
-import type { AgentActionStatus, InvoiceStatus } from "./status";
+import type { AgentActionKind, AgentActionStatus, InvoiceStatus } from "./status";
 
-export type { BnmRate, AgentActionStatus, InvoiceStatus };
+export type { BnmRate, AgentActionKind, AgentActionStatus, InvoiceStatus };
 
 export type Rulebook = {
   collections: {
@@ -104,16 +104,6 @@ export type Payment = {
   feePaidByKutip: true;
   via: "solana_pay" | "x402";
 };
-
-export type AgentActionKind =
-  | "reminder"
-  | "classify_reply"
-  | "sweep"
-  | "sweep_proposal"
-  | "escalate"
-  | "cash_out_alert"
-  | "extract_invoice"
-  | "cancel_reminders";
 
 export type AgentAction = {
   id: string;

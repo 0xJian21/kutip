@@ -58,6 +58,35 @@ function actionWithOverrides(a: AgentAction): AgentAction {
   return o ? { ...a, status: o.status } : a;
 }
 
+/** Actions the agent would log when a simulated payment lands. */
+function simulatedActions(): AgentAction[] {
+  const out: AgentAction[] = [];
+  for (const [id, o] of Object.entries(store.get().invoices)) {
+    const inv = INVOICES.find((i) => i.id === id);
+    if (!inv) continue;
+    if (o.paidAt) {
+      out.push({
+        id: `act_sim_${id}_paid`,
+        kind: "cancel_reminders",
+        buyerId: inv.buyerId,
+        invoiceId: id,
+        inputSummary: `${inv.number} paid${o.payment?.inputMint ? ` in ${o.payment.inputMint}` : ""}`,
+        decision: "Cancelled the reminder schedule and emailed a receipt to the buyer and you",
+        reason: "Payment received for the full amount",
+        confidence: 1,
+        ruleId: "C6",
+        status: "executed",
+        createdAt: o.paidAt,
+      });
+    }
+  }
+  return out;
+}
+
+function allActions(): AgentAction[] {
+  return [...AGENT_ACTIONS.map(actionWithOverrides), ...simulatedActions()];
+}
+
 function allInvoices(): Invoice[] {
   return INVOICES.map(withOverrides);
 }
@@ -85,7 +114,7 @@ function detail(id: string): InvoiceDetail | null {
     buyer,
     payments: paymentsFor(id),
     messages: byNewest(MESSAGES.filter((m) => m.invoiceId === id)).reverse(),
-    actions: byNewest(AGENT_ACTIONS.filter((a) => a.invoiceId === id).map(actionWithOverrides)),
+    actions: byNewest(allActions().filter((a) => a.invoiceId === id)),
     rate: RATE,
   };
 }
@@ -140,7 +169,7 @@ export const mockData: KutipData = {
       attention: open
         .filter((i) => ATTENTION.includes(i.status))
         .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1)),
-      activity: opts?.scenario === "empty" ? [] : byNewest(AGENT_ACTIONS.map(actionWithOverrides)).slice(0, 8),
+      activity: opts?.scenario === "empty" ? [] : byNewest(allActions()).slice(0, 8),
     } satisfies DashboardSummary;
   },
 
@@ -179,7 +208,7 @@ export const mockData: KutipData = {
   async listAgentActions(opts) {
     await settle(opts);
     if (opts?.scenario === "empty") return [];
-    return byNewest(AGENT_ACTIONS.map(actionWithOverrides));
+    return byNewest(allActions());
   },
 
   async decideAction(id, decision) {
@@ -238,6 +267,10 @@ export const mockData: KutipData = {
     };
     emit();
     return store.subscribe(emit);
+  },
+
+  subscribeChanges(onChange) {
+    return store.subscribe(onChange);
   },
 
   subscribePayInvoice(id, onChange) {

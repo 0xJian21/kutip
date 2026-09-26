@@ -40,6 +40,8 @@ export type KutipData = {
    * Returns an unsubscribe function. Client-side only.
    */
   subscribeInvoice(id: string, onChange: (detail: InvoiceDetail) => void): () => void;
+  /** Fires when any invoice, payment or agent action changes. Real: Realtime on those tables. */
+  subscribeChanges(onChange: () => void): () => void;
   subscribePayInvoice(id: string, onChange: (pay: PayInvoice) => void): () => void;
 
   /** Dev-only: walk an invoice through seen → paid → settled with realistic delays. */
