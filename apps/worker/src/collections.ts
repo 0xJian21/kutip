@@ -6,7 +6,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { buildBuyerContext, nextReminder, writeReceipt, writeReminder, type Email } from "@kutip/agent";
 import type { BuyerContext, Store } from "@kutip/db";
-import type { Mailer } from "./email";
+import type { Mailer } from "@kutip/agent";
 import type { PaidInvoice } from "./payments";
 
 /** Today's date (YYYY-MM-DD) on the buyer's wall clock. */

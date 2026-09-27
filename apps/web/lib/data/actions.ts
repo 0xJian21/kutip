@@ -5,7 +5,7 @@
  * check the session and scope every call to its exporter; fetchPayInvoice is public.
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { explainAction, extractInvoice, haikuClassifier, jevClassifier } from "@kutip/agent";
+import { createMailer, explainAction, extractInvoice, formatUsdc, haikuClassifier, jevClassifier } from "@kutip/agent";
 import { Keypair } from "@kutip/solana";
 import { refresh } from "next/cache";
 import { MOCK, signIn, signOut } from "@/lib/server/auth";
@@ -79,8 +79,23 @@ export async function readInvoicePdf(form: FormData): Promise<ExtractedDraft> {
   return { buyerId: match?.id ?? null, buyerName: x.buyerName, invoiceNumber: x.invoiceNumber, dueDate: x.dueDate, lineItems: x.lineItems, totalUsdc: x.totalUsdc, warnings };
 }
 
-/** New invoice, step 2: create it as sent with a fresh Solana Pay reference key. */
-export async function createInvoice(input: { buyerId: string; number?: string; dueDate: string; lineItems: LineItem[] }): Promise<{ id: string; number: string; payUrl: string }> {
+/** Invoice email with the pay link (SPEC F3). Deterministic template: amounts and dates are never LLM-written. */
+function mailer() {
+  return createMailer({
+    apiKey: process.env.RESEND_API_KEY,
+    from: process.env.EMAIL_FROM ?? "Kutip <onboarding@resend.dev>",
+    allowlist: (process.env.EMAIL_ALLOWLIST ?? "").split(",").map((a) => a.trim()).filter(Boolean),
+    log: (m) => console.warn(`[email] ${m}`),
+  });
+}
+
+/** New invoice, step 2: create it as sent with a fresh Solana Pay reference key, then email the buyer the pay link. */
+export async function createInvoice(input: {
+  buyerId: string;
+  number?: string;
+  dueDate: string;
+  lineItems: LineItem[];
+}): Promise<{ id: string; number: string; payUrl: string; sentTo: string; delivery: "sent" | "recorded" | "skipped" | "failed" }> {
   const { exporterId } = await ownerDataOrThrow();
   if (MOCK) throw new Error("Creating invoices needs the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) throw new Error("Enter a due date");
@@ -97,7 +112,25 @@ export async function createInvoice(input: { buyerId: string; number?: string; d
       referencePubkey: Keypair.generate().publicKey.toBase58(),
       status: "sent",
     });
-    return { id: inv.id, number: inv.number, payUrl: inv.payUrl };
+    const [exporter, buyers] = await Promise.all([store().getExporter(exporterId), store().listBuyers(exporterId)]);
+    const buyer = buyers.find((b) => b.id === inv.buyerId)!;
+    const from = exporter?.name ?? "Kutip";
+    const email = {
+      subject: `Invoice ${inv.number} from ${from}`,
+      body: [
+        `Hi ${buyer.contactName},`,
+        "",
+        `Please find invoice ${inv.number} for USD ${formatUsdc(inv.amountUsdc)}, due ${inv.dueDate}.`,
+        "",
+        `Pay online in USDC or SOL; the network fee is covered: ${inv.payUrl}`,
+        "",
+        "Thank you,",
+        from,
+      ].join("\n"),
+    };
+    await store().recordMessage({ invoiceId: inv.id, direction: "out", from, subject: email.subject, body: email.body });
+    const delivery = await mailer().send(buyer.email, email);
+    return { id: inv.id, number: inv.number, payUrl: inv.payUrl, sentTo: buyer.email, delivery };
   } catch (e) {
     if (/unique|duplicate/i.test((e as Error).message)) throw new Error(`Invoice number ${input.number} is already used`);
     throw e;

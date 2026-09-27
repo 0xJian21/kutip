@@ -12,7 +12,7 @@ import { createBalances } from "./balances";
 import { createCollections } from "./collections";
 import { createDispatcher } from "./dispatch";
 import { loadConfig } from "./config";
-import { createMailer } from "./email";
+import { createMailer } from "@kutip/agent";
 import { createPaymentTracker } from "./payments";
 import { updateRate } from "./rates";
 import { createRpc } from "./rpc";

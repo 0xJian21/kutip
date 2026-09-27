@@ -3,7 +3,7 @@
  * Only addresses on the allowlist (EMAIL_ALLOWLIST, comma-separated; "*" = anyone) and their +aliases
  * are mailed. No allowlist = nothing is sent: the demo database holds fictional buyer addresses.
  */
-import type { Email } from "@kutip/agent";
+import type { Email } from "./writer";
 
 export type Mailer = { send(to: string, email: Email): Promise<"sent" | "recorded" | "skipped" | "failed"> };
 

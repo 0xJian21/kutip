@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { createMailer } from "./email";
+import { createMailer } from "./mailer";
 
 const email = { subject: "Invoice INV-2026-0001", body: "Hi" };
 

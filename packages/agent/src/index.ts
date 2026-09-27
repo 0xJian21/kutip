@@ -9,3 +9,4 @@ export { explainAction, writeReceipt, writeReminder, type AgentActionKind, type 
 export { extractInvoice, type ExtractedInvoice } from "./extract";
 export { formatUsdc, parseUsdc } from "./money";
 export { HAIKU } from "./llm";
+export { createMailer, type Mailer } from "./mailer";

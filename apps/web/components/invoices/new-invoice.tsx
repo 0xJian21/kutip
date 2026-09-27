@@ -31,7 +31,7 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
-  const [created, setCreated] = useState<{ id: string; number: string; payUrl: string } | null>(null);
+  const [created, setCreated] = useState<Awaited<ReturnType<typeof createInvoice>> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const headingId = useId();
 
@@ -98,6 +98,17 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
 
   const buyer = buyers.find((b) => b.id === buyerId);
 
+  function reset() {
+    setPhase("drop");
+    setCreated(null);
+    setFileName(null);
+    setNumber("");
+    setDueDate("");
+    setLines(EMPTY_LINES);
+    setWarnings([]);
+    setError(null);
+  }
+
   if (phase === "created" && created) {
     const { id: invoiceId, payUrl } = created;
     return (
@@ -108,12 +119,14 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
           </div>
           <div className="grid gap-4">
             <p className="text-base text-ink">
-              Sent to {buyer?.contactName} at {buyer?.email}. The first reminder goes out three days before {formatDate(dueDate)}.
+              {created.delivery === "sent" ? `Emailed to ${buyer?.contactName} at ${created.sentTo}.` : `Saved. The email to ${created.sentTo} was not sent (${created.delivery === "skipped" ? "address not on the email allowlist" : created.delivery === "recorded" ? "no email provider configured" : "the email provider refused it"}); share the pay link below.`}{" "}
+              The first reminder goes out three days before {formatDate(dueDate)}.
             </p>
             <CopyField label="Pay link" value={payUrl} href={`/pay/${invoiceId}`} />
             <div className="flex flex-wrap gap-2">
               <ButtonLink href={`/invoices/${invoiceId}`}>View invoice</ButtonLink>
               <ButtonLink variant="secondary" href={`/pay/${invoiceId}`}>Open pay page</ButtonLink>
+              <Button variant="ghost" onClick={reset}>Create another</Button>
             </div>
           </div>
         </div>
