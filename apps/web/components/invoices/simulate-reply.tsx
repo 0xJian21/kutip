@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
 import { DEMO_CONTROLS } from "@/components/invoices/simulate-control";
 import { simulateBuyerReply } from "@/lib/data/actions";
+import { unwrap } from "@/lib/data/result";
 import { MOCK } from "@/lib/ui/data";
 
 const SAMPLES = [
@@ -29,7 +30,7 @@ export function SimulateReply({ invoiceId, buyerName }: { invoiceId: string; buy
     setResult(null);
     startTransition(async () => {
       try {
-        const out = await simulateBuyerReply(invoiceId, text);
+        const out = unwrap(await simulateBuyerReply(invoiceId, text));
         setResult(`Read as ${out.intent.replaceAll("_", " ")} (${Math.round(out.confidence * 100)}%). ${out.action.decision}`);
         setText("");
       } catch (e) {

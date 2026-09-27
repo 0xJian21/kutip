@@ -10,6 +10,7 @@ import { Button, buttonClass } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Address } from "@/components/ui/address";
 import { establishSession } from "@/lib/data/actions";
+import { unwrap } from "@/lib/data/result";
 import { useOwnerWallet } from "@/lib/treasury/owner-wallet";
 import { formatUsdc } from "@/lib/ui/money";
 import type { Exporter, Rulebook } from "@/lib/ui/types";
@@ -208,7 +209,7 @@ function SignInStep({ onDone, autoContinue }: { onDone: () => void; autoContinue
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("no Privy access token");
-      await establishSession(token);
+      unwrap(await establishSession(token));
       onDone();
     } catch (e) {
       setSession("error");

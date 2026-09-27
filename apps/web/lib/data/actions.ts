@@ -13,6 +13,7 @@ import { getPayInvoice, ownerDataOrThrow } from "@/lib/server/data";
 import { handleBuyerReply } from "@/lib/server/replies";
 import { store } from "@/lib/server/store";
 import type { LineItem, Rulebook } from "@/lib/ui/types";
+import { toResult } from "./result";
 
 function anthropic(): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -20,7 +21,7 @@ function anthropic(): Anthropic {
   return new Anthropic({ apiKey });
 }
 
-export async function establishSession(accessToken: string): Promise<{ exporterId: string }> {
+async function establishSessionImpl(accessToken: string): Promise<{ exporterId: string }> {
   const { exporterId } = await signIn(accessToken);
   return { exporterId };
 }
@@ -65,7 +66,7 @@ export type ExtractedDraft = {
 };
 
 /** New invoice, step 1: Haiku reads the PDF (rule I1). Only the PDF is sent; no stored buyer data. */
-export async function readInvoicePdf(form: FormData): Promise<ExtractedDraft> {
+async function readInvoicePdfImpl(form: FormData): Promise<ExtractedDraft> {
   const data = await ownerDataOrThrow();
   const file = form.get("pdf");
   if (!(file instanceof File) || file.size === 0) throw new Error("No PDF received");
@@ -90,7 +91,7 @@ function mailer() {
 }
 
 /** New invoice, step 2: create it as sent with a fresh Solana Pay reference key, then email the buyer the pay link. */
-export async function createInvoice(input: {
+async function createInvoiceImpl(input: {
   buyerId: string;
   number?: string;
   dueDate: string;
@@ -101,44 +102,39 @@ export async function createInvoice(input: {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) throw new Error("Enter a due date");
   if (input.lineItems.length === 0 || input.lineItems.some((l) => l.quantity <= 0 || l.unitPriceUsdc < 0n)) throw new Error("Every line needs a quantity and a price");
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur" }).format(new Date());
-  try {
-    const inv = await store().createInvoice({
-      exporterId,
-      buyerId: input.buyerId,
-      number: input.number?.trim() || undefined,
-      lineItems: input.lineItems,
-      issuedAt: today,
-      dueDate: input.dueDate,
-      referencePubkey: Keypair.generate().publicKey.toBase58(),
-      status: "sent",
-    });
-    const [exporter, buyers] = await Promise.all([store().getExporter(exporterId), store().listBuyers(exporterId)]);
-    const buyer = buyers.find((b) => b.id === inv.buyerId)!;
-    const from = exporter?.name ?? "Kutip";
-    const email = {
-      subject: `Invoice ${inv.number} from ${from}`,
-      body: [
-        `Hi ${buyer.contactName},`,
-        "",
-        `Please find invoice ${inv.number} for USD ${formatUsdc(inv.amountUsdc)}, due ${inv.dueDate}.`,
-        "",
-        `Pay online in USDC or SOL; the network fee is covered: ${inv.payUrl}`,
-        "",
-        "Thank you,",
-        from,
-      ].join("\n"),
-    };
-    await store().recordMessage({ invoiceId: inv.id, direction: "out", from, subject: email.subject, body: email.body });
-    const delivery = await mailer().send(buyer.email, email);
-    return { id: inv.id, number: inv.number, payUrl: inv.payUrl, sentTo: buyer.email, delivery };
-  } catch (e) {
-    if (/unique|duplicate/i.test((e as Error).message)) throw new Error(`Invoice number ${input.number} is already used`);
-    throw e;
-  }
+  const inv = await store().createInvoice({
+    exporterId,
+    buyerId: input.buyerId,
+    number: input.number?.trim() || undefined,
+    lineItems: input.lineItems,
+    issuedAt: today,
+    dueDate: input.dueDate,
+    referencePubkey: Keypair.generate().publicKey.toBase58(),
+    status: "sent",
+  });
+  const [exporter, buyers] = await Promise.all([store().getExporter(exporterId), store().listBuyers(exporterId)]);
+  const buyer = buyers.find((b) => b.id === inv.buyerId)!;
+  const from = exporter?.name ?? "Kutip";
+  const email = {
+    subject: `Invoice ${inv.number} from ${from}`,
+    body: [
+      `Hi ${buyer.contactName},`,
+      "",
+      `Please find invoice ${inv.number} for USD ${formatUsdc(inv.amountUsdc)}, due ${inv.dueDate}.`,
+      "",
+      `Pay online in USDC or SOL; the network fee is covered: ${inv.payUrl}`,
+      "",
+      "Thank you,",
+      from,
+    ].join("\n"),
+  };
+  await store().recordMessage({ invoiceId: inv.id, direction: "out", from, subject: email.subject, body: email.body });
+  const delivery = await mailer().send(buyer.email, email);
+  return { id: inv.id, number: inv.number, payUrl: inv.payUrl, sentTo: buyer.email, delivery };
 }
 
 /** Demo scene (SPEC F8): a buyer reply goes through Jev (Haiku fallback) → rules engine → agent log. */
-export async function simulateBuyerReply(invoiceId: string, body: string) {
+async function simulateBuyerReplyImpl(invoiceId: string, body: string) {
   const { exporterId } = await ownerDataOrThrow();
   if (MOCK) throw new Error("Buyer replies need the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
   if (!body.trim()) throw new Error("Write the buyer's reply first");
@@ -157,4 +153,18 @@ export async function simulateBuyerReply(invoiceId: string, body: string) {
   });
   refresh();
   return { intent: out.classification.label, confidence: out.classification.confidence, action: out.action };
+}
+
+// User-facing errors travel as data (see ./result): production hides thrown messages.
+export async function establishSession(accessToken: string) {
+  return toResult(() => establishSessionImpl(accessToken));
+}
+export async function readInvoicePdf(form: FormData) {
+  return toResult(() => readInvoicePdfImpl(form));
+}
+export async function createInvoice(input: Parameters<typeof createInvoiceImpl>[0]) {
+  return toResult(() => createInvoiceImpl(input), { duplicate: `Invoice number ${input.number} is already used. Change it, or clear it to use the next number.` });
+}
+export async function simulateBuyerReply(invoiceId: string, body: string) {
+  return toResult(() => simulateBuyerReplyImpl(invoiceId, body));
 }

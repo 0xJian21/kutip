@@ -9,6 +9,7 @@ import { CopyField } from "@/components/ui/copy-field";
 import { Panel } from "@/components/ui/panel";
 import { QrCode } from "@/components/pay/qr-code";
 import { createInvoice, readInvoicePdf } from "@/lib/data/actions";
+import { unwrap } from "@/lib/data/result";
 import { formatUsdc, formatUsdcExact, parseUsdc } from "@/lib/ui/money";
 import { formatDate } from "@/lib/ui/format";
 import type { Buyer } from "@/lib/ui/types";
@@ -31,7 +32,7 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
-  const [created, setCreated] = useState<Awaited<ReturnType<typeof createInvoice>> | null>(null);
+  const [created, setCreated] = useState<Extract<Awaited<ReturnType<typeof createInvoice>>, { ok: true }>["value"] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const headingId = useId();
 
@@ -53,7 +54,7 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
     try {
       const form = new FormData();
       form.set("pdf", file);
-      const x = await readInvoicePdf(form);
+      const x = unwrap(await readInvoicePdf(form));
       if (x.buyerId) setBuyerId(x.buyerId);
       setNumber(x.invoiceNumber);
       if (x.dueDate) setDueDate(x.dueDate);
@@ -87,7 +88,7 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
     setError(null);
     setCreating(true);
     try {
-      setCreated(await createInvoice({ buyerId, number, dueDate, lineItems: lineItems.map((l) => ({ ...l, unitPriceUsdc: l.unitPriceUsdc! })) }));
+      setCreated(unwrap(await createInvoice({ buyerId, number, dueDate, lineItems: lineItems.map((l) => ({ ...l, unitPriceUsdc: l.unitPriceUsdc! })) })));
       setPhase("created");
     } catch (e) {
       setError((e as Error).message);
