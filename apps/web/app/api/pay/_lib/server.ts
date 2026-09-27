@@ -6,6 +6,7 @@
 import path from "node:path";
 import { connect, createStore, type Store } from "@kutip/db";
 import {
+  InFlight,
   jupiterClient,
   LiveTxCache,
   makeConnection,
@@ -36,6 +37,8 @@ type Runtime = {
   walletLimiter: RateLimiter;
   replay: ReplayCache;
   receipts: Map<string, SettleResponse>;
+  /** Concurrent POSTs for the same invoice + wallet + token share one screen + build. */
+  inflight: InFlight<{ status: number; body: unknown }>;
 };
 
 declare global {
@@ -73,6 +76,7 @@ export function runtime(): Runtime {
     walletLimiter: new RateLimiter({ limit: 10, windowMs: 60_000 }),
     replay: new ReplayCache(),
     receipts: new Map(),
+    inflight: new InFlight(),
   };
   return globalThis.__kutipPayments;
 }

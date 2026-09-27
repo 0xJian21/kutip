@@ -3,7 +3,7 @@
  * screen the wallet → build a fee-sponsored tx → {transaction, message}.
  * Spec: https://solana.com/docs/tools/solana-pay/specification/version1
  */
-import { buildPaymentTx, chooseMode, getAssociatedTokenAddressSync, PublicKey, screenWallet } from "@kutip/solana";
+import { buildPaymentTx, chooseMode, getAssociatedTokenAddressSync, PublicKey, reusableScreening, SANCTIONED, screenWallet } from "@kutip/solana";
 import type { NextRequest } from "next/server";
 import { amountDue, json, PAYABLE, payTarget, recordQuote, runtime } from "../_lib/server";
 
@@ -52,17 +52,37 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const cached = rt.liveTx.get(invoiceId, liveKey);
   if (cached) return json(200, { transaction: cached.base64, message: paymentMessage(target, due, cached.quote?.inputMint) }, CORS);
 
-  const screening = await screenWallet(buyer, { rpc: rt.screeningRpc });
-  await rt.store.recordScreening({ wallet, invoiceId, result: screening.result, reasons: screening.reasons });
+  // Solflare re-POSTs in parallel: every concurrent request for this invoice + wallet + token awaits one screen + build.
+  const out = await rt.inflight.run(`${invoiceId}:${liveKey}`, () => prepare({ rt, target, due, buyer, wallet, invoiceId, token, liveKey }));
+  return json(out.status, out.body, out.status === 200 ? CORS : {});
+}
+
+async function prepare(p: {
+  rt: ReturnType<typeof runtime>;
+  target: NonNullable<Awaited<ReturnType<typeof payTarget>>>;
+  due: bigint;
+  buyer: PublicKey;
+  wallet: string;
+  invoiceId: string;
+  token: string | undefined;
+  liveKey: string;
+}): Promise<{ status: number; body: unknown }> {
+  const { rt, target, due, buyer, wallet, invoiceId, token, liveKey } = p;
+  const t0 = Date.now();
+  // A pass from the last 24 h is reused (a first screen takes 12–37 s); the static sanctions list is always checked.
+  const reused = SANCTIONED.has(wallet) ? null : reusableScreening(await rt.store.latestScreening(wallet), new Date());
+  const screening = reused ?? (await screenWallet(buyer, { rpc: rt.screeningRpc }));
+  if (!reused) await rt.store.recordScreening({ wallet, invoiceId, result: screening.result, reasons: screening.reasons });
   if (screening.result === "flag") {
     console.warn(`[pay] flagged ${wallet} for ${invoiceId}: ${screening.reasons.join("; ")}`);
-    return json(403, { message: `This wallet can't be used to pay ${target.exporterName}. Please contact them for another payment method.` });
+    return { status: 403, body: { message: `This wallet can't be used to pay ${target.exporterName}. Please contact them for another payment method.` } };
   }
+  const tScreen = Date.now() - t0;
 
   const usdcAta = getAssociatedTokenAddressSync(rt.config.usdcMint, buyer, true);
   const usdcBalance = (await rt.rpc.getTokenAccount(usdcAta))?.amount ?? 0n;
   const choice = chooseMode({ token, accepted: target.acceptedTokens, solEnabled: rt.config.solEnabled, usdcBalance, amount: due });
-  if ("error" in choice) return json(400, { message: choice.error });
+  if ("error" in choice) return { status: 400, body: { message: choice.error } };
 
   try {
     const built = await buildPaymentTx({
@@ -81,12 +101,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     });
     rt.liveTx.set(invoiceId, liveKey, built);
     if (built.quote) await recordQuote(target.referencePubkey, built.quote);
-    console.log(`[pay] built ${choice.mode} tx for ${invoiceId} wallet ${wallet.slice(0, 6)}… ${built.transaction.length}B ${built.version}`);
-    return json(200, { transaction: built.base64, message: paymentMessage(target, due, built.quote?.inputMint) }, CORS);
+    console.log(`[pay] built ${choice.mode} tx for ${invoiceId} wallet ${wallet.slice(0, 6)}… ${built.transaction.length}B ${built.version} · screen ${tScreen} ms${reused ? " (reused)" : ""}, total ${Date.now() - t0} ms`);
+    return { status: 200, body: { transaction: built.base64, message: paymentMessage(target, due, built.quote?.inputMint) } };
   } catch (e) {
     const msg = (e as Error).message;
     console.error(`[pay] build failed for ${invoiceId}: ${msg}`);
-    return json(400, { message: walletFacing(msg, target.exporterName) });
+    return { status: 400, body: { message: walletFacing(msg, target.exporterName) } };
   }
 }
 

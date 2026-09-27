@@ -57,3 +57,29 @@ export function chooseMode(p: { token?: string; accepted: readonly Token[]; solE
   if (swapsOn("USDT")) return { mode: "usdt" };
   return { mode: "usdc" };
 }
+
+const SCREENING_REUSE_MS = 24 * 3_600_000;
+
+/**
+ * A pass recorded for this wallet in the last 24 h stands in for a fresh screen (the first
+ * screen walks up to 3 pages of history: 12–37 s on stage). The static sanctions list is
+ * still checked on every request by the caller.
+ */
+export function reusableScreening(latest: { result: "pass" | "flag"; reasons: string[]; createdAt: string } | null, now: Date): { result: "pass"; reasons: string[] } | null {
+  if (!latest || latest.result !== "pass") return null;
+  if (now.getTime() - Date.parse(latest.createdAt) > SCREENING_REUSE_MS) return null;
+  return { result: "pass", reasons: [...latest.reasons, "reused screening from the last 24 h"] };
+}
+
+/** Concurrent callers with the same key share one run (Solflare re-POSTs in parallel). */
+export class InFlight<T> {
+  private readonly running = new Map<string, Promise<T>>();
+
+  run(key: string, fn: () => Promise<T>): Promise<T> {
+    const existing = this.running.get(key);
+    if (existing) return existing;
+    const p = fn().finally(() => this.running.delete(key));
+    this.running.set(key, p);
+    return p;
+  }
+}
