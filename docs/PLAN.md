@@ -71,11 +71,31 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - [x] Reminder scheduler, cash-out alert (6a: pure `nextReminder` / `cashOutAlert`; the worker runs them on a timer and fetches the BNM rate, see Requests)
 
 ## Session 7 — Integration (Sep 30) · Opus · `feat/integration`
-- [ ] UI wired to real data; full demo path end-to-end on mainnet
+- [x] UI wired to real data: server components/actions read `@kutip/db` bound to the session's exporter (`lib/server/data.ts`, `lib/data/actions.ts`); mocks behind `NEXT_PUBLIC_KUTIP_MOCK=1`
+- [x] Auth: Privy access token verified against Privy's JWKS → HMAC-signed httpOnly session (12 h); exporter by linked Privy id, else the user's embedded wallet = `users.wallet_pubkey`, else `DEMO_EXPORTER_ID`; `(app)` routes and `/api/treasury/*` require it
+- [x] Realtime Broadcast: `invoice:<id>` events applied in place (Seen/Paid/Settled), `owner:<exporterId>` `changed` → debounced refetch through a server action
+- [x] Pay page: QR + "Open in wallet" only, USDC / SOL toggle (`?token=SOL` when `PAYMENTS_SOL_ENABLED`), success flips from Broadcast
+- [x] Approve on Squads proposals → `useApproveProposal(index, actionId)` (passkey / Touch ID per approval, verified), submit route marks the action executed; Reject = DB only (on-chain proposal stays Active)
+- [x] New invoice: PDF → `extractInvoice` → editable fields → `createInvoice` (fresh reference key) → pay link + QR; stage PDF `packages/agent/fixtures/invoices/demo-harbourline-inv-0160.pdf` (USD 50)
+- [x] "Simulate a reply" (dev / `NEXT_PUBLIC_DEMO_CONTROLS=1`): Jev (OpenRouter) → Haiku fallback → `decideReply` → message + agent_action (+ promised date / disputed)
+- [x] Worker catch-up every 3 min + at startup (`getSignaturesForAddress` per open reference, block-time timestamps). Proof: ZZ TEST INV-0001..0004 (paid while no worker ran) settled within 14 s of startup
+- [x] Screening: 24 h reuse of a pass, concurrent POSTs deduped per invoice+wallet+token, history check capped at 2.5 s (provisional pass, late verdict recorded via `after()`, bad verdict → T1 escalation); live-tx cache 20 s
+- [x] `scripts/demo-reset.ts [--inbox you@gmail.com] [--warm <wallet>] [--yes]`: re-seed, drop `ZZ TEST%` exporters, re-attach the provisioned multisigs (owner = Privy wallet), buyer emails → inbox +aliases, live USD 1 / USD 0.50 invoices; database only; screenings survive
+- [x] Worker `EMAIL_ALLOWLIST` (+aliases; fail closed; `*` = anyone)
+- [x] Local mainnet checkpoint 2026-09-27 (web `next dev` + cloudflared, worker local, phone = Solflare):
+  | Step | Signature | Timing |
+  |---|---|---|
+  | x402 bot pays INV-0155 0.50 USDC | `4eGXjc18jHQm2CMRh1ZjcyY8LQKf9y13p4SfXLvVUqh7TWYx1cW4GgL83KCDEgFXEUerZjuLHNuBWHSupuBNqUWW` | HTTP 402→200 4.6 s; Paid +223 ms after Seen |
+  | Phone pays INV-0154 in SOL (1.000000 USDC for 0.008237137 SOL, buyer gas 0) | `5Y1YVt36wMx1dBnM2L1jjKptHpPnri7hgv1yrygciFnYBEckE4P7wFvWDeZZw9qULZVGAtVayaJmR2qZaBmbQ98Q` | Seen → Paid +172 ms → Settled +8.46 s; first attempt "blockhash not found" after a 39 s first POST (36 s screen) → fixed by screening reuse across resets + budget + 20 s cache |
+  | Agent sweep 1.5 USDC → treasury | `3J6jky8rvsshuvy5jrXj58ZoENqmpd5zzbnoVBBNnJMqJgTKgdYm75B1ttrvpFF5LENp5KgWheRTHmcnBDHCquxS` | 0.00002 SOL |
+  | Agent proposal #3 (0.25 USDC cash-out) | `2gg4yhkoAbhr2CcRyxSDDRyQbugGiqenyCNfMdLTZbupENFppWkrd3ognNgMb3zSwPp7FsirRCZjtcGNWfq5JvMa` | 0.004099 SOL rent (reclaimable) |
+  | Owner approve + execute from Agent activity, Touch ID prompted | `5UxTfZCNBp6ci87Aa5SGSiE68QzWdo7TB5gVDH1ZxQZGBbcctZCnde3b7oxNj6DknwFqXEHTinctp5STFZ6Lto28` | build 6.4 s + send 4.1 s (dev, incl. compile) |
+  Also: PDF → fields 3.8 s, create 0.8 s; buyer reply → agent log 7.2 s (cold); passkey sign-in → dashboard 1.6 s + 0.8 s.
+- [ ] Deploy: web → Vercel (`apps/web/vercel.json`, Root Directory `apps/web`, `hnd1`), worker → Fly (`fly.toml`, `nrt`; Supabase is ap-northeast-1 Tokyo, not Singapore); rehearsal on the deployed URLs
 
 ## Session 8 — Hardening (Oct 1) · Opus
 - [ ] code-review, security-review, fixes
-- [ ] README runnable by anyone (Solami prize): setup, env vars, pointing at own key
+- [x] README runnable by anyone (Solami prize): setup, env vars, pointing at own key (Session 7)
 - [ ] impeccable polish/audit: empty/loading/error states, mobile, dark mode
 
 ## Session 9 — Submission (Oct 2) · Opus
