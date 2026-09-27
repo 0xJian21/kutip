@@ -25,6 +25,11 @@ export function createKeyFor(secret: Uint8Array, label: string): Keypair {
   return Keypair.fromSeed(seed.subarray(0, 32));
 }
 
+/** The spending-limit create key of a buyer multisig, derivable by the sweeper from the stored multisig address. */
+export function limitCreateKeyFor(secret: Uint8Array, multisigPda: PublicKey): Keypair {
+  return createKeyFor(secret, `limit:${multisigPda.toBase58()}`);
+}
+
 /** Owner = all permissions; agent = Initiate only (can propose, never vote or execute). */
 export function multisigMembers({ owner, agent }: { owner: PublicKey; agent: PublicKey }): Member[] {
   return [

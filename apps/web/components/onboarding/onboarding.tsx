@@ -155,17 +155,33 @@ export function Onboarding({ exporter, rulebook }: { exporter: Exporter; ruleboo
 }
 
 /**
- * Real passkey sign-in (Privy). "Continue" logs in with an existing passkey;
- * first-time users create one. Privy creates the Solana embedded wallet on
- * login; its address is the owner of the treasury multisig.
+ * Real passkey sign-in (Privy). First-time users create a passkey (primary);
+ * returning users log in with the one they have. Privy creates the Solana
+ * embedded wallet on signup/login; its address is the owner of the treasury multisig.
  */
 function SignInStep({ onDone }: { onDone: () => void }) {
   const owner = useOwnerWallet();
   const [error, setError] = useState<string | null>(null);
-  const { loginWithPasskey, state: loginState } = useLoginWithPasskey({ onError: (e) => setError(String(e)) });
-  const { signupWithPasskey, state: signupState } = useSignupWithPasskey({ onError: (e) => setError(String(e)) });
-  const busy = !["initial", "error", "done"].includes(loginState.status) || !["initial", "error", "done"].includes(signupState.status);
+  const [platformAuth, setPlatformAuth] = useState<boolean | null>(null);
+  const onError = (e: unknown) => setError(describePasskeyError(e));
+  const { loginWithPasskey, state: loginState } = useLoginWithPasskey({ onError });
+  const { signupWithPasskey, state: signupState } = useSignupWithPasskey({ onError });
+  const idle = (st: { status: string }) => ["initial", "error", "done"].includes(st.status);
+  const busy = !idle(loginState) || !idle(signupState);
   const signedIn = owner.ready && owner.authenticated;
+
+  useEffect(() => {
+    // Touch ID / Face ID / Windows Hello present? (async so state settles after the first paint)
+    const pkc = typeof window !== "undefined" ? window.PublicKeyCredential : undefined;
+    Promise.resolve()
+      .then(() => pkc?.isUserVerifyingPlatformAuthenticatorAvailable?.() ?? false)
+      .then(setPlatformAuth, () => setPlatformAuth(false));
+  }, []);
+
+  const run = (fn: () => Promise<void>) => {
+    setError(null);
+    fn().catch(() => undefined); // surfaced through onError
+  };
 
   return (
     <section className="rounded-lg border border-line bg-surface p-6 sm:p-8">
@@ -177,6 +193,7 @@ function SignInStep({ onDone }: { onDone: () => void }) {
             <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Signed in</span><span className="inline-flex items-center gap-1 text-ink"><Check size={14} aria-hidden="true" /> Passkey</span></div>
             <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Your wallet</span>{owner.address ? <Address value={owner.address} /> : <span className="text-ink-3">Creating…</span>}</div>
           </div>
+          {owner.address ? <p className="mt-2 break-all text-center text-xs tabular text-ink-3" aria-label="Wallet address">{owner.address}</p> : null}
           <Button size="lg" className="mt-6 w-full" onClick={onDone} disabled={!owner.address}>Continue</Button>
           <p className="mt-3 text-center text-sm text-ink-3">
             Not you? <button type="button" onClick={() => owner.logout()} className="font-medium text-accent underline-offset-4 hover:underline">Sign out</button>
@@ -184,21 +201,40 @@ function SignInStep({ onDone }: { onDone: () => void }) {
         </>
       ) : (
         <>
-          <Button size="lg" className="mt-6 w-full" onClick={() => { setError(null); void loginWithPasskey(); }} disabled={!owner.ready || busy}>
+          <Button size="lg" className="mt-6 w-full" onClick={() => run(signupWithPasskey)} disabled={!owner.ready || busy || platformAuth === false}>
             <Fingerprint size={18} aria-hidden="true" />
-            {busy ? "Checking with your device…" : "Continue with fingerprint / Face ID"}
+            {busy ? "Checking with your device…" : "Create account with fingerprint / Face ID"}
           </Button>
           <p className="mt-3 text-center text-sm text-ink-3" aria-live="polite">
-            {error ? <span className="text-overdue-fg">{error}</span> : "Works with Touch ID, Face ID and Windows Hello"}
+            {platformAuth === false ? (
+              <span className="text-overdue-fg">This browser has no fingerprint or face unlock. Open this page in Safari or Chrome.</span>
+            ) : error ? (
+              <span className="text-overdue-fg">{error}</span>
+            ) : (
+              "Works with Touch ID, Face ID and Windows Hello"
+            )}
           </p>
           <p className="mt-4 text-center text-sm text-ink-3">
-            First time here?{" "}
-            <button type="button" onClick={() => { setError(null); void signupWithPasskey(); }} disabled={!owner.ready || busy} className="font-medium text-accent underline-offset-4 hover:underline">
-              Create your passkey
+            <button type="button" onClick={() => run(() => loginWithPasskey())} disabled={!owner.ready || busy || platformAuth === false} className="font-medium text-accent underline-offset-4 hover:underline">
+              I already have a passkey
             </button>
           </p>
         </>
       )}
     </section>
   );
+}
+
+/** Plain-English text for the WebAuthn / Privy errors a user can actually do something about. */
+function describePasskeyError(e: unknown): string {
+  const err = e instanceof Error ? e : { name: String(e), message: "" };
+  const text = `${err.name} ${err.message}`.toLowerCase();
+  if (text.includes("notallowed") || text.includes("cancel") || text.includes("abort") || text.includes("timed out") || text.includes("timeout")) {
+    return "Cancelled before your device confirmed. Try again when you are ready.";
+  }
+  if (text.includes("notsupported") || text.includes("not supported") || text.includes("authenticator")) {
+    return "Your browser could not use fingerprint or face unlock. Open this page in Safari or Chrome.";
+  }
+  if (text.includes("not allowed")) return "Passkey sign-in is not enabled for this app yet.";
+  return `Sign-in failed: ${err.message || err.name}`;
 }

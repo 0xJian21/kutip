@@ -6,14 +6,16 @@
  *
  *   pnpm --filter @kutip/scripts exec tsx provision-demo.ts --owner <privy wallet pubkey> [--cashout <pubkey>] [--yes]
  *
- * Idempotent: multisig PDAs derive from HMAC(FEE_PAYER secret, id), so a re-run
- * skips every account that already exists and only re-writes the DB rows.
+ * Idempotent: multisig PDAs derive from HMAC(FEE_PAYER secret, "<kind>:<id>:<owner>"),
+ * so a re-run for the same owner skips every account that already exists and only
+ * re-writes the DB rows; a new owner (e.g. the Privy wallet replacing a stand-in)
+ * gets fresh multisigs. Spending-limit keys derive from the buyer multisig PDA.
  * Read-only phase first; nothing is written until the plan is confirmed.
  */
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { eq } from "drizzle-orm";
 import { schema } from "@kutip/db";
-import { createKeyFor, deriveAccounts, ensureAtas, keypairFromEnv, provisionMultisig, spendingLimitPdaFor } from "@kutip/solana";
+import { createKeyFor, deriveAccounts, ensureAtas, keypairFromEnv, limitCreateKeyFor, provisionMultisig, spendingLimitPdaFor } from "@kutip/solana";
 import { EXPORTER_ID, arg, chain, closePrompt, confirmOrAbort, db, env, sol } from "./_shared";
 
 const DEMO_INVOICES = [
@@ -43,11 +45,12 @@ async function main() {
     const rulebook = await store.getRulebook(EXPORTER_ID);
     const limitUsdc = rulebook.treasury.agentDailyLimitUsdc;
 
-    const treasury = deriveAccounts(createKeyFor(feePayer.secretKey, `treasury:${EXPORTER_ID}`).publicKey, usdcMint);
+    const treasuryCreateKey = createKeyFor(feePayer.secretKey, `treasury:${EXPORTER_ID}:${owner.toBase58()}`);
+    const treasury = deriveAccounts(treasuryCreateKey.publicKey, usdcMint);
     const plan = buyers.map((b) => {
-      const createKey = createKeyFor(feePayer.secretKey, `buyer:${b.id}`);
-      const limitCreateKey = createKeyFor(feePayer.secretKey, `limit:${b.id}`).publicKey;
+      const createKey = createKeyFor(feePayer.secretKey, `buyer:${b.id}:${owner.toBase58()}`);
       const accounts = deriveAccounts(createKey.publicKey, usdcMint);
+      const limitCreateKey = limitCreateKeyFor(feePayer.secretKey, accounts.multisigPda).publicKey;
       return { buyer: b, createKey, limitCreateKey, ...accounts, spendingLimitPda: spendingLimitPdaFor(accounts.multisigPda, limitCreateKey) };
     });
     const exists = async (k: PublicKey) => (await connection.getAccountInfo(k)) !== null;
@@ -75,7 +78,7 @@ async function main() {
 
     // ---------------- write phase (each step asks) ----------------
     const sigs: Record<string, string> = {};
-    const t = await provisionMultisig({ connection, feePayer, createKey: createKeyFor(feePayer.secretKey, `treasury:${EXPORTER_ID}`), owner, agent: agent.publicKey, usdcMint, label: "treasury", confirm: confirmOrAbort });
+    const t = await provisionMultisig({ connection, feePayer, createKey: treasuryCreateKey, owner, agent: agent.publicKey, usdcMint, label: "treasury", confirm: confirmOrAbort });
     if (t.signature) sigs.treasury = t.signature;
     console.log(`  treasury ${t.skipped ? "already provisioned" : "created " + t.signature}`);
     for (const p of plan) {

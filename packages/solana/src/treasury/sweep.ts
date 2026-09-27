@@ -9,7 +9,7 @@ import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, type TransactionInstruction } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
 import { SWEEP_BATCH_SIZE, USDC_DECIMALS, VAULT_INDEX, toSdkAmount } from "./config";
-import { createKeyFor, spendingLimitPdaFor } from "./provision";
+import { limitCreateKeyFor, spendingLimitPdaFor } from "./provision";
 import { sendV0 } from "./rpc";
 
 export type VaultState = {
@@ -122,7 +122,7 @@ export async function readVaults(p: { connection: Connection; feePayer: Keypair;
     } catch {
       continue; // seeded placeholder, not provisioned
     }
-    const spendingLimitPda = spendingLimitPdaFor(multisigPda, createKeyFor(p.feePayer.secretKey, `limit:${b.id}`).publicKey);
+    const spendingLimitPda = spendingLimitPdaFor(multisigPda, limitCreateKeyFor(p.feePayer.secretKey, multisigPda).publicKey);
     const limitInfo = await p.connection.getAccountInfo(spendingLimitPda);
     if (!limitInfo) continue;
     const [limit] = multisig.accounts.SpendingLimit.fromAccountInfo(limitInfo);
