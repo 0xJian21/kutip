@@ -1,0 +1,104 @@
+/**
+ * Reset the shared Supabase to the known demo state (SPEC §7), in one command:
+ *   1. re-seed the demo exporter (db:seed --reset),
+ *   2. delete every "ZZ TEST …" exporter and its rows,
+ *   3. re-attach the provisioned mainnet multisigs (owner = the Privy passkey wallet),
+ *   4. create the live invoices with fresh reference keys: human pay USD 1, bot pay USD 0.50.
+ *
+ *   pnpm --filter @kutip/scripts exec tsx demo-reset.ts [--owner <privy wallet pubkey>] [--yes]
+ *
+ * Database only: no mainnet writes. The multisigs must already exist on-chain (provision-demo.ts);
+ * the read-only phase checks every account and aborts if one is missing.
+ */
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { eq, like } from "drizzle-orm";
+import { deleteExporter, schema } from "@kutip/db";
+import { createKeyFor, deriveAccounts, keypairFromEnv, limitCreateKeyFor, spendingLimitPdaFor } from "@kutip/solana";
+import { execFileSync } from "node:child_process";
+import * as readline from "node:readline/promises";
+import { stdin, stdout } from "node:process";
+import { EXPORTER_ID, YES, arg, chain, closePrompt, db } from "./_shared";
+
+const LIVE_INVOICES = [
+  { buyerId: "b_harbourline", description: "LIVE DEMO · teak side table sample (pay by wallet)", unitPriceUsdc: 1_000_000n, label: "human pay" },
+  { buyerId: "b_meridian", description: "LIVE DEMO · brass drawer pulls, 10 pcs (pay by AP bot / x402)", unitPriceUsdc: 500_000n, label: "bot pay" },
+] as const;
+
+async function main() {
+  const { connection, feePayer, usdcMint } = chain();
+  const { store, db: raw, close } = db();
+  try {
+    // ---------------- read-only phase ----------------
+    const [ownerRow] = await raw.select().from(schema.users).where(eq(schema.users.id, "usr_owner"));
+    const ownerArg = arg("owner") ?? ownerRow?.walletPubkey ?? undefined;
+    if (!ownerArg) throw new Error("pass --owner <Privy wallet pubkey> (usr_owner has no wallet in the DB)");
+    const owner = new PublicKey(ownerArg);
+    const cashOut = new PublicKey(arg("cashout") ?? keypairFromEnv("TEST_BUYER_SECRET").publicKey);
+    const zz = await raw.select({ id: schema.exporters.id, name: schema.exporters.name }).from(schema.exporters).where(like(schema.exporters.name, "ZZ TEST%"));
+
+    // Buyer ids come from the seed, which step 1 recreates; derive their accounts the way provision-demo does.
+    const buyerIds = ["b_harbourline", "b_meridian", "b_alrashid", "b_najd", "b_kobayashi"];
+    const treasury = deriveAccounts(createKeyFor(feePayer.secretKey, `treasury:${EXPORTER_ID}:${owner.toBase58()}`).publicKey, usdcMint);
+    const buyers = buyerIds.map((id) => {
+      const accounts = deriveAccounts(createKeyFor(feePayer.secretKey, `buyer:${id}:${owner.toBase58()}`).publicKey, usdcMint);
+      const limitKey = limitCreateKeyFor(feePayer.secretKey, accounts.multisigPda).publicKey;
+      return { id, ...accounts, spendingLimitPda: spendingLimitPdaFor(accounts.multisigPda, limitKey) };
+    });
+    const keys = [treasury.multisigPda, treasury.vaultAta, ...buyers.flatMap((b) => [b.multisigPda, b.vaultAta, b.spendingLimitPda])];
+    const infos = await connection.getMultipleAccountsInfo(keys);
+    const missing = keys.filter((_, i) => !infos[i]);
+    if (missing.length) throw new Error(`not provisioned on-chain for owner ${owner.toBase58()}: ${missing.map((k) => k.toBase58()).join(", ")}; run provision-demo.ts first`);
+
+    console.log(`Kutip demo reset — ${EXPORTER_ID}, owner ${owner.toBase58()}`);
+    console.log(`  1. re-seed ${EXPORTER_ID} (every invoice, payment, message and agent action under it is deleted)`);
+    console.log(`  2. delete test exporters: ${zz.length ? zz.map((e) => `${e.name} (${e.id})`).join(", ") : "none (skip)"}`);
+    console.log(`  3. re-attach treasury ${treasury.multisigPda.toBase58()} + ${buyers.length} buyer multisigs (all ${keys.length} accounts exist on-chain), cash-out → ${cashOut.toBase58()}`);
+    console.log(`  4. create ${LIVE_INVOICES.map((i) => `${i.label} USD ${Number(i.unitPriceUsdc) / 1e6} (${i.buyerId})`).join(", ")} with fresh reference keys`);
+
+    if (!YES) {
+      closePrompt(); // _shared's prompt says "mainnet"; this script only writes to the database
+      const rl = readline.createInterface({ input: stdin, output: stdout });
+      const answer = stdin.isTTY ? await rl.question("  proceed? [y/N] ") : "n"; // no terminal = no; re-run with --yes
+      rl.close();
+      if (answer.trim() !== "y") {
+        console.log("aborted; nothing written");
+        process.exit(1);
+      }
+    }
+
+    // ---------------- write phase (database only) ----------------
+    // The seed imports apps/web's mock fixtures through a path alias, so it runs as its own package script.
+    execFileSync("pnpm", ["--filter", "@kutip/db", "db:seed", "--reset"], { stdio: ["ignore", "inherit", "inherit"] });
+    console.log(`  1. ${EXPORTER_ID} re-seeded`);
+    for (const e of zz) {
+      await deleteExporter(raw, e.id);
+      console.log(`  2. deleted ${e.name} (${e.id})`);
+    }
+    await store.updateTreasuryAccounts(EXPORTER_ID, { treasuryMultisig: treasury.multisigPda.toBase58(), treasuryVault: treasury.vaultPda.toBase58(), treasuryUsdcAta: treasury.vaultAta.toBase58() });
+    for (const b of buyers) {
+      await store.updateBuyerAccounts(EXPORTER_ID, b.id, { multisig: b.multisigPda.toBase58(), vault: b.vaultPda.toBase58(), usdcAta: b.vaultAta.toBase58(), spendingLimitPda: b.spendingLimitPda.toBase58() });
+    }
+    await raw.update(schema.users).set({ walletPubkey: owner.toBase58() }).where(eq(schema.users.id, "usr_owner"));
+    await raw.update(schema.exporters).set({ cashOutWhitelist: [{ label: "Luno MYR account (Teratai Woodworks)", address: cashOut.toBase58() }] }).where(eq(schema.exporters.id, EXPORTER_ID));
+    console.log("  3. treasury, buyers, owner wallet and cash-out whitelist attached");
+
+    const today = new Date().toISOString().slice(0, 10);
+    const due = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    for (const inv of LIVE_INVOICES) {
+      const reference = Keypair.generate().publicKey.toBase58();
+      const created = await store.createInvoice({
+        exporterId: EXPORTER_ID, buyerId: inv.buyerId, issuedAt: today, dueDate: due, referencePubkey: reference, status: "sent",
+        lineItems: [{ description: inv.description, quantity: 1, unitPriceUsdc: inv.unitPriceUsdc }],
+      });
+      console.log(`  4. ${inv.label}: ${created.number} ${created.id} USDC ${created.amountUsdc} memo ${created.memoCode} reference ${reference}\n       pay ${created.payUrl}`);
+    }
+  } finally {
+    closePrompt();
+    await close();
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
