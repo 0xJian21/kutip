@@ -3,7 +3,7 @@ import { setup } from "@kutip/db/src/testing/fixtures";
 import type { Buyer, Store } from "@kutip/db";
 import { beforeEach, describe, expect, test } from "vitest";
 import { createCollections } from "./collections";
-import type { Mailer } from "./email";
+import type { Mailer } from "@kutip/agent";
 
 let store: Store;
 let exporterId: string;

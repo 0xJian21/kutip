@@ -71,11 +71,42 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - [x] Reminder scheduler, cash-out alert (6a: pure `nextReminder` / `cashOutAlert`; the worker runs them on a timer and fetches the BNM rate, see Requests)
 
 ## Session 7 — Integration (Sep 30) · Opus · `feat/integration`
-- [ ] UI wired to real data; full demo path end-to-end on mainnet
+- [x] UI wired to real data: server components/actions read `@kutip/db` bound to the session's exporter (`lib/server/data.ts`, `lib/data/actions.ts`); mocks behind `NEXT_PUBLIC_KUTIP_MOCK=1`
+- [x] Auth: Privy access token verified against Privy's JWKS → HMAC-signed httpOnly session (12 h); exporter by linked Privy id, else the user's embedded wallet = `users.wallet_pubkey`, else `DEMO_EXPORTER_ID`; `(app)` routes and `/api/treasury/*` require it
+- [x] Realtime Broadcast: `invoice:<id>` events applied in place (Seen/Paid/Settled), `owner:<exporterId>` `changed` → debounced refetch through a server action
+- [x] Pay page: QR + "Open in wallet" only, USDC / SOL toggle (`?token=SOL` when `PAYMENTS_SOL_ENABLED`), success flips from Broadcast
+- [x] Approve on Squads proposals → `useApproveProposal(index, actionId)` (passkey / Touch ID per approval, verified), submit route marks the action executed; Reject = DB only (on-chain proposal stays Active)
+- [x] New invoice: PDF → `extractInvoice` → editable fields → `createInvoice` (fresh reference key) → pay link + QR; stage PDF `packages/agent/fixtures/invoices/demo-harbourline-inv-0160.pdf` (USD 50)
+- [x] "Simulate a reply" (dev / `NEXT_PUBLIC_DEMO_CONTROLS=1`): Jev (OpenRouter) → Haiku fallback → `decideReply` → message + agent_action (+ promised date / disputed)
+- [x] Worker catch-up every 3 min + at startup (`getSignaturesForAddress` per open reference, block-time timestamps). Proof: ZZ TEST INV-0001..0004 (paid while no worker ran) settled within 14 s of startup
+- [x] Screening: 24 h reuse of a pass, concurrent POSTs deduped per invoice+wallet+token, history check capped at 2.5 s (provisional pass, late verdict recorded via `after()`, bad verdict → T1 escalation); live-tx cache 20 s
+- [x] `scripts/demo-reset.ts [--inbox you@gmail.com] [--warm <wallet>] [--yes]`: re-seed, drop `ZZ TEST%` exporters, re-attach the provisioned multisigs (owner = Privy wallet), buyer emails → inbox +aliases, live USD 1 / USD 0.50 invoices; database only; screenings survive
+- [x] Worker `EMAIL_ALLOWLIST` (+aliases; fail closed; `*` = anyone)
+- [x] Local mainnet checkpoint 2026-09-27 (web `next dev` + cloudflared, worker local, phone = Solflare):
+  | Step | Signature | Timing |
+  |---|---|---|
+  | x402 bot pays INV-0155 0.50 USDC | `4eGXjc18jHQm2CMRh1ZjcyY8LQKf9y13p4SfXLvVUqh7TWYx1cW4GgL83KCDEgFXEUerZjuLHNuBWHSupuBNqUWW` | HTTP 402→200 4.6 s; Paid +223 ms after Seen |
+  | Phone pays INV-0154 in SOL (1.000000 USDC for 0.008237137 SOL, buyer gas 0) | `5Y1YVt36wMx1dBnM2L1jjKptHpPnri7hgv1yrygciFnYBEckE4P7wFvWDeZZw9qULZVGAtVayaJmR2qZaBmbQ98Q` | Seen → Paid +172 ms → Settled +8.46 s; first attempt "blockhash not found" after a 39 s first POST (36 s screen) → fixed by screening reuse across resets + budget + 20 s cache |
+  | Agent sweep 1.5 USDC → treasury | `3J6jky8rvsshuvy5jrXj58ZoENqmpd5zzbnoVBBNnJMqJgTKgdYm75B1ttrvpFF5LENp5KgWheRTHmcnBDHCquxS` | 0.00002 SOL |
+  | Agent proposal #3 (0.25 USDC cash-out) | `2gg4yhkoAbhr2CcRyxSDDRyQbugGiqenyCNfMdLTZbupENFppWkrd3ognNgMb3zSwPp7FsirRCZjtcGNWfq5JvMa` | 0.004099 SOL rent (reclaimable) |
+  | Owner approve + execute from Agent activity, Touch ID prompted | `5UxTfZCNBp6ci87Aa5SGSiE68QzWdo7TB5gVDH1ZxQZGBbcctZCnde3b7oxNj6DknwFqXEHTinctp5STFZ6Lto28` | build 6.4 s + send 4.1 s (dev, incl. compile) |
+  Also: PDF → fields 3.8 s, create 0.8 s; buyer reply → agent log 7.2 s (cold); passkey sign-in → dashboard 1.6 s + 0.8 s.
+- [x] Deploy: web → Vercel **https://kutip-app.vercel.app** (project `kutip`, Root Directory `apps/web`, functions `hnd1`); worker → Fly `kutip-worker` (`nrt`, one machine; Supabase is ap-northeast-1 Tokyo, not Singapore). **Fly trial stops machines after 5 min until a card is added (fly.io/trial)**; the worker ran locally against the same DB for the rehearsal
+- [x] Production owner = the passkey created on kutip-app.vercel.app → wallet `88YzFSPHbdyBRSDrc2sNMn5G3FyxCPEV67iryifmaWJZ` (passkeys are domain-bound; the localhost one can't sign there). Re-provisioned 2026-09-27 (0.027395 SOL): treasury `CUp1Xqm42HL3WfZgYAm8BtNccTBiBx54k1nvmQckCd9d` (vault `9NHU8DJ8V7QVJ3ErYhHS9nmudv19QJFgPgwNChqhgk1A`, create `fBg3dJZse6tuTXaj1j2CPRyRtkxrs13419CuEYK9g9meZMW9chUWtwbdiznNgWLxrNtjDhG3t9meTyfKYQ2T2Ru`); buyer multisigs b_harbourline `2pigyoWM…NSmp`, b_meridian `F3NvFVjP…QebEV`, b_alrashid `9RtGciLh…akwf`, b_najd `6JVQikGL…ehS1`, b_kobayashi `MEXEMFjC…t2R`. The `23FK…` treasury (`GD5Fhhy1…ShY`) keeps ~1.25 USDC + 0.50 USDC in its Meridian vault, movable only by the localhost passkey
+- [x] Email: invoice email with the pay link on create (template), receipts + reminders from the worker, all through `EMAIL_ALLOWLIST`; demo buyers' emails = the owner's inbox (Resend's test sender rejects +aliases)
+- [x] Rehearsal on the deployed URLs (2026-09-27, phone = Solflare):
+  | Step | Signature | Timing |
+  |---|---|---|
+  | PDF `demo-harbourline-inv-0161-usd1.pdf` → INV-2026-0161 USD 1, invoice email sent | — | |
+  | Phone pays INV-0161 in SOL | `5YsHevhH8GXEtJQjZDCaT1ca4wm4QKcMAnjJX8iMVS8zJCPgWZPeyY7QizBy6cuM8HnSZHgsjHSjQMAjAr36nusE` | pay POST 1.5 s server-side (screen reused 308 ms); Seen → Paid +164 ms → Settled +8.31 s; receipt email +3.7 s after Paid (C6 recorded) |
+  | x402 bot pays INV-0155 0.50 USDC | `dLrYuKuqDkxaeA4TJ8z76t295QZ7BcSCyCPHkqG5MPCzYfkFhWS5AJZVXhkQhi7ii1cQBxxG9LLrDddBh6bLEm7` | 402 → 200 in 3.2 s; receipt email sent |
+  | Agent sweep 1.5 USDC → new treasury | `3xKotmEfz8jNtWCBFTZ1GtS5L99NVqyMxqpSSK2oBn2AccJjTTJV5wPTKG3DYMLQ21qfENmBrmBKBXcRhixeFJVh` | 0.00002 SOL |
+  | Proposal #1 (0.25 USDC cash-out) | `5VcH9zucJyVDaNF7Fyf7iAwFfgxgfEMp5LNhdG35jgT2qN5QV36UNNEe8w76qJdKkYPZeHqNciKyX8sT5P9zpZKF` | 0.004099 SOL rent |
+  | Owner approve + execute on kutip-app.vercel.app | `3JaktD1FqwCe5ErsJciZP3LkyipZgd7e6pAdcUphZN2kTufD4qpVMSMoC2RMKmE8R14h3We8BiVsHHEKD6NrZEb9` | no Touch ID: the new Privy account hasn't enrolled transaction MFA yet (`/treasury-test` → "Require Touch ID for approvals") |
 
 ## Session 8 — Hardening (Oct 1) · Opus
 - [ ] code-review, security-review, fixes
-- [ ] README runnable by anyone (Solami prize): setup, env vars, pointing at own key
+- [x] README runnable by anyone (Solami prize): setup, env vars, pointing at own key (Session 7)
 - [ ] impeccable polish/audit: empty/loading/error states, mobile, dark mode
 
 ## Session 9 — Submission (Oct 2) · Opus
@@ -112,7 +143,7 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - **Session 6a → Session 6b (Jev)**: implement `jevClassifier()` in `packages/agent/src/classifier.ts` behind the same `ReplyClassifier` interface, falling back to `haikuClassifier` when Jev is unavailable (SPEC §3).
 - **Session 4 (worker) → Session 7 (Realtime in the UI)**: Supabase Realtime **Broadcast**, public channels, anon key (`supabase.channel(topic).on("broadcast", { event }, cb).subscribe()`). No table reads needed or allowed.
   - `invoice:<invoiceId>` — for `/pay/[id]` and the owner invoice page. Event `invoice`: `{ id, status, amountUsdc, receivedUsdc, seenAt, paidAt, settledAt }`. Event `payment`: `{ id, invoiceId, signature, payer, amount, inputMint, inputAmount, quotedInput, quotedOut, commitment, slot, verified, issues, via, observedAt, confirmedAt, finalizedAt }`. **bigints are decimal strings** (`BigInt(x)`), timestamps ISO `…Z` or `null`; `inputMint` is `"SOL"|"USDT"|null`. Same fields as `Invoice`/`Payment` (null instead of absent). Nothing about line items, buyer, memo or reference.
-  - `owner:<exporterId>` — event `changed`: `{ table, id, invoiceId }` with `table` ∈ `invoices | payments | agent_actions | buyers | exporters` (the last two = cached balances). **No content on purpose**: exporter ids like `exp_teratai` are guessable, so the owner UI treats it as "refetch through the server" (dashboard, agent log, treasury, invoice detail when `invoiceId` matches).
+  - `owner:<exporterId>` — event `changed`: `{ table }` (Session 7, migration 0004: ids removed; the topic is public and guessable and an invoice id is the pay-link credential) with `table` ∈ `invoices | payments | agent_actions | buyers | exporters` (the last two = cached balances). **No content on purpose**: exporter ids like `exp_teratai` are guessable, so the owner UI treats it as "refetch through the server" (dashboard, agent log, treasury, invoice detail).
   - Realtime only delivers if `realtime.messages` has a partition for today; the Realtime service creates them (≈ 4 days ahead) while clients connect. After a long idle the DB logs `WarnSendingBroadcastMessage: no partition…` and that broadcast is lost; one client connecting fixes it. `apps/worker/scripts/watch-realtime.ts invoice:<id> owner:<exporterId>` shows what a browser receives.
 - **Session 4 (worker) → Session 7 (Jev default)**: Jev matched 11/11, so wherever inbound buyer replies get classified, construct `jevClassifier({ apiKey: process.env.OPENROUTER_API_KEY, fallback: haikuClassifier(anthropic) })` when the key is set, else `haikuClassifier(anthropic)`. Nothing classifies inbound email yet (no inbound channel in scope); `decideReply` + `setPromisedDate` (C5 pause) + `setInvoiceStatus(…,"disputed")` are ready for it. Session 6's `eval/run.ts` still runs Haiku only; the Jev comparison lives in `apps/worker/scripts/eval-classifiers.ts`.
 - **Session 4 (worker) → Session 5 (sweeper)**: the worker calls, at a random minute 10:00–18:00 MYT daily, `runDailySweep({ store, now, log })` exported from `@kutip/solana` (loaded lazily; skipped with a log line until it exists). Signature: `(deps: { store: Store; now: Date; log: (msg: string) => void }) => Promise<void>`. It should do its own `treasuryMove` guard, `recordSweep`, and agent_action; balances refresh by themselves from the stream. If `packages/solana` must stay DB-free, export a DB-free core and the worker can own the DB half; tell Session 4 which.

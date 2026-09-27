@@ -90,6 +90,24 @@ const INVOICES: Record<string, Invoice> = {
     totals: [["Subtotal", "8,760.00"], ["TOTAL (USD)", "8,760.00"]],
     notes: ["Terms: Net 30. Please quote the invoice number with your payment."],
   },
+  // The PDF dropped on stage in the SPEC §7 demo (USD 50; number unused by the seed).
+  "demo-harbourline-inv-0160.pdf": {
+    seller: TERATAI,
+    billTo: ["Harbourline Interiors Pty Ltd", "Attn: Claire Whitmore", "41 Harris Street, Pyrmont NSW 2009", "Australia"],
+    meta: [["Invoice No.", "INV-2026-0160"], ["Invoice Date", "3 Oct 2026"], ["Due Date", "17 Oct 2026"], ["Currency", "USD"]],
+    items: [["Teak serving tray, oiled (sample)", "2", "25.00", "50.00"]],
+    totals: [["Subtotal", "50.00"], ["TOTAL DUE (USD)", "50.00"]],
+    notes: ["Payment terms: 14 days.", "Pay online with the link in the email that accompanied this invoice."],
+  },
+  // Same scene at a payable amount (mainnet demo payments stay ≤ 1 USDC).
+  "demo-harbourline-inv-0161-usd1.pdf": {
+    seller: TERATAI,
+    billTo: ["Harbourline Interiors Pty Ltd", "Attn: Claire Whitmore", "41 Harris Street, Pyrmont NSW 2009", "Australia"],
+    meta: [["Invoice No.", "INV-2026-0161"], ["Invoice Date", "3 Oct 2026"], ["Due Date", "17 Oct 2026"], ["Currency", "USD"]],
+    items: [["Teak coaster, oiled (sample)", "2", "0.50", "1.00"]],
+    totals: [["Subtotal", "1.00"], ["TOTAL DUE (USD)", "1.00"]],
+    notes: ["Payment terms: 14 days.", "Pay online with the link in the email that accompanied this invoice."],
+  },
   "sericraft-inv-a0007.pdf": {
     seller: ["Seri Rotan Craft Enterprise", "No. 7, Jalan Kenanga 2, Batu Pahat", "83000 Johor, Malaysia"],
     billTo: ["Al Rashid Furnishing LLC", "Finance Department", "Al Quoz Industrial Area 3, Dubai", "United Arab Emirates"],

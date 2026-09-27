@@ -1,0 +1,28 @@
+# Kutip worker on Fly.io (apps/worker): one long-running machine next to the Supabase database (ap-northeast-1, Tokyo).
+# Deploy from the repo root: fly deploy --remote-only   (secrets: see README "Deploy")
+app = "kutip-worker"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "apps/worker/Dockerfile"
+  ignorefile = "apps/worker/Dockerfile.dockerignore"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  COLLECTIONS = "on"
+  APP_URL = "https://kutip-app.vercel.app"
+  USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+
+# No public service: the worker only needs outbound gRPC/RPC/DB. Fly probes /health internally.
+[checks.health]
+  type = "http"
+  port = 8080
+  path = "/health"
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "60s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

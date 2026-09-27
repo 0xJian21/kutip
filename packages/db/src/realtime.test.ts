@@ -60,7 +60,8 @@ describe("Realtime broadcast triggers", () => {
       observedAt: "2026-09-27T01:58:32.123Z", confirmedAt: "2026-09-27T01:58:32.123Z", finalizedAt: null,
     });
     expect(msgs.filter((m) => m.topic === `owner:${exporterId}`).map((m) => m.payload)).toEqual(
-      expect.arrayContaining([{ table: "invoices", id: inv.id, invoiceId: inv.id }, { table: "payments", id: paymentMsg!.payload.id, invoiceId: inv.id }]),
+      // Public, guessable topic: no ids (an invoice id is a pay-link credential), just "something changed".
+      expect.arrayContaining([{ table: "invoices" }, { table: "payments" }]),
     );
   });
 
@@ -78,15 +79,15 @@ describe("Realtime broadcast triggers", () => {
     await clear();
     const act = await store.recordAgentAction({ exporterId, buyerId: a.id, invoiceId: inv.id, kind: "reminder", inputSummary: "secret summary", decision: "Sent a reminder", reason: "C1", confidence: 1, ruleId: "C1", status: "executed" });
     expect(await sent()).toEqual([
-      { topic: `owner:${exporterId}`, event: "changed", private: false, payload: { table: "agent_actions", id: act.id, invoiceId: inv.id } },
+      { topic: `owner:${exporterId}`, event: "changed", private: false, payload: { table: "agent_actions" } },
     ]);
   });
 
   test("cached balance updates poke the owner topic; unrelated buyer edits do not", async () => {
     await store.updateBalances(exporterId, { treasuryUsdc: 5n, vaults: { [a.id]: 7n } });
     expect((await sent()).map((m) => [m.topic, m.payload])).toEqual([
-      [`owner:${exporterId}`, { table: "exporters", id: exporterId, invoiceId: null }],
-      [`owner:${exporterId}`, { table: "buyers", id: a.id, invoiceId: null }],
+      [`owner:${exporterId}`, { table: "exporters" }],
+      [`owner:${exporterId}`, { table: "buyers" }],
     ]);
     await clear();
     await store.updateBalances(exporterId, { treasuryUsdc: 5n, vaults: { [a.id]: 7n } }); // unchanged values

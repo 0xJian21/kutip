@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useLoginWithPasskey, useSignupWithPasskey } from "@privy-io/react-auth";
+import { useLoginWithPasskey, usePrivy, useSignupWithPasskey } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/solana";
 import { Check, Fingerprint } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Address } from "@/components/ui/address";
+import { establishSession } from "@/lib/data/actions";
+import { unwrap } from "@/lib/data/result";
 import { useOwnerWallet } from "@/lib/treasury/owner-wallet";
 import { formatUsdc } from "@/lib/ui/money";
 import type { Exporter, Rulebook } from "@/lib/ui/types";
@@ -22,7 +24,7 @@ const TREASURY_TASKS = [
   "Preparing the USDC account",
 ];
 
-export function Onboarding({ exporter, rulebook }: { exporter: Exporter; rulebook: Rulebook }) {
+export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; rulebook: Rulebook; next?: string }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [company, setCompany] = useState({ name: "", reg: "", city: "", owner: "", email: "" });
@@ -49,7 +51,7 @@ export function Onboarding({ exporter, rulebook }: { exporter: Exporter; ruleboo
         ))}
       </ol>
 
-      {step === 0 ? <SignInStep onDone={() => setStep(1)} /> : null}
+      {step === 0 ? <SignInStep onDone={() => (next ? router.replace(next) : setStep(1))} autoContinue={Boolean(next)} /> : null}
 
       {step === 1 ? (
         <section className="rounded-lg border border-line bg-surface p-6 sm:p-8">
@@ -160,8 +162,10 @@ export function Onboarding({ exporter, rulebook }: { exporter: Exporter; ruleboo
  * returning users log in with the one they have. Privy creates the Solana
  * embedded wallet on signup/login; its address is the owner of the treasury multisig.
  */
-function SignInStep({ onDone }: { onDone: () => void }) {
+function SignInStep({ onDone, autoContinue }: { onDone: () => void; autoContinue: boolean }) {
   const owner = useOwnerWallet();
+  const { getAccessToken } = usePrivy();
+  const [session, setSession] = useState<"idle" | "pending" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [platformAuth, setPlatformAuth] = useState<boolean | null>(null);
   const onError = (e: unknown) => setError(describePasskeyError(e));
@@ -199,6 +203,28 @@ function SignInStep({ onDone }: { onDone: () => void }) {
       .then(setPlatformAuth, () => setPlatformAuth(false));
   }, []);
 
+  // The server verifies the Privy access token and sets Kutip's session cookie (lib/server/auth.ts).
+  const finish = async () => {
+    setSession("pending");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("no Privy access token");
+      unwrap(await establishSession(token));
+      onDone();
+    } catch (e) {
+      setSession("error");
+      setError(`Could not start your session: ${(e as Error).message}`);
+    }
+  };
+  const ready = signedIn && Boolean(owner.address);
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (!autoContinue || !ready || autoRan.current) return;
+    autoRan.current = true;
+    void finish();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoContinue, ready]);
+
   const run = (fn: () => Promise<void>) => {
     setError(null);
     fn().catch(() => undefined); // surfaced through onError
@@ -221,7 +247,8 @@ function SignInStep({ onDone }: { onDone: () => void }) {
             </p>
           ) : null}
           {owner.address ? <p className="mt-2 break-all text-center text-xs tabular text-ink-3" aria-label="Wallet address">{owner.address}</p> : null}
-          <Button size="lg" className="mt-6 w-full" onClick={onDone} disabled={!owner.address}>Continue</Button>
+          {error ? <p className="mt-3 text-center text-sm text-overdue-fg">{error}</p> : null}
+          <Button size="lg" className="mt-6 w-full" onClick={() => void finish()} disabled={!owner.address || session === "pending"}>{session === "pending" ? "Opening Kutip…" : "Continue"}</Button>
           <p className="mt-3 text-center text-sm text-ink-3">
             Not you? <button type="button" onClick={() => owner.logout()} className="font-medium text-accent underline-offset-4 hover:underline">Sign out</button>
           </p>

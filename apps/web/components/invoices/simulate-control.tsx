@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { data } from "@/lib/ui/data";
+import { mockData } from "@/lib/mock";
+import { MOCK } from "@/lib/ui/data";
 import type { InvoiceStatus, SimulationStage } from "@/lib/ui/types";
 
 const STAGE_TEXT: Record<SimulationStage, string> = {
@@ -13,23 +14,23 @@ const STAGE_TEXT: Record<SimulationStage, string> = {
 
 export const DEMO_CONTROLS = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEMO_CONTROLS === "1";
 
-/** Dev-only. Walks an invoice through seen → paid → settled with realistic delays. */
+/** Mock mode only (NEXT_PUBLIC_KUTIP_MOCK=1). Walks an invoice through seen → paid → settled with realistic delays. */
 export function SimulateControl({ invoiceId, status, compact = false }: { invoiceId: string; status: InvoiceStatus; compact?: boolean }) {
   const [running, setRunning] = useState(false);
   const [stage, setStage] = useState<SimulationStage | null>(null);
-  if (!DEMO_CONTROLS) return null;
+  if (!DEMO_CONTROLS || !MOCK) return null;
 
   const finished = status === "settled";
 
   async function run() {
     setRunning(true);
     setStage(null);
-    await data.simulatePayment(invoiceId, { onStage: setStage });
+    await mockData.simulatePayment(invoiceId, { onStage: setStage });
     setRunning(false);
   }
 
   function reset() {
-    data.resetSimulation();
+    mockData.resetSimulation();
     setStage(null);
   }
 

@@ -1,0 +1,172 @@
+"use server";
+
+/**
+ * Server actions: the only way client components read or write data. Owner actions
+ * check the session and scope every call to its exporter; fetchPayInvoice is public.
+ */
+import Anthropic from "@anthropic-ai/sdk";
+import { createMailer, explainAction, extractInvoice, formatUsdc, haikuClassifier, jevClassifier } from "@kutip/agent";
+import { Keypair } from "@kutip/solana";
+import { refresh } from "next/cache";
+import { MOCK, signIn, signOut } from "@/lib/server/auth";
+import { getPayInvoice, ownerDataOrThrow } from "@/lib/server/data";
+import { validateRulebook } from "@/lib/server/access";
+import { handleBuyerReply } from "@/lib/server/replies";
+import { store } from "@/lib/server/store";
+import type { LineItem, Rulebook } from "@/lib/ui/types";
+import { toResult } from "./result";
+
+function anthropic(): Anthropic {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
+  return new Anthropic({ apiKey });
+}
+
+async function establishSessionImpl(accessToken: string): Promise<{ exporterId: string }> {
+  const { exporterId } = await signIn(accessToken);
+  return { exporterId };
+}
+
+export async function endSession(): Promise<void> {
+  await signOut();
+}
+
+export async function fetchDashboard() {
+  return (await ownerDataOrThrow()).getDashboard();
+}
+
+export async function fetchAgentActions() {
+  return (await ownerDataOrThrow()).listAgentActions();
+}
+
+export async function fetchInvoice(id: string) {
+  return (await ownerDataOrThrow()).getInvoice(id);
+}
+
+export async function fetchPayInvoice(id: string) {
+  return getPayInvoice(id);
+}
+
+/** Reject any proposed action, or approve one that needs no signature (Squads proposals go through useApproveProposal). */
+export async function decideAction(id: string, decision: "approved" | "rejected") {
+  return (await ownerDataOrThrow()).decideAction(id, decision);
+}
+
+export async function saveRulebook(rulebook: Rulebook) {
+  return (await ownerDataOrThrow()).saveRulebook(validateRulebook(rulebook));
+}
+
+export type ExtractedDraft = {
+  buyerId: string | null;
+  buyerName: string;
+  invoiceNumber: string;
+  dueDate: string | null;
+  lineItems: LineItem[];
+  totalUsdc: bigint;
+  warnings: string[];
+};
+
+/** New invoice, step 1: Haiku reads the PDF (rule I1). Only the PDF is sent; no stored buyer data. */
+async function readInvoicePdfImpl(form: FormData): Promise<ExtractedDraft> {
+  const data = await ownerDataOrThrow();
+  const file = form.get("pdf");
+  if (!(file instanceof File) || file.size === 0) throw new Error("No PDF received");
+  if (file.size > 8 * 1024 * 1024) throw new Error("That PDF is over 8 MB. Export a smaller one or fill in the form.");
+  const x = await extractInvoice(anthropic(), new Uint8Array(await file.arrayBuffer()));
+  const buyers = await data.listBuyers();
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const match = buyers.find((b) => norm(b.name) === norm(x.buyerName)) ?? buyers.find((b) => norm(x.buyerName).includes(norm(b.name).slice(0, 8)) || norm(b.name).includes(norm(x.buyerName).slice(0, 8)));
+  const warnings = [...x.warnings];
+  if (!match) warnings.push(`No buyer called "${x.buyerName}" yet; choose one`);
+  return { buyerId: match?.id ?? null, buyerName: x.buyerName, invoiceNumber: x.invoiceNumber, dueDate: x.dueDate, lineItems: x.lineItems, totalUsdc: x.totalUsdc, warnings };
+}
+
+/** Invoice email with the pay link (SPEC F3). Deterministic template: amounts and dates are never LLM-written. */
+function mailer() {
+  return createMailer({
+    apiKey: process.env.RESEND_API_KEY,
+    from: process.env.EMAIL_FROM ?? "Kutip <onboarding@resend.dev>",
+    allowlist: (process.env.EMAIL_ALLOWLIST ?? "").split(",").map((a) => a.trim()).filter(Boolean),
+    log: (m) => console.warn(`[email] ${m}`),
+  });
+}
+
+/** New invoice, step 2: create it as sent with a fresh Solana Pay reference key, then email the buyer the pay link. */
+async function createInvoiceImpl(input: {
+  buyerId: string;
+  number?: string;
+  dueDate: string;
+  lineItems: LineItem[];
+}): Promise<{ id: string; number: string; payUrl: string; sentTo: string; delivery: "sent" | "recorded" | "skipped" | "failed" }> {
+  const { exporterId } = await ownerDataOrThrow();
+  if (MOCK) throw new Error("Creating invoices needs the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) throw new Error("Enter a due date");
+  if (input.lineItems.length === 0 || input.lineItems.some((l) => l.quantity <= 0 || l.unitPriceUsdc < 0n)) throw new Error("Every line needs a quantity and a price");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur" }).format(new Date());
+  const inv = await store().createInvoice({
+    exporterId,
+    buyerId: input.buyerId,
+    number: input.number?.trim() || undefined,
+    lineItems: input.lineItems,
+    issuedAt: today,
+    dueDate: input.dueDate,
+    referencePubkey: Keypair.generate().publicKey.toBase58(),
+    status: "sent",
+  });
+  const [exporter, buyers] = await Promise.all([store().getExporter(exporterId), store().listBuyers(exporterId)]);
+  const buyer = buyers.find((b) => b.id === inv.buyerId)!;
+  const from = exporter?.name ?? "Kutip";
+  const email = {
+    subject: `Invoice ${inv.number} from ${from}`,
+    body: [
+      `Hi ${buyer.contactName},`,
+      "",
+      `Please find invoice ${inv.number} for USD ${formatUsdc(inv.amountUsdc)}, due ${inv.dueDate}.`,
+      "",
+      `Pay online in USDC or SOL; the network fee is covered: ${inv.payUrl}`,
+      "",
+      "Thank you,",
+      from,
+    ].join("\n"),
+  };
+  await store().recordMessage({ invoiceId: inv.id, direction: "out", from, subject: email.subject, body: email.body });
+  const delivery = await mailer().send(buyer.email, email);
+  return { id: inv.id, number: inv.number, payUrl: inv.payUrl, sentTo: buyer.email, delivery };
+}
+
+/** Demo scene (SPEC F8): a buyer reply goes through Jev (Haiku fallback) → rules engine → agent log. */
+async function simulateBuyerReplyImpl(invoiceId: string, body: string) {
+  const { exporterId } = await ownerDataOrThrow();
+  if (MOCK) throw new Error("Buyer replies need the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
+  if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_DEMO_CONTROLS !== "1") throw new Error("Simulated replies are turned off");
+  if (!body.trim()) throw new Error("Write the buyer's reply first");
+  const client = anthropic();
+  const haiku = haikuClassifier(client);
+  const key = process.env.OPENROUTER_API_KEY;
+  const out = await handleBuyerReply({
+    store: store(),
+    classifier: key ? jevClassifier({ apiKey: key, fallback: haiku }) : haiku,
+    explain: (ctx, req) => explainAction(client, ctx, req),
+    exporterId,
+    invoiceId,
+    subject: "Re: your invoice",
+    body: body.slice(0, 4000),
+    now: new Date(),
+  });
+  refresh();
+  return { intent: out.classification.label, confidence: out.classification.confidence, action: out.action };
+}
+
+// User-facing errors travel as data (see ./result): production hides thrown messages.
+export async function establishSession(accessToken: string) {
+  return toResult(() => establishSessionImpl(accessToken));
+}
+export async function readInvoicePdf(form: FormData) {
+  return toResult(() => readInvoicePdfImpl(form));
+}
+export async function createInvoice(input: Parameters<typeof createInvoiceImpl>[0]) {
+  return toResult(() => createInvoiceImpl(input), { duplicate: `Invoice number ${input.number} is already used. Change it, or clear it to use the next number.` });
+}
+export async function simulateBuyerReply(invoiceId: string, body: string) {
+  return toResult(() => simulateBuyerReplyImpl(invoiceId, body));
+}

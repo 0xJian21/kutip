@@ -1,7 +1,8 @@
 import { SideNav, TopBar } from "@/components/shell/nav";
-import { data } from "@/lib/ui/data";
+import { ownerData } from "@/lib/server/data";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
+  const data = await ownerData();
   const exporter = await data.getExporter();
   return (
     <div className="flex min-h-full flex-1 flex-col lg:flex-row">

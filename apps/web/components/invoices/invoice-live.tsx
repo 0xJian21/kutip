@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MoneyFigure } from "@/components/ui/money";
 import { Panel } from "@/components/ui/panel";
 import { StatusPill } from "@/components/ui/status-pill";
-import { data } from "@/lib/ui/data";
+import { fetchInvoice } from "@/lib/data/actions";
+import { debounce, useBroadcast } from "@/lib/data/live";
+import { mergeInvoiceEvent, parseInvoiceEvent, parsePaymentEvent } from "@/lib/data/merge";
+import { MOCK } from "@/lib/ui/data";
+import { mockData } from "@/lib/mock";
 import { dueLabel, formatDate } from "@/lib/ui/format";
 import type { InvoiceDetail } from "@/lib/ui/types";
 import { ReceiptCard } from "./receipt-card";
@@ -13,11 +17,30 @@ import { StatusBar } from "./status-bar";
 
 /**
  * The live part of the invoice page: header figure, status pill, status bar,
- * receipt. Subscribes after mount so simulated state never causes a hydration mismatch.
+ * receipt. Broadcast `invoice:<id>` events are applied as they arrive (Seen → Paid →
+ * Settled), then the full detail is refetched through a server action.
  */
-export function InvoiceLive({ initial }: { initial: InvoiceDetail }) {
+export function InvoiceLive({ initial, exporterId }: { initial: InvoiceDetail; exporterId: string }) {
   const [detail, setDetail] = useState(initial);
-  useEffect(() => data.subscribeInvoice(initial.invoice.id, setDetail), [initial.invoice.id]);
+  const id = initial.invoice.id;
+  const [seed, setSeed] = useState(initial);
+  if (seed !== initial) {
+    // Server re-render (e.g. after a simulated reply) brings a fresh snapshot.
+    setSeed(initial);
+    setDetail(initial);
+  }
+  useEffect(() => (MOCK ? mockData.subscribeInvoice(id, setDetail) : undefined), [id]);
+  const refetch = useMemo(() => debounce(() => void fetchInvoice(id).then((d) => d && setDetail(d)).catch(() => {}), 400), [id]);
+  useBroadcast(MOCK ? null : `invoice:${id}`, (event, payload) => {
+    if (event === "invoice") setDetail((d) => ({ ...d, invoice: mergeInvoiceEvent(d.invoice, parseInvoiceEvent(payload)) }));
+    if (event === "payment") {
+      const p = parsePaymentEvent(payload);
+      setDetail((d) => ({ ...d, payments: [...d.payments.filter((x) => x.signature !== p.signature), p] }));
+    }
+    refetch();
+  });
+  // owner:<exporterId> carries no ids (public topic), so any change refetches this invoice (debounced).
+  useBroadcast(MOCK ? null : `owner:${exporterId}`, refetch);
 
   const { invoice, buyer, payments, rate } = detail;
   const payment = payments.at(-1);

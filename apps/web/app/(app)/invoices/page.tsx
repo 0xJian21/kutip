@@ -5,7 +5,7 @@ import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/panel";
 import { EmptyState } from "@/components/ui/states";
-import { data } from "@/lib/ui/data";
+import { ownerData } from "@/lib/server/data";
 import { scenarioFrom } from "@/lib/ui/scenario";
 import type { InvoiceFilter, InvoiceStatus } from "@/lib/ui/types";
 
@@ -14,6 +14,7 @@ export const metadata: Metadata = { title: "Invoices" };
 const STATUSES: InvoiceStatus[] = ["draft", "sent", "seen", "paid", "settled", "partially_paid", "overdue", "disputed"];
 
 export default async function InvoicesPage({ searchParams }: PageProps<"/invoices">) {
+  const data = await ownerData();
   const sp = await searchParams;
   const scenario = scenarioFrom(sp);
   const statusParam = typeof sp.status === "string" ? sp.status : "all";

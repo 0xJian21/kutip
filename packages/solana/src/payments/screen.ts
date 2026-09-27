@@ -69,6 +69,29 @@ export async function screenWallet(wallet: PublicKey, deps: { rpc: ScreeningRpc;
   }
 }
 
+/**
+ * The pay flow never waits on the history heuristic for more than `budgetMs` (a first screen can take
+ * 12–37 s). The static sanctions list stays synchronous; if the RPC check runs over, the wallet passes
+ * provisionally and `late` resolves with the real verdict for the caller to record and act on.
+ */
+export async function screenWithBudget(
+  wallet: PublicKey,
+  deps: { rpc: ScreeningRpc; budgetMs: number; now?: Date; sanctioned?: ReadonlySet<string> },
+): Promise<{ result: ScreeningResult; late?: Promise<ScreeningResult> }> {
+  const list = deps.sanctioned ?? SANCTIONED;
+  if (list.has(wallet.toBase58())) return { result: { result: "flag", reasons: [`wallet is on the ${SANCTIONS_SOURCE} (OFAC SDN match)`] } };
+  const full = screenWallet(wallet, deps);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), deps.budgetMs)));
+  const first = await Promise.race([full, timeout]);
+  clearTimeout(timer);
+  if (first) return { result: first };
+  return {
+    result: { result: "pass", reasons: [`no match on the ${SANCTIONS_SOURCE}`, `wallet history check still running after ${deps.budgetMs} ms; passed provisionally`] },
+    late: full,
+  };
+}
+
 export function screeningRpcFromConnection(connection: Connection): ScreeningRpc {
   return {
     getSignaturesForAddress: async (address, opts) =>

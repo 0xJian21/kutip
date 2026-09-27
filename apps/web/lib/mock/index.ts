@@ -1,4 +1,4 @@
-import type { KutipData, QueryOptions } from "@/lib/ui/data";
+import type { KutipData, MockControls, QueryOptions } from "@/lib/ui/data";
 import type {
   AgentAction,
   DashboardSummary,
@@ -141,7 +141,7 @@ function payInvoice(id: string): PayInvoice | null {
   };
 }
 
-export const mockData: KutipData = {
+export const mockData: KutipData & MockControls = {
   async getExporter(opts) {
     await settle(opts);
     return { ...EXPORTER, rulebook };

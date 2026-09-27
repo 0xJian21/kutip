@@ -5,7 +5,9 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { AgentStatusPill } from "@/components/ui/status-pill";
 import { Address } from "@/components/ui/address";
-import { data } from "@/lib/ui/data";
+import { decideAction } from "@/lib/data/actions";
+import { useApproveProposal } from "@/lib/treasury/use-approve-proposal";
+import { MOCK } from "@/lib/ui/data";
 import { confidenceLabel, formatDateTime, relativeTime } from "@/lib/ui/format";
 import { AGENT_KIND_LABEL } from "@/lib/ui/status";
 import type { AgentAction, Buyer } from "@/lib/ui/types";
@@ -24,15 +26,38 @@ export function ActionRow({
   onChange?: (next: AgentAction) => void;
 }) {
   const [current, setCurrent] = useState(action);
+  const [seed, setSeed] = useState(action);
+  if (seed !== action) {
+    setSeed(action);
+    setCurrent(action);
+  }
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const { approve, state } = useApproveProposal();
   const buyer = buyers.find((b) => b.id === current.buyerId);
+  // Squads proposals record their index in inputSummary ("proposal #N: …", Session 5).
+  const proposalIndex = MOCK ? undefined : /^proposal #(\d+)/.exec(current.inputSummary)?.[1];
+  const signing = state.status === "signing" || state.status === "sending";
+
+  function update(next: AgentAction) {
+    setCurrent(next);
+    onChange?.(next);
+  }
 
   function decide(decision: "approved" | "rejected") {
+    setError(null);
     startTransition(async () => {
-      const next = await data.decideAction(current.id, decision);
-      if (next) {
-        setCurrent(next);
-        onChange?.(next);
+      try {
+        if (decision === "approved" && proposalIndex) {
+          // One passkey prompt (Touch ID): approve + execute in one tx, fee paid by Kutip; the route marks the action executed.
+          const signature = await approve(proposalIndex, current.id);
+          update({ ...current, status: "executed", txSignature: signature });
+          return;
+        }
+        const next = await decideAction(current.id, decision);
+        if (next) update(next);
+      } catch (e) {
+        setError(friendlyApproveError((e as Error).message));
       }
     });
   }
@@ -65,11 +90,20 @@ export function ActionRow({
               Reject
             </Button>
             <Button variant="secondary" onClick={() => decide("approved")} disabled={pending}>
-              {pending ? "Approving…" : "Approve"}
+              {state.status === "signing" ? "Confirm with your passkey…" : state.status === "sending" ? "Sending…" : pending ? "Approving…" : "Approve"}
             </Button>
           </span>
         ) : null}
       </div>
+      {error ? <p role="alert" className="text-sm text-disputed-fg">{error}</p> : null}
+      {signing ? <p className="text-sm text-ink-2" aria-live="polite">{state.status === "signing" ? "Your device will ask for Touch ID or Face ID to sign the approval." : "Approved. Executing on Solana…"}</p> : null}
     </article>
   );
+}
+
+function friendlyApproveError(msg: string): string {
+  if (/passkey first|not authenticated|sign in/i.test(msg)) return "Sign in with your passkey to approve. Your session in this browser has ended.";
+  if (/cancel|abort|notallowed|denied|rejected/i.test(msg)) return "Cancelled before your device confirmed. Nothing was signed.";
+  if (/session has ended/i.test(msg)) return msg;
+  return `Couldn't approve: ${msg}`;
 }

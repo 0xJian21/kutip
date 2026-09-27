@@ -117,6 +117,34 @@ describe("backfill after a (re)connect", () => {
     expect(d.payments[0]).toMatchObject({ signature: sig, commitment: "finalized", verified: true });
     expect(paid).toEqual([invoiceId]);
   });
+
+  test("uses the block time for Seen/Paid/Settled, not the catch-up time", async () => {
+    const sig = SPIKE_C.transaction.signatures[0]!;
+    const blockTime = Date.UTC(2026, 8, 26, 10, 0, 0) / 1000;
+    const rpc: TrackerRpc = {
+      ...noRpc,
+      getSignaturesForAddress: async (addr) => (addr === reference ? [{ signature: sig, slot: SPIKE_C.slot, err: null, confirmationStatus: "finalized", blockTime }] : []),
+      getTransaction: async (s) => (s === sig ? SPIKE_C : null),
+    };
+    await tracker(rpc).backfill(T(0));
+    const d = (await store.getInvoice(exporterId, invoiceId))!;
+    expect(d.invoice.paidAt).toBe(new Date(blockTime * 1000).toISOString());
+  });
+
+  test("a repeated catch-up skips signatures it already recorded as final", async () => {
+    const sig = SPIKE_C.transaction.signatures[0]!;
+    let fetched = 0;
+    const rpc: TrackerRpc = {
+      ...noRpc,
+      getSignaturesForAddress: async (addr) => (addr === reference ? [{ signature: sig, slot: SPIKE_C.slot, err: null, confirmationStatus: "finalized" }] : []),
+      getTransaction: async (s) => (fetched++, s === sig ? SPIKE_C : null),
+    };
+    const t = tracker(rpc);
+    await t.backfill(T(0));
+    await t.backfill(T(1000));
+    expect(fetched).toBe(1);
+    expect(paid).toEqual([invoiceId]);
+  });
 });
 
 describe("swap payment", () => {

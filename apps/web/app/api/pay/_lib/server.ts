@@ -6,6 +6,7 @@
 import path from "node:path";
 import { connect, createStore, type Store } from "@kutip/db";
 import {
+  InFlight,
   jupiterClient,
   LiveTxCache,
   makeConnection,
@@ -36,6 +37,8 @@ type Runtime = {
   walletLimiter: RateLimiter;
   replay: ReplayCache;
   receipts: Map<string, SettleResponse>;
+  /** Concurrent POSTs for the same invoice + wallet + token share one screen + build. */
+  inflight: InFlight<{ status: number; body: unknown }>;
 };
 
 declare global {
@@ -68,17 +71,21 @@ export function runtime(): Runtime {
     screeningRpc: screeningRpcFromConnection(connection),
     x402Rpc: x402RpcFromConnection(connection),
     jupiter: jupiterClient({ apiKey: config.jupiterApiKey, baseUrl: config.jupiterBaseUrl }),
-    liveTx: new LiveTxCache<BuiltPayment>({ ttlMs: 45_000 }),
+    // Short enough that a cached tx still has most of its ~60–90 s blockhash life when the wallet shows it.
+    liveTx: new LiveTxCache<BuiltPayment>({ ttlMs: 20_000 }),
     invoiceLimiter: new RateLimiter({ limit: 10, windowMs: 60_000 }),
     walletLimiter: new RateLimiter({ limit: 10, windowMs: 60_000 }),
     replay: new ReplayCache(),
     receipts: new Map(),
+    inflight: new InFlight(),
   };
   return globalThis.__kutipPayments;
 }
 
 export type PayTarget = {
   invoiceId: string;
+  exporterId: string;
+  buyerId: string;
   invoiceNumber: string;
   exporterName: string;
   status: string;
@@ -107,6 +114,8 @@ export async function payTarget(invoiceId: string): Promise<PayTarget | null> {
   if (!buyer || !exporter) return null;
   return {
     invoiceId: inv.id,
+    exporterId: inv.exporterId,
+    buyerId: inv.buyerId,
     invoiceNumber: inv.number,
     exporterName: exporter.name,
     status: inv.status,

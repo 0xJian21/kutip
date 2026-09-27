@@ -3,7 +3,7 @@
  * with their ids and timestamps, so the real app renders exactly the mock demo.
  * All data is fictional; addresses are base58-shaped strings, not real accounts.
  */
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   AGENT_ACTIONS,
   BUYERS,
@@ -18,6 +18,7 @@ import {
   TREASURY_MAIN_BALANCE,
   WHITELISTED_CASH_OUT,
 } from "@/lib/mock/fixtures";
+import { deleteExporter } from "../src/admin";
 import type { Db } from "../src/client";
 import { rulebookToJson } from "../src/map";
 import * as s from "../src/schema";
@@ -140,18 +141,5 @@ export async function seedDemo(db: Db): Promise<"seeded" | "skipped"> {
 
 /** Delete the demo exporter and everything under it (rehearsals leave paid invoices behind). */
 export async function resetDemo(db: Db): Promise<void> {
-  await db.transaction(async (tx) => {
-    const invoiceIds = tx.select({ id: s.invoices.id }).from(s.invoices).where(eq(s.invoices.exporterId, EXPORTER.id));
-    await tx.delete(s.payments).where(inArray(s.payments.invoiceId, invoiceIds));
-    const refs = tx.select({ ref: s.invoices.referencePubkey }).from(s.invoices).where(eq(s.invoices.exporterId, EXPORTER.id));
-    await tx.delete(s.quotes).where(inArray(s.quotes.referencePubkey, refs));
-    await tx.delete(s.messages).where(inArray(s.messages.invoiceId, invoiceIds));
-    await tx.delete(s.screenings).where(inArray(s.screenings.invoiceId, invoiceIds));
-    await tx.delete(s.agentActions).where(eq(s.agentActions.exporterId, EXPORTER.id));
-    await tx.delete(s.sweeps).where(eq(s.sweeps.exporterId, EXPORTER.id));
-    await tx.delete(s.invoices).where(eq(s.invoices.exporterId, EXPORTER.id));
-    await tx.delete(s.buyers).where(eq(s.buyers.exporterId, EXPORTER.id));
-    await tx.delete(s.users).where(eq(s.users.exporterId, EXPORTER.id));
-    await tx.delete(s.exporters).where(eq(s.exporters.id, EXPORTER.id));
-  });
+  await deleteExporter(db, EXPORTER.id);
 }

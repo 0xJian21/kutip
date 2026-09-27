@@ -12,7 +12,7 @@ type SignatureStatus = { slot: number; confirmationStatus: Commitment | null; er
 
 export type TrackerRpc = {
   getSignatureStatuses(signatures: string[]): Promise<SignatureStatus[]>;
-  getSignaturesForAddress(address: string): Promise<Array<{ signature: string; slot: number; err: unknown; confirmationStatus: Commitment | null }>>;
+  getSignaturesForAddress(address: string): Promise<Array<{ signature: string; slot: number; err: unknown; confirmationStatus: Commitment | null; blockTime?: number | null }>>;
   getTransaction(signature: string): Promise<RpcTransaction | null>;
 };
 
@@ -42,6 +42,7 @@ export function createPaymentTracker(deps: {
   const { store, rpc, log } = deps;
   const refs = new Map<string, string>(); // reference pubkey → invoice id
   const tracked = new Map<string, Tracked>(); // signature → state
+  const final = new Set<string>(); // signatures recorded as finalized: catch-up skips them
 
   async function record(sig: string, t: Tracked, level: Commitment, at: Date): Promise<void> {
     const { invoice } = await store.recordPayment({
@@ -66,7 +67,10 @@ export function createPaymentTracker(deps: {
     const since = level === "processed" ? "" : ` +${at.getTime() - t.seenAt.getTime()} ms`;
     const flags = t.v.verified ? "" : " UNVERIFIED";
     log(`${LABEL[level].padEnd(7)} ${t.invoiceId} ${sig.slice(0, 8)}… slot ${t.slot}${since} → invoice ${invoice.status}${flags}${t.v.issues.length ? ` (${t.v.issues.join("; ")})` : ""}`);
-    if (level === "finalized") tracked.delete(sig);
+    if (level === "finalized") {
+      tracked.delete(sig);
+      final.add(sig);
+    }
     if (!wasPaid && RANK[level] >= 1 && (invoice.status === "paid" || invoice.status === "settled")) await deps.onPaid?.({ invoiceId: t.invoiceId, exporterId: t.exporterId, buyerId: t.buyerId });
   }
 
@@ -131,18 +135,23 @@ export function createPaymentTracker(deps: {
       }
     },
 
-    /** After a (re)connect: record anything paid to a watched reference while we weren't listening. */
+    /**
+     * Catch-up (after every (re)connect and every few minutes): record anything paid to a watched
+     * reference that the stream missed, e.g. while no worker ran. Timestamps are the block time.
+     */
     async backfill(now: Date): Promise<void> {
       for (const ref of [...refs.keys()].filter(isPubkey)) {
         for (const s of await rpc.getSignaturesForAddress(ref)) {
-          if (s.err || !s.confirmationStatus || tracked.has(s.signature)) continue;
+          if (s.err || !s.confirmationStatus || tracked.has(s.signature) || final.has(s.signature)) continue;
           const raw = await rpc.getTransaction(s.signature);
           if (!raw) continue;
-          const started = await start(fromRpc(raw), now);
+          const at = s.blockTime ? new Date(s.blockTime * 1000) : now;
+          const started = await start(fromRpc(raw), at);
           if (!started) continue;
           const [sig, t] = started;
           tracked.set(sig, t);
-          await record(sig, t, s.confirmationStatus, now);
+          log(`Catch-up ${t.invoiceId} ${sig.slice(0, 8)}… found over RPC (${s.confirmationStatus})`);
+          await record(sig, t, s.confirmationStatus, at);
         }
       }
     },

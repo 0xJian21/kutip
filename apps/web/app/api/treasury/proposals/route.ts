@@ -5,7 +5,7 @@ import { json, treasuryContext, treasuryMultisig } from "@/lib/treasury/server";
 export async function GET() {
   try {
     const { connection } = treasuryContext();
-    const multisigPda = await treasuryMultisig();
+    const { multisig: multisigPda } = await treasuryMultisig();
     const proposals = await listProposals(connection, multisigPda);
     return json({ multisig: multisigPda.toBase58(), proposals });
   } catch (e) {

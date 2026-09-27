@@ -268,6 +268,18 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       return { id };
     },
 
+    /** Sign-in: the Kutip user behind a verified Privy user, by linked Privy id, else by one of their wallets. */
+    async findUser(q: { privyUserId: string; wallets: string[] }): Promise<{ userId: string; exporterId: string; role: "owner" | "admin" } | null> {
+      const where = q.wallets.length ? or(eq(s.users.privyUserId, q.privyUserId), inArray(s.users.walletPubkey, q.wallets)) : eq(s.users.privyUserId, q.privyUserId);
+      const rows = await db.select().from(s.users).where(where).orderBy(asc(s.users.createdAt));
+      const u = rows.find((r) => r.privyUserId === q.privyUserId) ?? rows[0];
+      return u ? { userId: u.id, exporterId: u.exporterId, role: u.role } : null;
+    },
+
+    async linkPrivyUser(userId: string, privyUserId: string): Promise<void> {
+      await db.update(s.users).set({ privyUserId }).where(eq(s.users.id, userId));
+    },
+
     async getExporter(exporterId: string): Promise<Exporter | null> {
       const [e] = await db.select().from(s.exporters).where(eq(s.exporters.id, exporterId));
       if (!e) return null;

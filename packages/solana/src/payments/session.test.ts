@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
-import { chooseMode, LiveTxCache, RateLimiter } from "./session";
+import { describe, expect, it, test } from "vitest";
+import { blockingScreening, chooseMode, InFlight, LiveTxCache, RateLimiter, reusableScreening } from "./session";
 
 const T0 = 1_000_000;
 
@@ -73,5 +73,63 @@ describe("chooseMode", () => {
   });
   test("unknown token string is refused", () => {
     expect(chooseMode({ token: "BONK", accepted, solEnabled: true, usdcBalance: 0n, amount: 1n })).toEqual({ error: "This invoice accepts USDC, SOL, USDT" });
+  });
+});
+
+describe("reusableScreening", () => {
+  const now = new Date("2026-09-30T02:00:00Z");
+  const at = (hoursAgo: number) => new Date(now.getTime() - hoursAgo * 3_600_000).toISOString();
+
+  it("reuses a pass from the last 24 hours", () => {
+    expect(reusableScreening({ result: "pass", reasons: ["ok"], createdAt: at(23) }, now)).toEqual({ result: "pass", reasons: ["ok", "reused screening from the last 24 h"] });
+  });
+
+  it("screens again after 24 hours, after a flag, or with no record", () => {
+    expect(reusableScreening({ result: "pass", reasons: [], createdAt: at(25) }, now)).toBeNull();
+    expect(reusableScreening({ result: "flag", reasons: [], createdAt: at(1) }, now)).toBeNull();
+    expect(reusableScreening(null, now)).toBeNull();
+  });
+});
+
+describe("InFlight", () => {
+  it("shares one run between concurrent callers with the same key", async () => {
+    const f = new InFlight<number>();
+    let calls = 0;
+    let release!: (n: number) => void;
+    const work = () => { calls++; return new Promise<number>((r) => (release = r)); };
+    const a = f.run("inv:wallet", work);
+    const b = f.run("inv:wallet", work);
+    release(7);
+    expect(await Promise.all([a, b])).toEqual([7, 7]);
+    expect(calls).toBe(1);
+  });
+
+  it("runs again once the first run settled, and keys are independent", async () => {
+    const f = new InFlight<string>();
+    let calls = 0;
+    await f.run("k", async () => { calls++; return "x"; });
+    await f.run("k", async () => { calls++; return "y"; });
+    await Promise.all([f.run("a", async () => { calls++; return "a"; }), f.run("b", async () => { calls++; return "b"; })]);
+    expect(calls).toBe(4);
+  });
+
+  it("forgets a failed run so the next caller retries", async () => {
+    const f = new InFlight<string>();
+    await expect(f.run("k", async () => { throw new Error("rpc down"); })).rejects.toThrow("rpc down");
+    expect(await f.run("k", async () => "ok")).toBe("ok");
+  });
+});
+
+describe("blockingScreening (a recorded flag blocks the wallet)", () => {
+  const now = new Date("2026-09-30T02:00:00Z");
+  it("a flag, however old, blocks until the owner clears it", () => {
+    expect(blockingScreening({ result: "flag", reasons: ["first transaction involved a sanctioned address"], createdAt: "2026-01-01T00:00:00Z" })).toEqual({ result: "flag", reasons: ["first transaction involved a sanctioned address", "flagged by an earlier check"] });
+  });
+  it("a flag that only means the RPC was down does not block (screen again)", () => {
+    expect(blockingScreening({ result: "flag", reasons: ["wallet could not be screened: timeout"], createdAt: now.toISOString() })).toBeNull();
+  });
+  it("a pass or no record does not block", () => {
+    expect(blockingScreening({ result: "pass", reasons: [], createdAt: now.toISOString() })).toBeNull();
+    expect(blockingScreening(null)).toBeNull();
   });
 });
