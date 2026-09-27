@@ -25,7 +25,7 @@ const { db, close } = connect(cfg.databaseUrl, { max: 3 });
 const store = createStore(db, { appUrl: cfg.appUrl });
 const rpc = createRpc(cfg.rpcUrl);
 const anthropic = cfg.anthropicApiKey ? new Anthropic({ apiKey: cfg.anthropicApiKey }) : undefined;
-const mailer = createMailer({ apiKey: cfg.resendApiKey, from: cfg.emailFrom, log });
+const mailer = createMailer({ apiKey: cfg.resendApiKey, from: cfg.emailFrom, allowlist: cfg.emailAllowlist, log });
 const collections = createCollections({ store, anthropic, mailer, log, dryRun: cfg.collections === "dry" });
 const balances = createBalances({ store, feePayer: cfg.feePayer, minLamports: cfg.feePayerMinLamports, log });
 const tracker = createPaymentTracker({

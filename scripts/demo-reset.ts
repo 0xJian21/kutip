@@ -7,6 +7,9 @@
  *
  *   pnpm --filter @kutip/scripts exec tsx demo-reset.ts [--owner <privy wallet pubkey>] [--warm <wallet>,<wallet>] [--yes]
  *
+ * Every seeded buyer's email becomes <inbox local>+<buyer>@<domain> (--inbox, default: the first
+ * EMAIL_ALLOWLIST entry) so reminders and receipts from COLLECTIONS=on land in your own inbox.
+ *
  * --warm screens the buyer wallets you will pay from on stage (read-only RPC) so the first
  * pay-link POST reuses a fresh pass instead of a 12–37 s screen. Screenings survive the reset.
  *
@@ -37,6 +40,10 @@ async function main() {
     if (!ownerArg) throw new Error("pass --owner <Privy wallet pubkey> (usr_owner has no wallet in the DB)");
     const owner = new PublicKey(ownerArg);
     const cashOut = new PublicKey(arg("cashout") ?? keypairFromEnv("TEST_BUYER_SECRET").publicKey);
+    const inbox = arg("inbox") ?? (process.env.EMAIL_ALLOWLIST ?? "").split(",")[0]?.trim();
+    if (!inbox || !/^[^@+\s]+@[^@\s]+$/.test(inbox)) throw new Error("pass --inbox you@example.com (or set EMAIL_ALLOWLIST) for the demo buyers' emails");
+    const [local, domain] = inbox.split("@") as [string, string];
+    const aliasFor = (buyerId: string) => `${local}+${buyerId.replace(/^b_/, "")}@${domain}`;
     const warm = (arg("warm") ?? "").split(",").filter(Boolean).map((w) => new PublicKey(w));
     const zz = await raw.select({ id: schema.exporters.id, name: schema.exporters.name }).from(schema.exporters).where(like(schema.exporters.name, "ZZ TEST%"));
 
@@ -57,6 +64,7 @@ async function main() {
     console.log(`  1. re-seed ${EXPORTER_ID} (every invoice, payment, message and agent action under it is deleted)`);
     console.log(`  2. delete test exporters: ${zz.length ? zz.map((e) => `${e.name} (${e.id})`).join(", ") : "none (skip)"}`);
     console.log(`  3. re-attach treasury ${treasury.multisigPda.toBase58()} + ${buyers.length} buyer multisigs (all ${keys.length} accounts exist on-chain), cash-out → ${cashOut.toBase58()}`);
+    console.log(`     buyer emails → ${aliasFor("b_<buyer>")}`);
     console.log(`  4. create ${LIVE_INVOICES.map((i) => `${i.label} USD ${Number(i.unitPriceUsdc) / 1e6} (${i.buyerId})`).join(", ")} with fresh reference keys`);
     if (warm.length) console.log(`  5. screen ${warm.map((w) => w.toBase58()).join(", ")} unless screened (pass) in the last 24 h`);
 
@@ -82,10 +90,11 @@ async function main() {
     await store.updateTreasuryAccounts(EXPORTER_ID, { treasuryMultisig: treasury.multisigPda.toBase58(), treasuryVault: treasury.vaultPda.toBase58(), treasuryUsdcAta: treasury.vaultAta.toBase58() });
     for (const b of buyers) {
       await store.updateBuyerAccounts(EXPORTER_ID, b.id, { multisig: b.multisigPda.toBase58(), vault: b.vaultPda.toBase58(), usdcAta: b.vaultAta.toBase58(), spendingLimitPda: b.spendingLimitPda.toBase58() });
+      await raw.update(schema.buyers).set({ email: aliasFor(b.id) }).where(eq(schema.buyers.id, b.id));
     }
     await raw.update(schema.users).set({ walletPubkey: owner.toBase58() }).where(eq(schema.users.id, "usr_owner"));
     await raw.update(schema.exporters).set({ cashOutWhitelist: [{ label: "Luno MYR account (Teratai Woodworks)", address: cashOut.toBase58() }] }).where(eq(schema.exporters.id, EXPORTER_ID));
-    console.log("  3. treasury, buyers, owner wallet and cash-out whitelist attached");
+    console.log(`  3. treasury, buyers, owner wallet and cash-out whitelist attached; buyer emails → ${aliasFor("b_<buyer>")}`);
 
     const today = new Date().toISOString().slice(0, 10);
     const due = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);

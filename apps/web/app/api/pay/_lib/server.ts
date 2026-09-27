@@ -84,6 +84,8 @@ export function runtime(): Runtime {
 
 export type PayTarget = {
   invoiceId: string;
+  exporterId: string;
+  buyerId: string;
   invoiceNumber: string;
   exporterName: string;
   status: string;
@@ -112,6 +114,8 @@ export async function payTarget(invoiceId: string): Promise<PayTarget | null> {
   if (!buyer || !exporter) return null;
   return {
     invoiceId: inv.id,
+    exporterId: inv.exporterId,
+    buyerId: inv.buyerId,
     invoiceNumber: inv.number,
     exporterName: exporter.name,
     status: inv.status,

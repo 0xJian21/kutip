@@ -1,7 +1,7 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { describe, expect, test } from "vitest";
 import sanctioned from "./sanctioned.json";
-import { SANCTIONED, screenWallet, type ScreeningRpc } from "./screen";
+import { SANCTIONED, screenWallet, screenWithBudget, type ScreeningRpc } from "./screen";
 
 const NOW = new Date("2026-09-27T05:00:00Z");
 const wallet = Keypair.generate().publicKey;
@@ -94,5 +94,36 @@ describe("screenWallet", () => {
     const r = await screenWallet(wallet, { rpc, now: NOW });
     expect(r.result).toBe("flag");
     expect(r.reasons.join(" ")).toMatch(/could not be screened/);
+  });
+});
+
+describe("screenWithBudget (the pay flow never waits more than the budget)", () => {
+  const slow = (rpc: ScreeningRpc, ms: number): ScreeningRpc => ({
+    getSignaturesForAddress: async (a, o) => (await new Promise((r) => setTimeout(r, ms)), rpc.getSignaturesForAddress(a, o)),
+    getTransactionAccounts: (s) => rpc.getTransactionAccounts(s),
+  });
+
+  test("a sanctioned wallet is flagged synchronously, without touching RPC", async () => {
+    const rpc = fakeRpc(sigs(5, 30 * 86_400));
+    const r = await screenWithBudget(SDN, { rpc, budgetMs: 50, now: NOW });
+    expect(r.result.result).toBe("flag");
+    expect(r.late).toBeUndefined();
+    expect(rpc.pages).toBe(0);
+  });
+
+  test("a check that finishes in time is returned as is", async () => {
+    const r = await screenWithBudget(wallet, { rpc: fakeRpc(sigs(5, 30 * 86_400)), budgetMs: 200, now: NOW });
+    expect(r.result.result).toBe("pass");
+    expect(r.late).toBeUndefined();
+  });
+
+  test("a slow check passes provisionally and hands back the late result", async () => {
+    const t0 = Date.now();
+    const r = await screenWithBudget(wallet, { rpc: slow(fakeRpc(sigs(2, 60)), 150), budgetMs: 30, now: NOW });
+    expect(Date.now() - t0).toBeLessThan(120);
+    expect(r.result.result).toBe("pass");
+    expect(r.result.reasons.join(" ")).toMatch(/provisional/);
+    // wallet first seen 60 s ago → the real check flags it after the payment was built
+    expect(await r.late).toMatchObject({ result: "flag" });
   });
 });

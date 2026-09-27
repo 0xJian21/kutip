@@ -3,7 +3,8 @@
  * screen the wallet → build a fee-sponsored tx → {transaction, message}.
  * Spec: https://solana.com/docs/tools/solana-pay/specification/version1
  */
-import { buildPaymentTx, chooseMode, getAssociatedTokenAddressSync, PublicKey, reusableScreening, SANCTIONED, screenWallet } from "@kutip/solana";
+import { buildPaymentTx, chooseMode, getAssociatedTokenAddressSync, PublicKey, reusableScreening, SANCTIONED, screenWithBudget } from "@kutip/solana";
+import { after } from "next/server";
 import type { NextRequest } from "next/server";
 import { amountDue, json, PAYABLE, payTarget, recordQuote, runtime } from "../_lib/server";
 
@@ -69,10 +70,13 @@ async function prepare(p: {
 }): Promise<{ status: number; body: unknown }> {
   const { rt, target, due, buyer, wallet, invoiceId, token, liveKey } = p;
   const t0 = Date.now();
-  // A pass from the last 24 h is reused (a first screen takes 12–37 s); the static sanctions list is always checked.
+  // A pass from the last 24 h is reused; the static sanctions list is always checked. A fresh history check gets
+  // SCREEN_BUDGET_MS: past that the wallet passes provisionally and the verdict is recorded after the response.
   const reused = SANCTIONED.has(wallet) ? null : reusableScreening(await rt.store.latestScreening(wallet), new Date());
-  const screening = reused ?? (await screenWallet(buyer, { rpc: rt.screeningRpc }));
-  if (!reused) await rt.store.recordScreening({ wallet, invoiceId, result: screening.result, reasons: screening.reasons });
+  const budgeted = reused ? null : await screenWithBudget(buyer, { rpc: rt.screeningRpc, budgetMs: SCREEN_BUDGET_MS });
+  const screening = reused ?? budgeted!.result;
+  if (budgeted?.late) after(() => finishScreening(rt, target, wallet, budgeted.late!));
+  else if (!reused) await rt.store.recordScreening({ wallet, invoiceId, result: screening.result, reasons: screening.reasons });
   if (screening.result === "flag") {
     console.warn(`[pay] flagged ${wallet} for ${invoiceId}: ${screening.reasons.join("; ")}`);
     return { status: 403, body: { message: `This wallet can't be used to pay ${target.exporterName}. Please contact them for another payment method.` } };
@@ -101,13 +105,36 @@ async function prepare(p: {
     });
     rt.liveTx.set(invoiceId, liveKey, built);
     if (built.quote) await recordQuote(target.referencePubkey, built.quote);
-    console.log(`[pay] built ${choice.mode} tx for ${invoiceId} wallet ${wallet.slice(0, 6)}… ${built.transaction.length}B ${built.version} · screen ${tScreen} ms${reused ? " (reused)" : ""}, total ${Date.now() - t0} ms`);
+    console.log(`[pay] built ${choice.mode} tx for ${invoiceId} wallet ${wallet.slice(0, 6)}… ${built.transaction.length}B ${built.version} · screen ${tScreen} ms${reused ? " (reused)" : budgeted?.late ? " (provisional)" : ""}, total ${Date.now() - t0} ms`);
     return { status: 200, body: { transaction: built.base64, message: paymentMessage(target, due, built.quote?.inputMint) } };
   } catch (e) {
     const msg = (e as Error).message;
     console.error(`[pay] build failed for ${invoiceId}: ${msg}`);
     return { status: 400, body: { message: walletFacing(msg, target.exporterName) } };
   }
+}
+
+const SCREEN_BUDGET_MS = 2_500;
+
+/** The history check that ran past the budget: record it; a bad verdict escalates the invoice for the owner to review. */
+async function finishScreening(rt: ReturnType<typeof runtime>, target: NonNullable<Awaited<ReturnType<typeof payTarget>>>, wallet: string, late: Promise<{ result: "pass" | "flag"; reasons: string[] }>) {
+  const t0 = Date.now();
+  const r = await late;
+  await rt.store.recordScreening({ wallet, invoiceId: target.invoiceId, result: r.result, reasons: r.reasons });
+  console.log(`[pay] late screening for ${wallet.slice(0, 6)}… on ${target.invoiceId}: ${r.result} (+${Date.now() - t0} ms after the response)`);
+  if (r.result === "pass") return;
+  await rt.store.recordAgentAction({
+    exporterId: target.exporterId,
+    buyerId: target.buyerId,
+    invoiceId: target.invoiceId,
+    kind: "escalate",
+    status: "escalated",
+    ruleId: "T1",
+    confidence: 1,
+    inputSummary: `Payer ${wallet.slice(0, 6)}… on ${target.invoiceNumber}: ${r.reasons.join("; ")}`,
+    decision: `Flagged the paying wallet on ${target.invoiceNumber} for your review`,
+    reason: "The wallet check finished after the payment was prepared and did not pass",
+  });
 }
 
 function paymentMessage(t: { invoiceNumber: string; exporterName: string }, due: bigint, inputMint?: "SOL" | "USDT"): string {

@@ -40,6 +40,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     openrouterApiKey: env.OPENROUTER_API_KEY,
     resendApiKey: env.RESEND_API_KEY,
     emailFrom: env.EMAIL_FROM ?? "Kutip <onboarding@resend.dev>",
+    /** Only these inboxes (and their +aliases) get mail; "*" = anyone; empty = nobody. */
+    emailAllowlist: (env.EMAIL_ALLOWLIST ?? "").split(",").map((a) => a.trim()).filter(Boolean),
     appUrl: env.APP_URL ?? "http://localhost:3000",
     /** on: send reminders; dry: log what would happen (shared demo DB); off. */
     collections: collections as "on" | "dry" | "off",
