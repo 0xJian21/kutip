@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { exporterForSignIn } from "./access";
 import { SESSION_TTL_MS, signSession, verifySession, type Session } from "./session-token";
 import { store } from "./store";
 
@@ -11,7 +12,7 @@ import { store } from "./store";
  * then POSTs its Privy access token to /api/session. We verify it here against
  * Privy's JWKS, map the Privy user to a Kutip user (linked id, else its embedded
  * Solana wallet = the Squads owner), and set our own signed httpOnly cookie.
- * Hackathon fallback: a verified Privy user with no Kutip user gets DEMO_EXPORTER_ID.
+ * A verified Privy user with no Kutip user is refused; DEMO_FALLBACK=1 lets them into DEMO_EXPORTER_ID instead.
  */
 
 export const MOCK = process.env.NEXT_PUBLIC_KUTIP_MOCK === "1";
@@ -68,8 +69,9 @@ export async function signIn(accessToken: string): Promise<Session> {
   const wallets = await privySolanaWallets(privyUserId);
   const user = await store().findUser({ privyUserId, wallets });
   if (user) await store().linkPrivyUser(user.userId, privyUserId);
-  else console.warn(`[auth] ${privyUserId} has no Kutip user; using ${DEMO_EXPORTER_ID}`);
-  const session: Session = { exporterId: user?.exporterId ?? DEMO_EXPORTER_ID, privyUserId, ...(wallets[0] ? { wallet: wallets[0] } : {}) };
+  else console.warn(`[auth] ${privyUserId} has no Kutip user${process.env.DEMO_FALLBACK === "1" ? `; DEMO_FALLBACK → ${DEMO_EXPORTER_ID}` : "; refused"}`);
+  const exporterId = exporterForSignIn(user, { demoFallback: process.env.DEMO_FALLBACK === "1" ? DEMO_EXPORTER_ID : undefined });
+  const session: Session = { exporterId, privyUserId, ...(wallets[0] ? { wallet: wallets[0] } : {}) };
 
   (await cookies()).set(COOKIE, signSession(session, cookieKey()), {
     httpOnly: true,

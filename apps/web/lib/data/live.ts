@@ -7,6 +7,7 @@ import { useEffect, useRef } from "react";
  * Supabase Realtime Broadcast (DECISIONS "after the spikes" #5): public topics,
  * anon key, no table reads. `invoice:<id>` carries `invoice` / `payment` events,
  * `owner:<exporterId>` carries content-free `changed` events that mean "refetch".
+ * The topics are public, so events are hints: anything shown to a buyer comes from the server.
  */
 let client: SupabaseClient | undefined;
 function supabase(): SupabaseClient | null {
@@ -18,12 +19,23 @@ function supabase(): SupabaseClient | null {
 
 export type BroadcastHandler = (event: string, payload: Record<string, unknown>) => void;
 
+/** Anyone with the public anon key can send to these topics: never let a malformed payload throw. */
+export function guard(handler: BroadcastHandler): BroadcastHandler {
+  return (event, payload) => {
+    try {
+      handler(event, payload);
+    } catch (e) {
+      console.warn(`[realtime] ignored a malformed ${event} event: ${(e as Error).message}`);
+    }
+  };
+}
+
 export function subscribeBroadcast(topic: string, onEvent: BroadcastHandler): () => void {
   const sb = supabase();
   if (!sb) return () => {};
   const channel = sb
     .channel(topic)
-    .on("broadcast", { event: "*" }, (m) => onEvent(m.event, (m.payload ?? {}) as Record<string, unknown>))
+    .on("broadcast", { event: "*" }, (m) => guard(onEvent)(m.event, (m.payload ?? {}) as Record<string, unknown>))
     .subscribe((status, err) => {
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") console.warn(`[realtime] ${topic}: ${status}${err ? ` ${err.message}` : ""}`);
     });

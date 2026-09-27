@@ -3,7 +3,7 @@
  * screen the wallet → build a fee-sponsored tx → {transaction, message}.
  * Spec: https://solana.com/docs/tools/solana-pay/specification/version1
  */
-import { buildPaymentTx, chooseMode, getAssociatedTokenAddressSync, PublicKey, reusableScreening, SANCTIONED, screenWithBudget } from "@kutip/solana";
+import { blockingScreening, buildPaymentTx, chooseMode, getAssociatedTokenAddressSync, PublicKey, reusableScreening, SANCTIONED, screenWithBudget } from "@kutip/solana";
 import { after } from "next/server";
 import type { NextRequest } from "next/server";
 import { amountDue, json, PAYABLE, payTarget, recordQuote, runtime } from "../_lib/server";
@@ -72,7 +72,13 @@ async function prepare(p: {
   const t0 = Date.now();
   // A pass from the last 24 h is reused; the static sanctions list is always checked. A fresh history check gets
   // SCREEN_BUDGET_MS: past that the wallet passes provisionally and the verdict is recorded after the response.
-  const reused = SANCTIONED.has(wallet) ? null : reusableScreening(await rt.store.latestScreening(wallet), new Date());
+  const latest = SANCTIONED.has(wallet) ? null : await rt.store.latestScreening(wallet);
+  const blocked = blockingScreening(latest); // a recorded flag (incl. a late verdict) keeps the wallet out
+  if (blocked) {
+    console.warn(`[pay] refused ${wallet} for ${invoiceId}: ${blocked.reasons.join("; ")}`);
+    return { status: 403, body: { message: `This wallet can't be used to pay ${target.exporterName}. Please contact them for another payment method.` } };
+  }
+  const reused = reusableScreening(latest, new Date());
   const budgeted = reused ? null : await screenWithBudget(buyer, { rpc: rt.screeningRpc, budgetMs: SCREEN_BUDGET_MS });
   const screening = reused ?? budgeted!.result;
   if (budgeted?.late) after(() => finishScreening(rt, target, wallet, budgeted.late!));

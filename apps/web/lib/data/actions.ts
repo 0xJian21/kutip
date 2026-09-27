@@ -10,6 +10,7 @@ import { Keypair } from "@kutip/solana";
 import { refresh } from "next/cache";
 import { MOCK, signIn, signOut } from "@/lib/server/auth";
 import { getPayInvoice, ownerDataOrThrow } from "@/lib/server/data";
+import { validateRulebook } from "@/lib/server/access";
 import { handleBuyerReply } from "@/lib/server/replies";
 import { store } from "@/lib/server/store";
 import type { LineItem, Rulebook } from "@/lib/ui/types";
@@ -52,7 +53,7 @@ export async function decideAction(id: string, decision: "approved" | "rejected"
 }
 
 export async function saveRulebook(rulebook: Rulebook) {
-  return (await ownerDataOrThrow()).saveRulebook(rulebook);
+  return (await ownerDataOrThrow()).saveRulebook(validateRulebook(rulebook));
 }
 
 export type ExtractedDraft = {
@@ -137,6 +138,7 @@ async function createInvoiceImpl(input: {
 async function simulateBuyerReplyImpl(invoiceId: string, body: string) {
   const { exporterId } = await ownerDataOrThrow();
   if (MOCK) throw new Error("Buyer replies need the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
+  if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_DEMO_CONTROLS !== "1") throw new Error("Simulated replies are turned off");
   if (!body.trim()) throw new Error("Write the buyer's reply first");
   const client = anthropic();
   const haiku = haikuClassifier(client);

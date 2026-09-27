@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "vitest";
-import { chooseMode, InFlight, LiveTxCache, RateLimiter, reusableScreening } from "./session";
+import { blockingScreening, chooseMode, InFlight, LiveTxCache, RateLimiter, reusableScreening } from "./session";
 
 const T0 = 1_000_000;
 
@@ -117,5 +117,19 @@ describe("InFlight", () => {
     const f = new InFlight<string>();
     await expect(f.run("k", async () => { throw new Error("rpc down"); })).rejects.toThrow("rpc down");
     expect(await f.run("k", async () => "ok")).toBe("ok");
+  });
+});
+
+describe("blockingScreening (a recorded flag blocks the wallet)", () => {
+  const now = new Date("2026-09-30T02:00:00Z");
+  it("a flag, however old, blocks until the owner clears it", () => {
+    expect(blockingScreening({ result: "flag", reasons: ["first transaction involved a sanctioned address"], createdAt: "2026-01-01T00:00:00Z" })).toEqual({ result: "flag", reasons: ["first transaction involved a sanctioned address", "flagged by an earlier check"] });
+  });
+  it("a flag that only means the RPC was down does not block (screen again)", () => {
+    expect(blockingScreening({ result: "flag", reasons: ["wallet could not be screened: timeout"], createdAt: now.toISOString() })).toBeNull();
+  });
+  it("a pass or no record does not block", () => {
+    expect(blockingScreening({ result: "pass", reasons: [], createdAt: now.toISOString() })).toBeNull();
+    expect(blockingScreening(null)).toBeNull();
   });
 });

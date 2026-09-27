@@ -1,4 +1,5 @@
 import { parseSignedOwnerTx, sendSigned } from "@kutip/solana";
+import { assertApprover } from "@/lib/server/access";
 import { json, pubkey, treasuryContext, treasuryMultisig } from "@/lib/treasury/server";
 
 /**
@@ -10,9 +11,11 @@ export async function POST(req: Request, ctx: RouteContext<"/api/treasury/propos
     const { index } = await ctx.params;
     const body = (await req.json()) as { owner?: string; signedTransaction?: string; actionId?: string };
     if (!body.signedTransaction) throw new Error("signedTransaction missing");
-    const { exporterId } = await treasuryMultisig();
+    const { exporterId, wallet } = await treasuryMultisig();
+    const owner = pubkey(body.owner, "owner");
+    assertApprover(owner.toBase58(), wallet);
     const { connection, feePayer, store } = treasuryContext();
-    const tx = parseSignedOwnerTx(body.signedTransaction, feePayer.publicKey, pubkey(body.owner, "owner"));
+    const tx = parseSignedOwnerTx(body.signedTransaction, feePayer.publicKey, owner);
     const signature = await sendSigned(connection, tx);
     if (body.actionId) await store.setActionStatus(exporterId, body.actionId, "executed", signature);
     return json({ transactionIndex: index, signature });

@@ -55,7 +55,7 @@ pnpm --filter @kutip/db db:seed                # demo exporter "Teratai Woodwork
 pnpm --filter web dev                          # http://localhost:3000
 ```
 
-1. Open `http://localhost:3000/onboarding` and create a passkey. Copy the wallet address it shows: that is the Squads owner.
+1. Open `http://localhost:3000/onboarding` and create a passkey. Copy the wallet address it shows: that is the Squads owner. (Until step 2 links that wallet to the demo owner, sign-in is refused; set `DEMO_FALLBACK=1` to get in right away.)
 2. Provision the treasury and one multisig per buyer on **mainnet**. It costs about 0.03 SOL from the fee payer; the script prints the plan and asks before every transaction.
    ```bash
    pnpm --filter @kutip/scripts exec tsx provision-demo.ts --owner <your wallet address>

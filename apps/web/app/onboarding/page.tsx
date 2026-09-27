@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Onboarding } from "@/components/onboarding/onboarding";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { safeNext } from "@/lib/server/access";
 import { demoData } from "@/lib/server/data";
 
 export const metadata: Metadata = { title: "Get started" };
 
 export default async function OnboardingPage({ searchParams }: PageProps<"/onboarding">) {
-  const nextParam = (await searchParams).next;
-  const next = typeof nextParam === "string" && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : undefined;
+  const next = safeNext((await searchParams).next);
   const data = demoData();
   const [exporter, rulebook] = await Promise.all([data.getExporter(), data.getRulebook()]);
   return (

@@ -83,3 +83,13 @@ export class InFlight<T> {
     return p;
   }
 }
+
+/**
+ * A wallet that was flagged stays blocked (the late verdict of a provisional pass lands here too),
+ * so a slow history check can't pass the same wallet again. An RPC outage flag is not a verdict.
+ */
+export function blockingScreening(latest: { result: "pass" | "flag"; reasons: string[]; createdAt: string } | null): { result: "flag"; reasons: string[] } | null {
+  if (!latest || latest.result !== "flag") return null;
+  if (latest.reasons.every((r) => r.startsWith("wallet could not be screened"))) return null;
+  return { result: "flag", reasons: [...latest.reasons, "flagged by an earlier check"] };
+}

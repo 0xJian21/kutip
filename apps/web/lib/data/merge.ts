@@ -2,7 +2,7 @@
  * Realtime Broadcast payloads (topic `invoice:<id>`, PLAN.md Session 4 Request) → UI types.
  * Bigints arrive as decimal strings, absent timestamps as null. Pure, so it is testable.
  */
-import type { Invoice, InvoiceStatus, PayInvoice, Payment } from "../ui/types";
+import type { Invoice, InvoiceStatus, Payment } from "../ui/types";
 
 type Raw = Record<string, unknown>;
 
@@ -60,14 +60,4 @@ export function mergeInvoiceEvent<T extends Invoice>(inv: T, e: InvoiceEvent): T
     paidAt: e.paidAt ?? inv.paidAt,
     settledAt: e.settledAt ?? inv.settledAt,
   };
-}
-
-export function mergePayEvent(pay: PayInvoice, e: { invoice?: InvoiceEvent; payment?: Payment }): PayInvoice {
-  let next = pay;
-  if (e.invoice) next = { ...next, status: forwardStatus(next.status, e.invoice.status), paidAt: e.invoice.paidAt ?? next.paidAt, settledAt: e.invoice.settledAt ?? next.settledAt };
-  if (e.payment?.verified) {
-    const { signature, amount, inputMint, inputAmount } = e.payment;
-    next = { ...next, payment: { signature, amount, inputMint, inputAmount } };
-  }
-  return next;
 }

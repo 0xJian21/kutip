@@ -23,11 +23,11 @@ export function treasuryContext() {
   return { store: store(), ...(cached ??= build()) };
 }
 
-export async function treasuryMultisig(): Promise<{ exporterId: string; multisig: PublicKey }> {
-  const { exporterId } = await sessionOrThrow();
+export async function treasuryMultisig(): Promise<{ exporterId: string; multisig: PublicKey; wallet?: string }> {
+  const { exporterId, wallet } = await sessionOrThrow();
   const exporter = await store().getExporter(exporterId);
   if (!exporter) throw new Error(`exporter not found: ${exporterId}`);
-  return { exporterId, multisig: new PublicKey(exporter.treasuryMultisig) };
+  return { exporterId, wallet, multisig: new PublicKey(exporter.treasuryMultisig) };
 }
 
 /** Route helper: JSON with a status, bigints as strings. */

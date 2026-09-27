@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mergeInvoiceEvent, mergePayEvent, parseInvoiceEvent, parsePaymentEvent } from "./merge";
-import type { Invoice, PayInvoice } from "../ui/types";
+import { mergeInvoiceEvent, parseInvoiceEvent, parsePaymentEvent } from "./merge";
+import type { Invoice } from "../ui/types";
 
 const invoiceEvent = { id: "inv_1", status: "paid", amountUsdc: "1000000", receivedUsdc: "1000000", seenAt: "2026-09-30T02:00:00.000Z", paidAt: "2026-09-30T02:00:01.000Z", settledAt: null };
 const paymentEvent = {
@@ -31,16 +31,8 @@ describe("Broadcast payloads", () => {
     expect(next).toMatchObject({ number: "INV-1", status: "paid", receivedUsdc: 1_000_000n, paidAt: "2026-09-30T02:00:01.000Z" });
   });
 
-  it("merges events into the pay page model", () => {
-    const pay = { invoiceId: "inv_1", status: "sent", amountUsdc: 1_000_000n } as PayInvoice;
-    const afterInvoice = mergePayEvent(pay, { invoice: parseInvoiceEvent(invoiceEvent) });
-    expect(afterInvoice).toMatchObject({ status: "paid", paidAt: "2026-09-30T02:00:01.000Z" });
-    const afterPayment = mergePayEvent(afterInvoice, { payment: parsePaymentEvent(paymentEvent) });
-    expect(afterPayment.payment).toEqual({ signature: "sig", amount: 1_000_000n, inputMint: "SOL", inputAmount: 5_000_000n });
-  });
-
   it("never moves the status backwards when events arrive out of order", () => {
-    const pay = { invoiceId: "inv_1", status: "settled", amountUsdc: 1_000_000n } as PayInvoice;
-    expect(mergePayEvent(pay, { invoice: parseInvoiceEvent({ ...invoiceEvent, status: "seen" }) }).status).toBe("settled");
+    const inv = { id: "inv_1", status: "settled", receivedUsdc: 1_000_000n, amountUsdc: 1_000_000n } as Invoice;
+    expect(mergeInvoiceEvent(inv, parseInvoiceEvent({ ...invoiceEvent, status: "seen" })).status).toBe("settled");
   });
 });

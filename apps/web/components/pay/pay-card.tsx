@@ -8,7 +8,6 @@ import { formatDate, formatDateTime, shortAddress, solscanTx } from "@/lib/ui/fo
 import { formatSol, formatUsdc } from "@/lib/ui/money";
 import { fetchPayInvoice } from "@/lib/data/actions";
 import { debounce, useBroadcast } from "@/lib/data/live";
-import { forwardStatus, mergePayEvent, parseInvoiceEvent, parsePaymentEvent } from "@/lib/data/merge";
 import { mockData } from "@/lib/mock";
 import { MOCK } from "@/lib/ui/data";
 import type { PayInvoice } from "@/lib/ui/types";
@@ -24,15 +23,9 @@ export function PayCard({ initial, solHref }: { initial: PayInvoice; solHref?: s
   const [token, setToken] = useState<"auto" | "SOL">("auto");
   const id = initial.invoiceId;
   useEffect(() => (MOCK ? mockData.subscribePayInvoice(id, setPay) : undefined), [id]);
-  const refetch = useMemo(
-    () => debounce(() => void fetchPayInvoice(id).then((p) => p && setPay((cur) => ({ ...p, status: forwardStatus(cur.status, p.status), payment: p.payment ?? cur.payment }))).catch(() => {}), 400),
-    [id],
-  );
-  useBroadcast(MOCK ? null : `invoice:${id}`, (event, payload) => {
-    if (event === "invoice") setPay((p) => mergePayEvent(p, { invoice: parseInvoiceEvent(payload) }));
-    if (event === "payment") setPay((p) => mergePayEvent(p, { payment: parsePaymentEvent(payload) }));
-    refetch();
-  });
+  // Public topic: an event only says "look again"; the success state comes from the server's answer.
+  const refetch = useMemo(() => debounce(() => void fetchPayInvoice(id).then((p) => p && setPay(p)).catch(() => {}), 150), [id]);
+  useBroadcast(MOCK ? null : `invoice:${id}`, refetch);
   const href = token === "SOL" && solHref ? solHref : pay.solanaPayUrl;
 
   const paid = pay.status === "paid" || pay.status === "settled";

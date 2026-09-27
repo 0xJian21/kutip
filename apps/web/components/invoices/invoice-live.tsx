@@ -39,9 +39,8 @@ export function InvoiceLive({ initial, exporterId }: { initial: InvoiceDetail; e
     }
     refetch();
   });
-  useBroadcast(MOCK ? null : `owner:${exporterId}`, (_event, payload) => {
-    if (payload.invoiceId === id) refetch();
-  });
+  // owner:<exporterId> carries no ids (public topic), so any change refetches this invoice (debounced).
+  useBroadcast(MOCK ? null : `owner:${exporterId}`, refetch);
 
   const { invoice, buyer, payments, rate } = detail;
   const payment = payments.at(-1);
