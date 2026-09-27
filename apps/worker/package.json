@@ -13,9 +13,10 @@
     "@anthropic-ai/sdk": "0.128.0",
     "@kutip/agent": "workspace:*",
     "@kutip/db": "workspace:*",
+    "@kutip/solana": "workspace:*",
     "@triton-one/yellowstone-grpc": "7.0.1",
     "bs58": "^6.0.0",
-    "@kutip/solana": "workspace:*"
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
