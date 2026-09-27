@@ -26,7 +26,7 @@ export function createRpc(url: string, fetchFn: typeof fetch = fetch) {
       call<RpcTransaction | null>("getTransaction", [signature, { encoding: "json", commitment: "confirmed", maxSupportedTransactionVersion: 0 }]),
 
     getSignaturesForAddress: (address: string) =>
-      call<Array<{ signature: string; slot: number; err: unknown; confirmationStatus: Commitment | null }>>("getSignaturesForAddress", [
+      call<Array<{ signature: string; slot: number; err: unknown; confirmationStatus: Commitment | null; blockTime: number | null }>>("getSignaturesForAddress", [
         address,
         { commitment: "confirmed", limit: 20 },
       ]),

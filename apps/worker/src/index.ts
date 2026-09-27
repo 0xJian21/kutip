@@ -94,6 +94,8 @@ async function main() {
   const timers = [
     setInterval(() => enqueue("refresh", refreshWatched), 5_000),
     every(10_000, "reconcile", () => tracker.reconcile(new Date())),
+    // Catch-up for payments the stream missed (startup runs it immediately via every()).
+    every(3 * 60_000, "catch-up", () => tracker.backfill(new Date())),
     every(6 * 3_600_000, "rate", () => updateRate({ store, log, now: new Date() })),
   ];
   if (cfg.collections !== "off") {
