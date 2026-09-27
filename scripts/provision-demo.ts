@@ -17,8 +17,8 @@ import { createKeyFor, deriveAccounts, ensureAtas, keypairFromEnv, provisionMult
 import { EXPORTER_ID, arg, chain, closePrompt, confirmOrAbort, db, env, sol } from "./_shared";
 
 const DEMO_INVOICES = [
-  { number: "INV-2026-0152", buyerId: "b_harbourline", description: "LIVE DEMO · teak side table sample (pay by wallet)", unitPriceUsdc: 1_000_000n },
-  { number: "INV-2026-0153", buyerId: "b_meridian", description: "LIVE DEMO · brass drawer pulls, 10 pcs (pay by AP bot / x402)", unitPriceUsdc: 500_000n },
+  { number: "INV-2026-0154", buyerId: "b_harbourline", description: "LIVE DEMO · teak side table sample (pay by wallet)", unitPriceUsdc: 1_000_000n },
+  { number: "INV-2026-0155", buyerId: "b_meridian", description: "LIVE DEMO · brass drawer pulls, 10 pcs (pay by AP bot / x402)", unitPriceUsdc: 500_000n },
 ] as const;
 
 // Rent (lamports) from the account sizes in Spike B; live numbers are printed from getMinimumBalanceForRentExemption.
