@@ -11,7 +11,7 @@ primary_region = "nrt"
   NODE_ENV = "production"
   PORT = "8080"
   COLLECTIONS = "on"
-  APP_URL = "https://kutip-three.vercel.app"
+  APP_URL = "https://kutip-app.vercel.app"
   USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
 # No public service: the worker only needs outbound gRPC/RPC/DB. Fly probes /health internally.
