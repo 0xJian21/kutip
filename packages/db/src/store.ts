@@ -359,17 +359,18 @@ export function createStore(db: Db, opts: { appUrl: string }) {
         const rank = COMMITMENT_RANK[e.commitment];
         const newer = !prev || rank >= COMMITMENT_RANK[prev.commitment];
         const fields = {
-          payer: e.payer,
+          payer: e.payer || prev?.payer || "",
           amount: e.amount,
           inputMint: e.inputMint ?? null,
           inputAmount: e.inputAmount ?? null,
           quotedInput: e.quotedInput ?? null,
           quotedOut: e.quotedOut ?? null,
           commitment: e.commitment,
-          slot: e.slot,
+          slot: e.slot || prev?.slot || 0, // the facilitator doesn't know the slot (0)
           verified: e.verified,
           issues: e.issues,
-          via: e.via,
+          // Only the x402 facilitator knows the channel; the listener always says solana_pay.
+          via: prev?.via === "x402" ? "x402" : e.via,
         };
         const times = {
           observedAt: prev?.observedAt ?? at,

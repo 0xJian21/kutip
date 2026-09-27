@@ -100,6 +100,17 @@ describe("recordPayment", () => {
     await expect(store.recordPayment(event({ invoiceId: other.id }))).rejects.toThrow(/different invoice/);
   });
 
+  test("x402 sticks whichever reports first: the facilitator or the listener", async () => {
+    await store.recordPayment(event({ commitment: "confirmed", verified: true, via: "x402", slot: 0 }));
+    const { payment } = await store.recordPayment(event({ commitment: "finalized", verified: true, via: "solana_pay", slot: 378_512_990 }));
+    expect(payment).toMatchObject({ via: "x402", slot: 378_512_990, commitment: "finalized" });
+
+    const sig = "7".repeat(88);
+    await store.recordPayment(event({ signature: sig, commitment: "processed", via: "solana_pay" }));
+    const late = await store.recordPayment(event({ signature: sig, commitment: "confirmed", verified: true, via: "x402", slot: 0 }));
+    expect(late.payment).toMatchObject({ via: "x402", slot: 378_512_990 });
+  });
+
   test("rejects an unknown invoice", async () => {
     await expect(store.recordPayment(event({ invoiceId: "inv_nope" }))).rejects.toThrow(/invoice/);
   });
