@@ -1,6 +1,6 @@
 "use client";
 
-import { useLoginWithPasskey } from "@privy-io/react-auth";
+import { useLoginWithPasskey, useMfaEnrollment, usePrivy } from "@privy-io/react-auth";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Address } from "@/components/ui/address";
@@ -10,6 +10,9 @@ import { fetchProposals, useApproveProposal, type ProposalView } from "@/lib/tre
 export default function TreasuryTestPage() {
   const { approve, state, owner } = useApproveProposal();
   const { loginWithPasskey } = useLoginWithPasskey();
+  const { showMfaEnrollmentModal } = useMfaEnrollment();
+  const { user } = usePrivy();
+  const mfa = user?.mfaMethods ?? [];
   const [data, setData] = useState<{ multisig: string; proposals: ProposalView[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,8 +28,10 @@ export default function TreasuryTestPage() {
         <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Passkey</span><span className="text-ink">{!owner.ready ? "loading…" : owner.authenticated ? "signed in" : "signed out"}</span></div>
         <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Owner wallet</span>{owner.address ? <Address value={owner.address} /> : <span className="text-ink-3">—</span>}</div>
         <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Treasury multisig</span>{data ? <Address value={data.multisig} /> : <span className="text-ink-3">—</span>}</div>
-        <div className="flex gap-2 pt-2">
+        <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Touch ID per approval (MFA)</span><span className="text-ink">{mfa.length ? mfa.join(", ") : "not enrolled"}</span></div>
+        <div className="flex flex-wrap gap-2 pt-2">
           {owner.authenticated ? <Button variant="ghost" onClick={() => owner.logout()}>Sign out</Button> : <Button onClick={() => loginWithPasskey()} disabled={!owner.ready}>Sign in with passkey</Button>}
+          {owner.authenticated && !mfa.includes("passkey") ? <Button variant="ghost" onClick={showMfaEnrollmentModal}>Require Touch ID for approvals</Button> : null}
           <Button variant="ghost" onClick={reload}>Reload proposals</Button>
         </div>
       </section>
