@@ -12,3 +12,4 @@ export * from "./payments/x402";
 // Re-exported so apps/web routes depend only on @kutip/solana (pnpm strict layout).
 export { Connection, Keypair, PublicKey } from "@solana/web3.js";
 export { getAssociatedTokenAddressSync } from "@solana/spl-token";
+export * from "./treasury";

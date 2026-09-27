@@ -13,8 +13,17 @@
   "dependencies": {
     "@kutip/db": "workspace:*",
     "@kutip/solana": "workspace:*",
+    "@privy-io/react-auth": "^3.45.0",
+    "@solana-program/memo": "^0.15.0",
+    "@solana-program/system": "^0.15.0",
+    "@solana-program/token": "^0.17.0",
+    "@solana/kit": "^8.3.0",
+    "@solana/web3.js": "^1.99.0",
+    "bs58": "^6.0.0",
+    "drizzle-orm": "^0.45.3",
     "lucide-react": "^1.48.0",
     "next": "16.3.6",
+    "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8"

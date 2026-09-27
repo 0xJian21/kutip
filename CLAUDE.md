@@ -20,3 +20,4 @@ Read before working: `docs/SPEC.md` (what), `docs/ARCHITECTURE.md` (how), `docs/
 
 ## Commands
 - `pnpm install` · `pnpm -r typecheck` · `pnpm -r test` · `pnpm --filter web dev`
+- Secrets live only in the root `.env`. In a worktree: `ln -s ~/own/kutip/.env .env`. Next.js only reads env from `apps/web`, so also `ln -s ../../.env apps/web/.env.local` (both gitignored). Without it the build fails on Privy pages.
