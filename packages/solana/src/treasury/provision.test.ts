@@ -2,7 +2,7 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
 import { describe, expect, it } from "vitest";
-import { createKeyFor, deriveAccounts, multisigMembers, provisionInstructions, spendingLimitAction } from "./provision";
+import { createKeyFor, deriveAccounts, limitCreateKeyFor, multisigMembers, provisionInstructions, spendingLimitAction } from "./provision";
 
 const { Permission, Permissions, Period } = multisig.types;
 const owner = Keypair.generate().publicKey;
@@ -17,6 +17,15 @@ describe("createKeyFor", () => {
   it("differs per label and per secret", () => {
     expect(createKeyFor(secret, "buyer:b_1").publicKey.equals(createKeyFor(secret, "buyer:b_2").publicKey)).toBe(false);
     expect(createKeyFor(new Uint8Array(64).fill(8), "buyer:b_1").publicKey.equals(createKeyFor(secret, "buyer:b_1").publicKey)).toBe(false);
+  });
+});
+
+describe("limitCreateKeyFor", () => {
+  it("follows the buyer multisig address, so the sweeper needs nothing but the stored multisig", () => {
+    const secret = new Uint8Array(64).fill(3);
+    const ms = Keypair.generate().publicKey;
+    expect(limitCreateKeyFor(secret, ms).publicKey.equals(limitCreateKeyFor(secret, ms).publicKey)).toBe(true);
+    expect(limitCreateKeyFor(secret, ms).publicKey.equals(limitCreateKeyFor(secret, Keypair.generate().publicKey).publicKey)).toBe(false);
   });
 });
 

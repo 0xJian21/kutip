@@ -4,6 +4,7 @@ export {
   createKeyFor,
   deriveAccounts,
   ensureAtas,
+  limitCreateKeyFor,
   multisigMembers,
   provisionInstructions,
   provisionMultisig,
