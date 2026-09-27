@@ -1,7 +1,7 @@
-# Kutip worker on Fly.io (apps/worker): one long-running machine next to Supabase Singapore.
+# Kutip worker on Fly.io (apps/worker): one long-running machine next to the Supabase database (ap-northeast-1, Tokyo).
 # Deploy from the repo root: fly deploy --remote-only   (secrets: see README "Deploy")
 app = "kutip-worker"
-primary_region = "sin"
+primary_region = "nrt"
 
 [build]
   dockerfile = "apps/worker/Dockerfile"
