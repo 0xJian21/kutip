@@ -38,7 +38,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
       <InvoiceLive initial={detail} exporterId={data.exporterId} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr] lg:gap-8">
-        <div className="grid content-start gap-6">
+        <div className="grid min-w-0 content-start gap-6">
           <Panel title="Line items" padded={false}>
             <table className="w-full text-base">
               <thead className="sr-only">
@@ -69,7 +69,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
           </Panel>
         </div>
 
-        <div className="grid content-start gap-6">
+        <div className="grid min-w-0 content-start gap-6">
           <Panel title="Buyer">
             <Facts
               items={[

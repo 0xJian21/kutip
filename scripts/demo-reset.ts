@@ -5,7 +5,10 @@
  *   3. re-attach the provisioned mainnet multisigs (owner = the Privy passkey wallet),
  *   4. create the live invoices with fresh reference keys: human pay USD 1, bot pay USD 0.50.
  *
- *   pnpm --filter @kutip/scripts exec tsx demo-reset.ts [--owner <privy wallet pubkey>] [--yes]
+ *   pnpm --filter @kutip/scripts exec tsx demo-reset.ts [--owner <privy wallet pubkey>] [--warm <wallet>,<wallet>] [--yes]
+ *
+ * --warm screens the buyer wallets you will pay from on stage (read-only RPC) so the first
+ * pay-link POST reuses a fresh pass instead of a 12–37 s screen. Screenings survive the reset.
  *
  * Database only: no mainnet writes. The multisigs must already exist on-chain (provision-demo.ts);
  * the read-only phase checks every account and aborts if one is missing.
@@ -13,7 +16,7 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { eq, like } from "drizzle-orm";
 import { deleteExporter, schema } from "@kutip/db";
-import { createKeyFor, deriveAccounts, keypairFromEnv, limitCreateKeyFor, spendingLimitPdaFor } from "@kutip/solana";
+import { createKeyFor, deriveAccounts, keypairFromEnv, limitCreateKeyFor, reusableScreening, screeningRpcFromConnection, screenWallet, spendingLimitPdaFor } from "@kutip/solana";
 import { execFileSync } from "node:child_process";
 import * as readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -34,6 +37,7 @@ async function main() {
     if (!ownerArg) throw new Error("pass --owner <Privy wallet pubkey> (usr_owner has no wallet in the DB)");
     const owner = new PublicKey(ownerArg);
     const cashOut = new PublicKey(arg("cashout") ?? keypairFromEnv("TEST_BUYER_SECRET").publicKey);
+    const warm = (arg("warm") ?? "").split(",").filter(Boolean).map((w) => new PublicKey(w));
     const zz = await raw.select({ id: schema.exporters.id, name: schema.exporters.name }).from(schema.exporters).where(like(schema.exporters.name, "ZZ TEST%"));
 
     // Buyer ids come from the seed, which step 1 recreates; derive their accounts the way provision-demo does.
@@ -54,6 +58,7 @@ async function main() {
     console.log(`  2. delete test exporters: ${zz.length ? zz.map((e) => `${e.name} (${e.id})`).join(", ") : "none (skip)"}`);
     console.log(`  3. re-attach treasury ${treasury.multisigPda.toBase58()} + ${buyers.length} buyer multisigs (all ${keys.length} accounts exist on-chain), cash-out → ${cashOut.toBase58()}`);
     console.log(`  4. create ${LIVE_INVOICES.map((i) => `${i.label} USD ${Number(i.unitPriceUsdc) / 1e6} (${i.buyerId})`).join(", ")} with fresh reference keys`);
+    if (warm.length) console.log(`  5. screen ${warm.map((w) => w.toBase58()).join(", ")} unless screened (pass) in the last 24 h`);
 
     if (!YES) {
       closePrompt(); // _shared's prompt says "mainnet"; this script only writes to the database
@@ -91,6 +96,18 @@ async function main() {
         lineItems: [{ description: inv.description, quantity: 1, unitPriceUsdc: inv.unitPriceUsdc }],
       });
       console.log(`  4. ${inv.label}: ${created.number} ${created.id} USDC ${created.amountUsdc} memo ${created.memoCode} reference ${reference}\n       pay ${created.payUrl}`);
+    }
+
+    for (const w of warm) {
+      const wallet = w.toBase58();
+      if (reusableScreening(await store.latestScreening(wallet), new Date())) {
+        console.log(`  5. ${wallet} already screened (pass) in the last 24 h`);
+        continue;
+      }
+      const t0 = Date.now();
+      const r = await screenWallet(w, { rpc: screeningRpcFromConnection(connection) });
+      await store.recordScreening({ wallet, result: r.result, reasons: r.reasons });
+      console.log(`  5. ${wallet} screened: ${r.result} in ${Date.now() - t0} ms (${r.reasons.join("; ")})`);
     }
   } finally {
     closePrompt();

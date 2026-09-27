@@ -71,7 +71,8 @@ export function runtime(): Runtime {
     screeningRpc: screeningRpcFromConnection(connection),
     x402Rpc: x402RpcFromConnection(connection),
     jupiter: jupiterClient({ apiKey: config.jupiterApiKey, baseUrl: config.jupiterBaseUrl }),
-    liveTx: new LiveTxCache<BuiltPayment>({ ttlMs: 45_000 }),
+    // Short enough that a cached tx still has most of its ~60–90 s blockhash life when the wallet shows it.
+    liveTx: new LiveTxCache<BuiltPayment>({ ttlMs: 20_000 }),
     invoiceLimiter: new RateLimiter({ limit: 10, windowMs: 60_000 }),
     walletLimiter: new RateLimiter({ limit: 10, windowMs: 60_000 }),
     replay: new ReplayCache(),
