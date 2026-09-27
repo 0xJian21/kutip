@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLoginWithPasskey, useSignupWithPasskey } from "@privy-io/react-auth";
+import { useCreateWallet } from "@privy-io/react-auth/solana";
 import { Check, Fingerprint } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Address } from "@/components/ui/address";
@@ -169,6 +170,26 @@ function SignInStep({ onDone }: { onDone: () => void }) {
   const idle = (st: { status: string }) => ["initial", "error", "done"].includes(st.status);
   const busy = !idle(loginState) || !idle(signupState);
   const signedIn = owner.ready && owner.authenticated;
+  const { createWallet } = useCreateWallet();
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const creating = useRef(false);
+
+  // Fallback for createOnLogin: a signed-in user without a Solana wallet gets one created here.
+  const ensureWallet = () => {
+    if (creating.current) return;
+    creating.current = true;
+    setWalletError(null);
+    createWallet()
+      .catch((e: unknown) => setWalletError(`Could not create your wallet: ${e instanceof Error ? e.message : String(e)}`))
+      .finally(() => {
+        creating.current = false;
+      });
+  };
+  const needsWallet = signedIn && !owner.address;
+  useEffect(() => {
+    if (needsWallet) ensureWallet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsWallet]);
 
   useEffect(() => {
     // Touch ID / Face ID / Windows Hello present? (async so state settles after the first paint)
@@ -193,6 +214,12 @@ function SignInStep({ onDone }: { onDone: () => void }) {
             <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Signed in</span><span className="inline-flex items-center gap-1 text-ink"><Check size={14} aria-hidden="true" /> Passkey</span></div>
             <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Your wallet</span>{owner.address ? <Address value={owner.address} /> : <span className="text-ink-3">Creating…</span>}</div>
           </div>
+          {walletError ? (
+            <p className="mt-3 text-center text-sm text-overdue-fg">
+              {walletError}{" "}
+              <button type="button" onClick={ensureWallet} className="font-medium text-accent underline-offset-4 hover:underline">Try again</button>
+            </p>
+          ) : null}
           {owner.address ? <p className="mt-2 break-all text-center text-xs tabular text-ink-3" aria-label="Wallet address">{owner.address}</p> : null}
           <Button size="lg" className="mt-6 w-full" onClick={onDone} disabled={!owner.address}>Continue</Button>
           <p className="mt-3 text-center text-sm text-ink-3">
