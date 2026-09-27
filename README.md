@@ -60,7 +60,7 @@ pnpm --filter web dev                          # http://localhost:3000
    ```bash
    pnpm --filter @kutip/scripts exec tsx provision-demo.ts --owner <your wallet address>
    ```
-3. Put the demo into a known state: fresh seed, provisioned multisigs attached, a live USD 1 invoice and a USD 0.50 invoice, and buyer emails pointed at your inbox. Database only; it asks first.
+3. Put the demo into a known state: fresh seed, provisioned multisigs attached, a live USD 1 invoice and a USD 0.50 invoice, and every buyer email set to your inbox. Database only; it asks first.
    ```bash
    pnpm --filter @kutip/scripts exec tsx demo-reset.ts --inbox you@gmail.com [--warm <buyer wallet>]
    ```
