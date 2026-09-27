@@ -1,9 +1,10 @@
 /**
- * The one data interface the UI talks to. Components import from here only.
- * Today it is implemented by lib/mock. Session 7 replaces the implementation
- * (Supabase queries + Realtime) without touching components.
+ * The data interface the UI renders from. Server-side it is implemented by
+ * @kutip/db bound to the signed-in exporter (lib/server/data.ts), or by lib/mock
+ * when NEXT_PUBLIC_KUTIP_MOCK=1 (offline UI work). Client components never call
+ * it directly: they use server actions (lib/data/actions.ts) and Realtime
+ * Broadcast (lib/data/live.ts).
  */
-import { mockData } from "@/lib/mock";
 import type {
   AgentAction,
   Buyer,
@@ -33,21 +34,15 @@ export type KutipData = {
   saveRulebook(rulebook: Rulebook): Promise<Rulebook>;
   getTreasury(opts?: QueryOptions): Promise<TreasurySummary>;
   getPayInvoice(id: string, opts?: QueryOptions): Promise<PayInvoice | null>;
+};
 
-  /**
-   * Live updates for one invoice (status bar, pay page success state).
-   * Real implementation: Supabase Realtime on `invoices` + `payments`.
-   * Returns an unsubscribe function. Client-side only.
-   */
+/** Mock-only, client-side: in-memory live updates and the payment simulation. */
+export type MockControls = {
   subscribeInvoice(id: string, onChange: (detail: InvoiceDetail) => void): () => void;
-  /** Fires when any invoice, payment or agent action changes. Real: Realtime on those tables. */
   subscribeChanges(onChange: () => void): () => void;
   subscribePayInvoice(id: string, onChange: (pay: PayInvoice) => void): () => void;
-
-  /** Dev-only: walk an invoice through seen → paid → settled with realistic delays. */
   simulatePayment(id: string, opts?: { onStage?: (stage: SimulationStage) => void }): Promise<void>;
-  /** Dev-only: forget all simulated state. */
   resetSimulation(): void;
 };
 
-export const data: KutipData = mockData;
+export const MOCK = process.env.NEXT_PUBLIC_KUTIP_MOCK === "1";

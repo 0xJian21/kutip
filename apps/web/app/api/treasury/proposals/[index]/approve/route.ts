@@ -12,7 +12,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/treasury/propos
     const body = (await req.json()) as { owner?: string };
     const owner = pubkey(body.owner, "owner");
     const { connection, feePayer } = treasuryContext();
-    const multisigPda = await treasuryMultisig();
+    const { multisig: multisigPda } = await treasuryMultisig();
     const { ixs, lookupTables } = await approveExecuteInstructions({ connection, multisigPda, transactionIndex: BigInt(index), member: owner });
     const built = await buildOwnerTx({ connection, feePayer, ixs, lookupTables });
     return json({ transaction: built.base64, lastValidBlockHeight: built.lastValidBlockHeight });

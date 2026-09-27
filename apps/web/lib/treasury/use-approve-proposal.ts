@@ -25,8 +25,7 @@ async function post<T>(url: string, body: unknown): Promise<T> {
  *   1. server builds approve+execute (fee payer signed),
  *   2. Privy signs it here (one passkey prompt),
  *   3. server sends it and confirms.
- * Session 7: call `approve(transactionIndex)` from the Approve button of a
- * `proposed` agent action, then `setActionStatus(..., "executed", signature)`.
+ * With `actionId`, the submit route marks that agent action executed with the signature.
  */
 export function useApproveProposal() {
   const owner = useOwnerWallet();
@@ -34,7 +33,7 @@ export function useApproveProposal() {
   const [state, setState] = useState<{ status: "idle" } | { status: "signing" | "sending"; index: string } | { status: "done"; index: string; signature: string } | { status: "error"; index: string; error: string }>({ status: "idle" });
 
   const approve = useCallback(
-    async (transactionIndex: string): Promise<string> => {
+    async (transactionIndex: string, actionId?: string): Promise<string> => {
       if (!owner.wallet || !owner.address) throw new Error("sign in with your passkey first");
       setState({ status: "signing", index: transactionIndex });
       try {
@@ -49,6 +48,7 @@ export function useApproveProposal() {
         const { signature } = await post<{ signature: string }>(`/api/treasury/proposals/${transactionIndex}/submit`, {
           owner: owner.address,
           signedTransaction: btoa(String.fromCharCode(...signedTransaction)),
+          actionId,
         });
         setState({ status: "done", index: transactionIndex, signature });
         return signature;

@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActionRow } from "@/components/agent/action-row";
 import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { MoneyFigure } from "@/components/ui/money";
 import { Panel } from "@/components/ui/panel";
 import { EmptyState } from "@/components/ui/states";
 import { ButtonLink } from "@/components/ui/button";
-import { data } from "@/lib/ui/data";
+import { fetchDashboard } from "@/lib/data/actions";
+import { debounce, useBroadcast } from "@/lib/data/live";
+import { mockData } from "@/lib/mock";
+import { MOCK } from "@/lib/ui/data";
 import type { Buyer, DashboardSummary, Invoice } from "@/lib/ui/types";
 
 /**
@@ -19,23 +22,18 @@ export function LiveDashboard({
   initial,
   buyers,
   invoices,
+  exporterId,
 }: {
+  exporterId: string;
   initial: DashboardSummary;
   buyers: Buyer[];
   invoices: Invoice[];
 }) {
   const [summary, setSummary] = useState(initial);
 
-  useEffect(() => {
-    let alive = true;
-    const refresh = () => data.getDashboard().then((s) => alive && setSummary(s)).catch(() => {});
-    const unsubscribe = data.subscribeChanges(refresh);
-    refresh();
-    return () => {
-      alive = false;
-      unsubscribe();
-    };
-  }, []);
+  const refresh = useMemo(() => debounce(() => void (MOCK ? mockData.getDashboard() : fetchDashboard()).then(setSummary).catch(() => {})), []);
+  useEffect(() => (MOCK ? mockData.subscribeChanges(refresh) : undefined), [refresh]);
+  useBroadcast(MOCK ? null : `owner:${exporterId}`, refresh);
 
   const numberOf = (id?: string) => invoices.find((i) => i.id === id)?.number;
 

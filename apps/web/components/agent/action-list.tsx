@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActionRow } from "@/components/agent/action-row";
 import { EmptyState } from "@/components/ui/states";
-import { data } from "@/lib/ui/data";
+import { fetchAgentActions } from "@/lib/data/actions";
+import { debounce, useBroadcast } from "@/lib/data/live";
+import { mockData } from "@/lib/mock";
+import { MOCK } from "@/lib/ui/data";
 import type { AgentAction, Buyer, Invoice } from "@/lib/ui/types";
 
 const TABS = [
@@ -19,20 +22,13 @@ function dayKey(iso: string) {
   return new Intl.DateTimeFormat("en-MY", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kuala_Lumpur" }).format(new Date(iso));
 }
 
-export function ActionList({ initial, buyers, invoices }: { initial: AgentAction[]; buyers: Buyer[]; invoices: Invoice[] }) {
+export function ActionList({ initial, buyers, invoices, exporterId }: { initial: AgentAction[]; buyers: Buyer[]; invoices: Invoice[]; exporterId: string }) {
   const [actions, setActions] = useState(initial);
   const [tab, setTab] = useState<Tab>("all");
 
-  useEffect(() => {
-    let alive = true;
-    const refresh = () => data.listAgentActions().then((a) => alive && setActions(a)).catch(() => {});
-    const unsubscribe = data.subscribeChanges(refresh);
-    refresh();
-    return () => {
-      alive = false;
-      unsubscribe();
-    };
-  }, []);
+  const refresh = useMemo(() => debounce(() => void (MOCK ? mockData.listAgentActions() : fetchAgentActions()).then(setActions).catch(() => {})), []);
+  useEffect(() => (MOCK ? mockData.subscribeChanges(refresh) : undefined), [refresh]);
+  useBroadcast(MOCK ? null : `owner:${exporterId}`, refresh);
 
   const counts: Record<Tab, number> = {
     all: actions.length,

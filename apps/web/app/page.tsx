@@ -36,7 +36,7 @@ export default function LandingPage() {
         <nav aria-label="Site" className="flex items-center gap-1 sm:gap-4">
           <a href="#how" className="hidden rounded-sm px-2 py-1 text-base text-ink-2 hover:text-ink sm:inline">How it works</a>
           <a href="#compare" className="hidden rounded-sm px-2 py-1 text-base text-ink-2 hover:text-ink sm:inline">Versus a wire</a>
-          <Link href="/onboarding" className={buttonClass("secondary", "md")}>Sign in</Link>
+          <Link href="/onboarding?next=/dashboard" className={buttonClass("secondary", "md")}>Sign in</Link>
           <ThemeToggle />
         </nav>
       </header>

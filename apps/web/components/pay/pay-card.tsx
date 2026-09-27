@@ -1,21 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Wallet } from "lucide-react";
 import { SimulateControl } from "@/components/invoices/simulate-control";
 import { QrCode } from "@/components/pay/qr-code";
 import { formatDate, formatDateTime, shortAddress, solscanTx } from "@/lib/ui/format";
 import { formatSol, formatUsdc } from "@/lib/ui/money";
-import { data } from "@/lib/ui/data";
+import { fetchPayInvoice } from "@/lib/data/actions";
+import { debounce, useBroadcast } from "@/lib/data/live";
+import { forwardStatus, mergePayEvent, parseInvoiceEvent, parsePaymentEvent } from "@/lib/data/merge";
+import { mockData } from "@/lib/mock";
+import { MOCK } from "@/lib/ui/data";
 import type { PayInvoice } from "@/lib/ui/types";
 
 /**
  * Buyer pay page body. Public, mobile-first, no login.
- * Flips live to the success state when the payment lands.
+ * Flips live to the success state when the payment lands (Broadcast `invoice:<id>`).
+ * The solana: link is only ever a QR or a deep link, never text to copy: a pasted
+ * transaction-request URL reads as "invalid address" in wallets (Spike A).
  */
-export function PayCard({ initial, href }: { initial: PayInvoice; href: string }) {
+export function PayCard({ initial, solHref }: { initial: PayInvoice; solHref?: string }) {
   const [pay, setPay] = useState(initial);
-  useEffect(() => data.subscribePayInvoice(initial.invoiceId, setPay), [initial.invoiceId]);
+  const [token, setToken] = useState<"auto" | "SOL">("auto");
+  const id = initial.invoiceId;
+  useEffect(() => (MOCK ? mockData.subscribePayInvoice(id, setPay) : undefined), [id]);
+  const refetch = useMemo(
+    () => debounce(() => void fetchPayInvoice(id).then((p) => p && setPay((cur) => ({ ...p, status: forwardStatus(cur.status, p.status), payment: p.payment ?? cur.payment }))).catch(() => {}), 400),
+    [id],
+  );
+  useBroadcast(MOCK ? null : `invoice:${id}`, (event, payload) => {
+    if (event === "invoice") setPay((p) => mergePayEvent(p, { invoice: parseInvoiceEvent(payload) }));
+    if (event === "payment") setPay((p) => mergePayEvent(p, { payment: parsePaymentEvent(payload) }));
+    refetch();
+  });
+  const href = token === "SOL" && solHref ? solHref : pay.solanaPayUrl;
 
   const paid = pay.status === "paid" || pay.status === "settled";
   const seen = pay.status === "seen";
@@ -74,11 +92,28 @@ export function PayCard({ initial, href }: { initial: PayInvoice; href: string }
               </p>
             </div>
           ) : (
-            <QrCode value={pay.solanaPayUrl} />
+            <QrCode value={href} />
           )}
         </div>
-        <p className="mt-2 text-center text-sm text-ink-2">Scan with Phantom, Solflare or Backpack</p>
+        <p className="mt-2 text-center text-sm text-ink-2">Scan with Phantom or Solflare</p>
       </div>
+
+      {solHref ? (
+        <div role="radiogroup" aria-label="Pay in" className="mx-auto mt-4 flex w-56 max-w-full rounded-sm bg-paper-2 p-0.5 text-sm">
+          {(["auto", "SOL"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="radio"
+              aria-checked={token === t}
+              onClick={() => setToken(t)}
+              className={`h-8 flex-1 rounded-sm transition-colors duration-(--dur-fast) ${token === t ? "bg-surface font-medium text-ink shadow-sm" : "text-ink-2 hover:text-ink"}`}
+            >
+              {t === "auto" ? "Pay in USDC" : "Pay in SOL"}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mt-5 px-6">
         <a href={href} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-accent text-md font-medium text-on-accent transition-colors duration-(--dur-fast) hover:bg-accent-hover">

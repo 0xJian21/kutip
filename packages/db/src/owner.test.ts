@@ -185,3 +185,13 @@ describe("other writes", () => {
     expect(await store.getExporter(exporterId)).toMatchObject({ treasuryMultisig: "TM", treasuryVault: "TV", treasuryUsdcAta: "TA" });
   });
 });
+
+describe("findUser (sign-in)", () => {
+  test("matches by Privy user id first, then by wallet, and links the Privy id", async () => {
+    const { id } = await store.createUser({ exporterId, name: "Owner", role: "owner", walletPubkey: "OwnerWallet111" });
+    expect(await store.findUser({ privyUserId: "did:privy:x", wallets: ["Nope"] })).toBeNull();
+    expect(await store.findUser({ privyUserId: "did:privy:x", wallets: ["Nope", "OwnerWallet111"] })).toEqual({ userId: id, exporterId, role: "owner" });
+    await store.linkPrivyUser(id, "did:privy:x");
+    expect(await store.findUser({ privyUserId: "did:privy:x", wallets: [] })).toEqual({ userId: id, exporterId, role: "owner" });
+  });
+});

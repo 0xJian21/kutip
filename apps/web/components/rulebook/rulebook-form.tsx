@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/ui/panel";
-import { data } from "@/lib/ui/data";
+import { saveRulebook } from "@/lib/data/actions";
 import { formatUsdc, parseUsdc } from "@/lib/ui/money";
 import type { Rulebook } from "@/lib/ui/types";
 
@@ -51,7 +51,7 @@ export function RulebookForm({ initial }: { initial: Rulebook }) {
     const limit = parseUsdc(limitText);
     if (limit === null || limit <= 0n) return setNotice("Enter a daily limit above 0.");
     startTransition(async () => {
-      const next = await data.saveRulebook({ ...rb, treasury: { ...rb.treasury, agentDailyLimitUsdc: limit } });
+      const next = await saveRulebook({ ...rb, treasury: { ...rb.treasury, agentDailyLimitUsdc: limit } });
       setRb(next);
       setSaved(next);
       setNotice("Saved. The agent follows the new rules from its next action.");

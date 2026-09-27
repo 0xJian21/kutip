@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Address } from "@/components/ui/address";
 import { MoneyCell, MoneyFigure } from "@/components/ui/money";
 import { Facts, PageHeader, Panel } from "@/components/ui/panel";
-import { data } from "@/lib/ui/data";
+import { ownerData } from "@/lib/server/data";
 import { scenarioFrom } from "@/lib/ui/scenario";
 import { formatDateTime, relativeTime, shortAddress } from "@/lib/ui/format";
 import { bpsDiff, formatBps, formatRate, formatUsdc } from "@/lib/ui/money";
@@ -11,6 +11,7 @@ import { bpsDiff, formatBps, formatRate, formatUsdc } from "@/lib/ui/money";
 export const metadata: Metadata = { title: "Treasury" };
 
 export default async function TreasuryPage({ searchParams }: PageProps<"/treasury">) {
+  const data = await ownerData();
   const scenario = scenarioFrom(await searchParams);
   const [t, exporter] = await Promise.all([data.getTreasury({ scenario }), data.getExporter()]);
   const rateDiff = bpsDiff(t.cashOut.currentRate.myrPerUsd, t.cashOut.thirtyDayAvg.myrPerUsd);

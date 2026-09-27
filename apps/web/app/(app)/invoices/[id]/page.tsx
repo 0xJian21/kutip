@@ -4,21 +4,24 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { InvoiceLive } from "@/components/invoices/invoice-live";
 import { MessageThread, ReminderTimeline } from "@/components/invoices/timeline";
+import { SimulateReply } from "@/components/invoices/simulate-reply";
 import { Address } from "@/components/ui/address";
 import { Facts, Panel } from "@/components/ui/panel";
 import { CopyField } from "@/components/ui/copy-field";
-import { data } from "@/lib/ui/data";
+import { ownerData } from "@/lib/server/data";
 import { scenarioFrom } from "@/lib/ui/scenario";
 import { formatDate, localTimeLabel } from "@/lib/ui/format";
 import { formatUsdc } from "@/lib/ui/money";
 
 export async function generateMetadata({ params }: PageProps<"/invoices/[id]">): Promise<Metadata> {
+  const data = await ownerData();
   const { id } = await params;
   const d = await data.getInvoice(id);
   return { title: d ? d.invoice.number : "Invoice" };
 }
 
 export default async function InvoicePage({ params, searchParams }: PageProps<"/invoices/[id]">) {
+  const data = await ownerData();
   const { id } = await params;
   const scenario = scenarioFrom(await searchParams);
   const detail = await data.getInvoice(id, { scenario });
@@ -32,7 +35,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
         Invoices
       </Link>
 
-      <InvoiceLive initial={detail} />
+      <InvoiceLive initial={detail} exporterId={data.exporterId} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr] lg:gap-8">
         <div className="grid content-start gap-6">
@@ -62,6 +65,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
 
           <Panel title="Messages" aside={`${messages.length} ${messages.length === 1 ? "message" : "messages"}`}>
             <MessageThread messages={messages} buyer={buyer} />
+            <SimulateReply invoiceId={invoice.id} buyerName={buyer.contactName} />
           </Panel>
         </div>
 

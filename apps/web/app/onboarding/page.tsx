@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Onboarding } from "@/components/onboarding/onboarding";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { data } from "@/lib/ui/data";
+import { demoData } from "@/lib/server/data";
 
 export const metadata: Metadata = { title: "Get started" };
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({ searchParams }: PageProps<"/onboarding">) {
+  const nextParam = (await searchParams).next;
+  const next = typeof nextParam === "string" && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : undefined;
+  const data = demoData();
   const [exporter, rulebook] = await Promise.all([data.getExporter(), data.getRulebook()]);
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -20,7 +23,7 @@ export default async function OnboardingPage() {
         <ThemeToggle />
       </header>
       <main className="flex-1 px-4 pb-16 pt-6 sm:px-6">
-        <Onboarding exporter={exporter} rulebook={rulebook} />
+        <Onboarding exporter={exporter} rulebook={rulebook} next={next} />
       </main>
     </div>
   );
