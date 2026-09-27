@@ -23,6 +23,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@kutip/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@kutip/solana':
+        specifier: workspace:*
+        version: link:../../packages/solana
       lucide-react:
         specifier: ^1.48.0
         version: 1.48.0(react@19.2.8)
@@ -141,7 +147,24 @@ importers:
         specifier: ^0.31.11
         version: 0.31.11
 
-  packages/solana: {}
+  packages/solana:
+    dependencies:
+      '@solana/spl-token':
+        specifier: ^0.4.15
+        version: 0.4.15(@solana/web3.js@1.99.0(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@6.0.6))(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@7.0.2)(utf-8-validate@6.0.6)
+      '@solana/web3.js':
+        specifier: ^1.99.0
+        version: 1.99.0(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@6.0.6)
+      bs58:
+        specifier: ^6.0.0
+        version: 6.0.0
+    devDependencies:
+      '@kutip/db':
+        specifier: workspace:*
+        version: link:../db
+      '@types/node':
+        specifier: ^26.6.3
+        version: 26.6.3
 
   spikes:
     dependencies:
