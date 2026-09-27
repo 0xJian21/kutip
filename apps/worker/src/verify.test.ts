@@ -1,6 +1,7 @@
 import bs58 from "bs58";
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
+import { reviveGrpc } from "./testing/grpc";
 import { fromGrpc, fromRpc, verifyPayment, type RpcTransaction, type Target } from "./verify";
 
 // Raw getTransaction (encoding "json") results recorded from mainnet; see fixtures/README.md.
@@ -140,5 +141,20 @@ describe("gRPC and RPC shapes", () => {
   test.each(["spike-c-usdc", "spike-a-swap-phantom", "spike-a-usdc-solflare"])("%s reads the same from both", (name) => {
     const tx = fixture(name);
     expect(fromGrpc(tx.slot, toGrpc(tx) as unknown as Parameters<typeof fromGrpc>[1])).toEqual(fromRpc(tx));
+  });
+});
+
+describe("Session 4 live payment, as the stream delivered it", () => {
+  const recorded = reviveGrpc("grpc-2Kr2ZYrP");
+  const live = target({ memoCode: "k_y7yzh7a6" });
+
+  test("the recorded gRPC update verifies: 0.10 USDC to the vault, memo k_y7yzh7a6, paid by TEST_BUYER", () => {
+    const view = fromGrpc(recorded.slot, recorded.transaction!);
+    expect(view.accountKeys).toContain("GN5mgHTJAwEN2tWnJxihao638tK8Nc8mYdKBEC65aSBa"); // the invoice's fresh reference
+    expect(verifyPayment(view, live, { usdcMint: USDC })).toEqual({ verified: true, issues: [], amount: 100_000n, payer: TEST_BUYER });
+  });
+
+  test("gRPC and getTransaction of the same signature read the same", () => {
+    expect(fromGrpc(recorded.slot, recorded.transaction!)).toEqual(fromRpc(fixture("session4-live-usdc")));
   });
 });

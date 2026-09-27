@@ -11,7 +11,8 @@ export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
  * transaction pooler (port 6543), which serverless routes should use.
  */
 export function connect(url: string, opts: { max?: number } = {}): { db: Db; close: () => Promise<void> } {
-  const client = postgres(url, { prepare: false, max: opts.max ?? 5 });
+  // One line per server notice (e.g. Realtime's "no partition" warning when no client has connected yet).
+  const client = postgres(url, { prepare: false, max: opts.max ?? 5, onnotice: (n) => console.warn(`postgres ${n.severity}: ${n.message}`) });
   return { db: drizzle({ client, schema }), close: () => client.end() };
 }
 

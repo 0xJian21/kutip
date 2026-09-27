@@ -6,6 +6,7 @@
  * on error, end, or silence.
  */
 import Client, { CommitmentLevel, type SubscribeRequest, type SubscribeUpdate } from "@triton-one/yellowstone-grpc";
+import bs58 from "bs58";
 
 export type Watched = {
   /** Open-invoice reference keys and buyer vault ATAs: any tx touching one is a candidate payment. */
@@ -14,7 +15,17 @@ export type Watched = {
   balanceAccounts: string[];
 };
 
-const sorted = (keys: string[]) => [...new Set(keys)].sort();
+/** A base58 string that decodes to 32 bytes. The seeded demo rows hold look-alike strings that don't. */
+export function isPubkey(s: string): boolean {
+  try {
+    return bs58.decode(s).length === 32;
+  } catch {
+    return false;
+  }
+}
+
+/** One invalid key makes the geyser reject the whole subscription, so only real pubkeys go in. */
+const sorted = (keys: string[]) => [...new Set(keys)].filter(isPubkey).sort();
 
 export function buildRequest(w: Watched): SubscribeRequest {
   const txKeys = sorted(w.transactionKeys);

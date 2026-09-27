@@ -5,6 +5,7 @@
  * restarts) are caught up from RPC: `reconcile` for tracked txs, `backfill` for watched references.
  */
 import type { Commitment, Store } from "@kutip/db";
+import { isPubkey } from "./stream";
 import { fromRpc, verifyPayment, type RpcTransaction, type TxView, type Verification } from "./verify";
 
 type SignatureStatus = { slot: number; confirmationStatus: Commitment | null; err: unknown } | null;
@@ -15,8 +16,9 @@ export type TrackerRpc = {
   getTransaction(signature: string): Promise<RpcTransaction | null>;
 };
 
-type Tracked = {
-  invoiceId: string;
+export type PaidInvoice = { invoiceId: string; exporterId: string; buyerId: string };
+
+type Tracked = PaidInvoice & {
   slot: number;
   level: Commitment;
   seenAt: Date;
@@ -35,7 +37,7 @@ export function createPaymentTracker(deps: {
   usdcMint: string;
   log: (msg: string) => void;
   /** An invoice just became paid (confirmed, verified, full amount). */
-  onPaid?: (invoiceId: string) => Promise<void>;
+  onPaid?: (paid: PaidInvoice) => Promise<void>;
 }) {
   const { store, rpc, log } = deps;
   const refs = new Map<string, string>(); // reference pubkey → invoice id
@@ -65,18 +67,19 @@ export function createPaymentTracker(deps: {
     const flags = t.v.verified ? "" : " UNVERIFIED";
     log(`${LABEL[level].padEnd(7)} ${t.invoiceId} ${sig.slice(0, 8)}… slot ${t.slot}${since} → invoice ${invoice.status}${flags}${t.v.issues.length ? ` (${t.v.issues.join("; ")})` : ""}`);
     if (level === "finalized") tracked.delete(sig);
-    if (!wasPaid && RANK[level] >= 1 && (invoice.status === "paid" || invoice.status === "settled")) await deps.onPaid?.(t.invoiceId);
+    if (!wasPaid && RANK[level] >= 1 && (invoice.status === "paid" || invoice.status === "settled")) await deps.onPaid?.({ invoiceId: t.invoiceId, exporterId: t.exporterId, buyerId: t.buyerId });
   }
 
   /** Verify a tx against the invoice whose reference it carries. Null when it carries none we watch. */
   async function start(tx: TxView, at: Date): Promise<[string, Tracked] | null> {
     const ref = tx.accountKeys.find((k) => refs.has(k));
     if (!ref) return null;
-    const target = await store.getPaymentTarget(ref);
+    // One round trip for all three: every ms here delays "Seen" on the owner's screen.
+    const [target, sol, usdt] = await Promise.all([store.getPaymentTarget(ref), store.latestQuote(ref, "SOL"), store.latestQuote(ref, "USDT")]);
     if (!target) return null;
-    const quote = await Promise.all([store.latestQuote(ref, "SOL"), store.latestQuote(ref, "USDT")]).then(([sol, usdt]) => sol ?? usdt);
+    const quote = sol ?? usdt;
     const v = verifyPayment(tx, target, { usdcMint: deps.usdcMint, quote });
-    return [tx.signature, { invoiceId: target.invoiceId, slot: tx.slot, level: "processed", seenAt: at, lastAt: at, v }];
+    return [tx.signature, { invoiceId: target.invoiceId, exporterId: target.exporterId, buyerId: target.buyerId, slot: tx.slot, level: "processed", seenAt: at, lastAt: at, v }];
   }
 
   return {
@@ -130,7 +133,7 @@ export function createPaymentTracker(deps: {
 
     /** After a (re)connect: record anything paid to a watched reference while we weren't listening. */
     async backfill(now: Date): Promise<void> {
-      for (const ref of refs.keys()) {
+      for (const ref of [...refs.keys()].filter(isPubkey)) {
         for (const s of await rpc.getSignaturesForAddress(ref)) {
           if (s.err || !s.confirmationStatus || tracked.has(s.signature)) continue;
           const raw = await rpc.getTransaction(s.signature);

@@ -43,7 +43,7 @@ async function invoiceFor(tx: RpcTransaction, refPrefix: string, amount: bigint)
 function tracker(rpc: TrackerRpc = noRpc) {
   logs = [];
   paid = [];
-  const t = createPaymentTracker({ store, rpc, usdcMint: USDC, log: (m) => logs.push(m), onPaid: async (id) => void paid.push(id) });
+  const t = createPaymentTracker({ store, rpc, usdcMint: USDC, log: (m) => logs.push(m), onPaid: async (p) => void paid.push(p.invoiceId) });
   t.setReferences([{ invoiceId, referencePubkey: reference }]);
   return t;
 }
