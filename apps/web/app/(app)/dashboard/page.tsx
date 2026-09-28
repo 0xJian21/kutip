@@ -21,12 +21,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   return (
     <>
       <PageHeader
-        eyebrow={exporter.name}
         title="Overview"
-        lede={`Ringgit figures use the Bank Negara reference rate for ${formatDate(summary.rate.date)}.`}
+        lede={`Ringgit at the Bank Negara reference rate for ${formatDate(summary.rate.date)}.`}
         actions={<ButtonLink href="/invoices/new">New invoice</ButtonLink>}
       />
-      <LiveDashboard initial={summary} buyers={buyers} invoices={invoices} exporterId={data.exporterId} />
+      <LiveDashboard initial={summary} buyers={buyers} invoices={invoices} exporter={exporter} exporterId={data.exporterId} />
     </>
   );
 }

@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ActionRow } from "@/components/agent/action-row";
-import { InvoiceTable } from "@/components/invoices/invoice-table";
-import { MoneyFigure } from "@/components/ui/money";
-import { Panel } from "@/components/ui/panel";
-import { EmptyState } from "@/components/ui/states";
-import { ButtonLink } from "@/components/ui/button";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Funnel, StackedColumns } from "@/components/ui/charts";
+import { CommandBar } from "@/components/ui/command-bar";
+import { Stat } from "@/components/ui/stat";
 import { fetchDashboard } from "@/lib/data/actions";
 import { debounce, useBroadcast } from "@/lib/data/live";
 import { mockData } from "@/lib/mock";
 import { MOCK } from "@/lib/ui/data";
-import type { Buyer, DashboardSummary, Invoice } from "@/lib/ui/types";
+import type { Buyer, DashboardSummary, Exporter, Invoice } from "@/lib/ui/types";
+import { collectionsFunnel, deltaBps, funnelEmphasis, invoicedByMonth, monthKey, paidInMonth, previousMonthKey, recentPayments } from "./summaries";
+import { NeedsYou } from "./needs-you";
+import { RecentPayments } from "./recent-payments";
+import { TreasuryHero } from "./treasury-hero";
 
 /**
  * Dashboard body. Server-rendered from the initial summary, then re-fetched
@@ -22,12 +24,14 @@ export function LiveDashboard({
   initial,
   buyers,
   invoices,
+  exporter,
   exporterId,
 }: {
   exporterId: string;
   initial: DashboardSummary;
   buyers: Buyer[];
   invoices: Invoice[];
+  exporter: Exporter;
 }) {
   const [summary, setSummary] = useState(initial);
 
@@ -35,62 +39,56 @@ export function LiveDashboard({
   useEffect(() => (MOCK ? mockData.subscribeChanges(refresh) : undefined), [refresh]);
   useBroadcast(MOCK ? null : `owner:${exporterId}`, refresh);
 
-  const numberOf = (id?: string) => invoices.find((i) => i.id === id)?.number;
+  const now = new Date();
+  const funnel = collectionsFunnel(invoices, summary.rate);
+  const byMonth = invoicedByMonth(invoices, summary.rate, now);
+  const receivedDelta = deltaBps(paidInMonth(invoices, monthKey(now.toISOString())), paidInMonth(invoices, previousMonthKey(now)));
+  const recent = recentPayments(invoices);
 
   return (
-    <div className="grid gap-6 lg:gap-8">
-      <section aria-label="This month" className="grid gap-6 rounded-md border border-line bg-surface p-5 sm:grid-cols-[1.4fr_1fr_1fr] sm:gap-8 sm:p-6">
-        <MoneyFigure usdc={summary.receivedThisMonthUsdc} rate={summary.rate} size="xl" label="Received this month" />
-        <div className="grid gap-5 sm:col-span-2 sm:grid-cols-3 sm:border-l sm:border-line sm:pl-8">
-          <MoneyFigure usdc={summary.outstandingUsdc} rate={summary.rate} size="md" label="Outstanding" footnote={false} />
-          <div>
-            <MoneyFigure usdc={summary.overdueUsdc} rate={summary.rate} size="md" label="Overdue" footnote={false} />
-            {summary.overdueCount > 0 ? (
-              <Link href="/invoices?status=overdue" className="mt-1 inline-block text-sm font-medium text-overdue-fg underline-offset-4 hover:underline">
-                {summary.overdueCount} {summary.overdueCount === 1 ? "invoice" : "invoices"} overdue
-              </Link>
-            ) : null}
-          </div>
-          <MoneyFigure usdc={summary.treasuryBalanceUsdc} rate={summary.rate} size="md" label="In treasury" footnote={false} />
-        </div>
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-[3fr_2fr] lg:gap-8">
-        <Panel
-          title="Needs attention"
-          aside={<Link href="/invoices?status=needs_attention" className="text-accent underline-offset-4 hover:underline">All invoices</Link>}
-          padded={false}
-        >
-          <InvoiceTable
-            invoices={summary.attention}
-            buyers={buyers}
+    <div className="grid gap-5 lg:gap-6">
+      <Card padded={false}>
+        {/* One card, four stats. Hairlines between them: stacked on phones, 2×2 on tablets, a row on wide screens. */}
+        <div className="grid divide-y divide-line [&>*]:border-line sm:grid-cols-2 sm:divide-y-0 sm:[&>*:nth-child(odd)]:border-r sm:max-xl:[&>*:nth-child(-n+2)]:border-b xl:grid-cols-4 xl:[&>*:not(:last-child)]:border-r">
+          <Stat className="px-5 py-5 sm:px-6" label="Received this month" usdc={summary.receivedThisMonthUsdc} rate={summary.rate} delta={receivedDelta ?? undefined} deltaLabel="vs last month" />
+          <Stat className="px-5 py-5 sm:px-6" label="Outstanding" usdc={summary.outstandingUsdc} rate={summary.rate} />
+          <Stat
+            className="px-5 py-5 sm:px-6"
+            label="Overdue"
+            usdc={summary.overdueUsdc}
             rate={summary.rate}
-            empty={
-              <EmptyState
-                compact
-                title="Nothing needs you right now"
-                body="Overdue, disputed and partly paid invoices show up here."
-                action={<ButtonLink variant="secondary" href="/invoices/new">Create an invoice</ButtonLink>}
-              />
+            footer={
+              summary.overdueCount > 0 ? (
+                <Link href="/invoices?status=overdue" className="font-medium text-overdue-fg underline-offset-4 hover:underline">
+                  {summary.overdueCount} {summary.overdueCount === 1 ? "invoice" : "invoices"} overdue
+                </Link>
+              ) : (
+                <span className="text-ink-3">Nothing overdue</span>
+              )
             }
           />
-        </Panel>
+          <Stat className="px-5 py-5 sm:px-6" label="In treasury" usdc={summary.treasuryBalanceUsdc} rate={summary.rate} footer={<Link href="/treasury" className="font-medium text-accent underline-offset-4 hover:underline">Open treasury</Link>} />
+        </div>
+      </Card>
 
-        <Panel
-          title="Agent activity"
-          aside={<Link href="/agent" className="text-accent underline-offset-4 hover:underline">Everything</Link>}
-          padded={false}
-        >
-          {summary.activity.length === 0 ? (
-            <EmptyState compact title="The agent hasn't done anything yet" body="Reminders, replies and sweeps will be listed here with a reason for each." />
-          ) : (
-            <div className="divide-y divide-line">
-              {summary.activity.slice(0, 5).map((a) => (
-                <ActionRow key={a.id} action={a} buyers={buyers} invoiceNumber={numberOf(a.invoiceId)} compact />
-              ))}
-            </div>
-          )}
-        </Panel>
+      <CommandBar suggestions={["What’s due this week?", "Who hasn’t paid?", "Sweep now", "Cash out RM 10k"]} />
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
+        <div className="grid min-w-0 content-start gap-5 lg:gap-6">
+          <Card>
+            <CardHeader title="Collections" caption="Every invoice sent, by where its money is now" />
+            <Funnel stages={funnel} emphasis={funnelEmphasis(funnel)} className="mt-5" height={150} />
+          </Card>
+          <Card>
+            <CardHeader title="Invoiced by month" caption="Received against still open, last six months" />
+            <StackedColumns points={byMonth} className="mt-4" height={130} />
+          </Card>
+          <RecentPayments payments={recent} buyers={buyers} rate={summary.rate} />
+        </div>
+        <div className="grid min-w-0 content-start gap-5 lg:gap-6">
+          <TreasuryHero balanceUsdc={summary.treasuryBalanceUsdc} rate={summary.rate} vault={exporter.treasuryVault} />
+          <NeedsYou actions={summary.activity} attention={summary.attention} buyers={buyers} invoices={invoices} rate={summary.rate} />
+        </div>
       </div>
     </div>
   );

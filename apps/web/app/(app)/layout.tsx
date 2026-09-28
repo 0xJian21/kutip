@@ -9,7 +9,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <SideNav exporterName={exporter.name} ownerName={exporter.ownerName} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar exporterName={exporter.name} ownerName={exporter.ownerName} />
-        <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">{children}</main>
+        <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
       </div>
     </div>
   );

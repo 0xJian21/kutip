@@ -106,3 +106,11 @@ export function MoneyCell({
     </span>
   );
 }
+
+/** "RM 214k" / "RM 1.2m" / "RM 8,250" for chart labels and small tiles. */
+export function formatMyrCompact(sen: bigint): string {
+  const rm = Number(sen / 100n);
+  if (rm >= 1_000_000) return `RM ${(rm / 1_000_000).toFixed(rm >= 10_000_000 ? 0 : 1)}m`;
+  if (rm >= 10_000) return `RM ${Math.round(rm / 1000)}k`;
+  return `RM ${rm.toLocaleString("en-MY")}`;
+}
