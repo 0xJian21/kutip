@@ -51,7 +51,8 @@ export function CashOutDialog({ open, onClose, initialWhitelist, onDone }: { ope
   }
 
   function propose() {
-    if (!preview?.ok || !preview.destination) return;
+    if (!preview?.ok || !preview.destination) return setPhase({ kind: "error", error: preview?.problem ?? "Enter an amount and pick a whitelisted address first." });
+    if (!owner.wallet) return setPhase({ kind: "error", error: owner.ready ? "Your Privy wallet is not connected in this tab. Reload the page and sign in again." : "Still connecting to your wallet, try again in a moment." });
     setPhase({ kind: "proposing" });
     start(async () => {
       const p = await cashOutPropose({ amountUsdc: preview.amountUsdc, destination: preview.destination!.address });
@@ -134,7 +135,7 @@ export function CashOutDialog({ open, onClose, initialWhitelist, onDone }: { ope
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose}>{phase.kind === "done" ? "Close" : "Cancel"}</Button>
         {phase.kind === "quote" || phase.kind === "error" ? (
-          <Button variant="secondary" onClick={propose} disabled={pending || !preview?.ok || !owner.wallet}>
+          <Button variant="secondary" onClick={propose} disabled={pending}>
             <Fingerprint size={16} aria-hidden="true" /> Propose and approve with Touch ID
           </Button>
         ) : null}
@@ -154,6 +155,8 @@ export function WhitelistAdd({ onAdded }: { onAdded: (list: Array<{ label: strin
 
   function submit() {
     setError(null);
+    if (!address.trim()) return setError("Paste the deposit address first.");
+    if (!owner.wallet) return setError(owner.ready ? "Your Privy wallet is not connected in this tab. Reload the page and sign in again." : "Still connecting to your wallet, try again in a moment.");
     start(async () => {
       try {
         const st = await whitelistStatementFor(address.trim());
@@ -185,7 +188,7 @@ export function WhitelistAdd({ onAdded }: { onAdded: (list: Array<{ label: strin
       {error ? <p className="text-sm text-disputed-fg">{error}</p> : null}
       <div className="flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={() => setOpenForm(false)}>Cancel</Button>
-        <Button size="sm" onClick={submit} disabled={pending || !address.trim() || !owner.wallet}><Fingerprint size={14} aria-hidden="true" /> Whitelist with Touch ID</Button>
+        <Button size="sm" onClick={submit} disabled={pending}><Fingerprint size={14} aria-hidden="true" /> {pending ? "Waiting for Touch ID…" : "Whitelist with Touch ID"}</Button>
       </div>
     </Inset>
   );
