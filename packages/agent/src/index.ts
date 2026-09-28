@@ -25,7 +25,7 @@ export { extractInvoice, type ExtractedInvoice } from "./extract";
 export { formatUsdc, parseUsdc } from "./money";
 export { HAIKU } from "./llm";
 export { createMailer, type Mailer } from "./mailer";
-export { replyPermission, ROUTINE_CONFIDENCE, type ReplyPermission, type ReplySettings, type ReplyTopic } from "./rules/reply-permission";
+export { autoSendProblem, replyPermission, ROUTINE_CONFIDENCE, type ReplyPermission, type ReplySettings, type ReplyTopic } from "./rules/reply-permission";
 export { writeReply } from "./writer";
 export { draftReplyFor, handleInbound, sendReply, type InboxDeps, type InboxPort, type PortMessage } from "./inbox";
 export { COMMAND_TOOLS, confirmReminder, EXAMPLES, planCommand, routeCommand, type CommandIntent, type CommandPort, type CommandPreview, type InvoiceLine, type ReminderSendPort } from "./command";

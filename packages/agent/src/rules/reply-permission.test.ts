@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ReplyClassification, ReplyLabel } from "../classifier";
 import { DEFAULT_RULEBOOK } from "../rulebook";
 import { decideReply } from "./replies";
-import { replyPermission, ROUTINE_CONFIDENCE, type ReplySettings, type ReplyTopic } from "./reply-permission";
+import { autoSendProblem, replyPermission, ROUTINE_CONFIDENCE, type ReplySettings, type ReplyTopic } from "./reply-permission";
 
 const NOW = new Date("2026-09-28T02:00:00Z");
 const AUTO: ReplySettings = { remindersAndReceipts: "automatic", buyerReplies: "routine" };
@@ -68,5 +68,23 @@ describe("E3 reply permission matrix", () => {
     for (const topic of ["resend_invoice", "payment_instructions", "payment_received"] as const) {
       expect(permit({ label: "dispute", topic, status: "paid" }).mode).toBe("draft");
     }
+  });
+});
+
+describe("autoSendProblem: what an automatic reply may never contain, checked in code", () => {
+  const ctx = { invoiceNumber: "INV-2026-0154", payUrl: "https://kutip-app.vercel.app/pay/inv_abc" };
+  it("passes a plain routine answer, including this invoice's own number and pay link", () => {
+    expect(autoSendProblem("Hi Amir,\n\nYou can pay INV-2026-0154 with the pay button on this page: https://kutip-app.vercel.app/pay/inv_abc\n\nTeratai", ctx)).toBeNull();
+  });
+  it.each([
+    ["another link", "Our payment page moved: https://evil.example/pay"],
+    ["a bare domain", "Please use pay-teratai.com instead"],
+    ["an email address", "Send remittance to billing@evil.example"],
+    ["an account-like number", "Transfer to Maybank 514012345678"],
+    ["bank details", "Please pay by bank transfer to our new account"],
+    ["another invoice", "INV-2026-0153 is also due"],
+    ["a phone number", "WhatsApp us on +60 12-345 6789"],
+  ])("refuses %s", (_what, text) => {
+    expect(autoSendProblem(text, ctx)).toMatch(/.+/);
   });
 });
