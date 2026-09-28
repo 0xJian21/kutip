@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Onboarding } from "@/components/onboarding/onboarding";
+import { KutipMark } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { safeNext } from "@/lib/server/access";
 import { demoData } from "@/lib/server/data";
@@ -14,15 +15,13 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header className="flex items-center justify-between px-4 py-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 rounded-sm">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-sm bg-accent text-on-accent">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 2v10M3 7l6-5M3 7l6 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </span>
-          <span className="text-md font-semibold tracking-tight text-ink">Kutip</span>
+        <Link href="/" className="flex items-center gap-2.5 rounded-full">
+          <KutipMark size={28} />
+          <span className="text-lg font-semibold tracking-tight text-ink">Kutip</span>
         </Link>
         <ThemeToggle />
       </header>
-      <main className="flex-1 px-4 pb-16 pt-6 sm:px-6">
+      <main className="flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
         <Onboarding exporter={exporter} rulebook={rulebook} next={next} />
       </main>
     </div>

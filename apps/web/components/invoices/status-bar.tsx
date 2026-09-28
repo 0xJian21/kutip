@@ -29,7 +29,7 @@ export function stageIndex(status: Invoice["status"]): number {
   }
 }
 
-function waitingText(invoice: Invoice): string {
+export function waitingText(invoice: Invoice): string {
   switch (invoice.status) {
     case "draft":
       return "Not sent yet";

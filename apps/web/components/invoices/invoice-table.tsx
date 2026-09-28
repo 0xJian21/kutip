@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Avatar } from "@/components/ui/avatar";
 import { MoneyCell } from "@/components/ui/money";
 import { StatusPill } from "@/components/ui/status-pill";
 import { EmptyState } from "@/components/ui/states";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { dueLabel, formatDate } from "@/lib/ui/format";
 import type { BnmRate, Buyer, Invoice } from "@/lib/ui/types";
 import type { ReactNode } from "react";
@@ -30,57 +32,61 @@ export function InvoiceTable({
 
   return (
     <>
-      <table className="hidden w-full text-base sm:table">
-        <thead className="bg-paper-2 text-sm text-ink-2">
+      <Table className="hidden sm:table">
+        <THead>
           <tr>
-            <th scope="col" className="px-4 py-2 text-left font-medium sm:px-6">Invoice</th>
-            <th scope="col" className="px-4 py-2 text-left font-medium">Buyer</th>
-            <th scope="col" className="px-4 py-2 text-left font-medium">Due</th>
-            <th scope="col" className="px-4 py-2 text-left font-medium">Status</th>
-            <th scope="col" className="px-4 py-2 text-right font-medium sm:px-6">Amount</th>
+            <TH>Invoice</TH>
+            <TH>Buyer</TH>
+            <TH>Due</TH>
+            <TH>Status</TH>
+            <TH align="right">Amount</TH>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-line">
+        </THead>
+        <TBody>
           {invoices.map((inv) => {
             const urgent = URGENT.has(inv.status);
             return (
-              <tr key={inv.id} className="group relative transition-colors duration-(--dur-fast) hover:bg-paper-2/60">
-                <td className="px-4 py-3 sm:px-6">
-                  <Link href={`/invoices/${inv.id}`} className="whitespace-nowrap tabular font-medium text-ink after:absolute after:inset-0 after:content-['']">
+              <TR key={inv.id} interactive>
+                <TD className="whitespace-nowrap">
+                  <Link href={`/invoices/${inv.id}`} className="tabular font-medium text-ink after:absolute after:inset-0 after:content-['']">
                     {inv.number}
                   </Link>
-                </td>
-                <td className="max-w-[26ch] truncate px-4 py-3 text-ink">{buyerName(inv.buyerId)}</td>
-                <td className={`whitespace-nowrap px-4 py-3 tabular ${urgent ? "font-medium text-overdue-fg" : "text-ink-2"}`}>
+                </TD>
+                <TD className="w-full max-w-0">
+                  <span className="flex items-center gap-2.5">
+                    <Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />
+                    <span className="min-w-0 truncate text-ink">{buyerName(inv.buyerId)}</span>
+                  </span>
+                </TD>
+                <TD className={`whitespace-nowrap tabular ${urgent ? "font-medium text-overdue-fg" : "text-ink-2"}`}>
                   <span>{formatDate(inv.dueDate)}</span>
                   {inv.status === "overdue" ? <span className="block text-xs">{dueLabel(inv.dueDate)}</span> : null}
-                </td>
-                <td className="px-4 py-3"><StatusPill status={inv.status} /></td>
-                <td className="px-4 py-3 text-right sm:px-6"><MoneyCell usdc={inv.amountUsdc} rate={rate} /></td>
-              </tr>
+                </TD>
+                <TD><StatusPill status={inv.status} /></TD>
+                <TD align="right"><MoneyCell usdc={inv.amountUsdc} rate={rate} /></TD>
+              </TR>
             );
           })}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
 
       <ul className="divide-y divide-line sm:hidden">
         {invoices.map((inv) => {
           const urgent = URGENT.has(inv.status);
           return (
-            <li key={inv.id} className="relative px-4 py-3 transition-colors duration-(--dur-fast) hover:bg-paper-2/60">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <Link href={`/invoices/${inv.id}`} className="block truncate text-base font-medium text-ink after:absolute after:inset-0 after:content-['']">
-                    {buyerName(inv.buyerId)}
-                  </Link>
-                  <p className="mt-0.5 text-sm tabular text-ink-2">
-                    {inv.number}
-                    <span className={urgent ? "text-overdue-fg font-medium" : ""}> · {inv.status === "overdue" ? dueLabel(inv.dueDate) : `Due ${formatDate(inv.dueDate)}`}</span>
-                  </p>
-                </div>
-                <MoneyCell usdc={inv.amountUsdc} rate={rate} />
+            <li key={inv.id} className="relative flex items-center gap-3 px-5 py-3 transition-colors duration-(--dur-fast) hover:bg-paper-2/50">
+              <Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />
+              <div className="min-w-0 flex-1">
+                <Link href={`/invoices/${inv.id}`} className="block truncate text-base font-medium text-ink after:absolute after:inset-0 after:content-['']">
+                  {buyerName(inv.buyerId)}
+                </Link>
+                <p className="truncate text-sm tabular text-ink-2">
+                  {inv.number}
+                  <span className={urgent ? "font-medium text-overdue-fg" : ""}> · {inv.status === "overdue" ? dueLabel(inv.dueDate) : `Due ${formatDate(inv.dueDate)}`}</span>
+                </p>
+                <div className="mt-1.5"><StatusPill status={inv.status} /></div>
               </div>
-              <div className="mt-2"><StatusPill status={inv.status} /></div>
+              <MoneyCell usdc={inv.amountUsdc} rate={rate} />
             </li>
           );
         })}

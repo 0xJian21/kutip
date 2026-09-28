@@ -1,7 +1,9 @@
 import { Address } from "@/components/ui/address";
-import { Facts, Panel } from "@/components/ui/panel";
+import { Card, CardHeader, Inset } from "@/components/ui/card";
+import { Amount } from "@/components/ui/money";
+import { Facts } from "@/components/ui/panel";
 import { StatusPill } from "@/components/ui/status-pill";
-import { bpsDiff, formatBps, formatMyr, formatRate, formatSol, formatUsdc, formatUsdcExact, toMyr } from "@/lib/ui/money";
+import { bpsDiff, formatBps, formatRate, formatSol, formatUsdc, formatUsdcExact, toMyr } from "@/lib/ui/money";
 import { formatDateTime } from "@/lib/ui/format";
 import type { BnmRate, Invoice, Payment } from "@/lib/ui/types";
 
@@ -23,18 +25,14 @@ export function ReceiptCard({ payment, invoice, rate }: { payment: Payment; invo
   const title = final ? "Payment received" : payment.commitment === "confirmed" ? "Payment received, becoming final" : "Payment seen, checking";
 
   return (
-    <Panel
-      title={title}
-      aside={<StatusPill status={final ? "settled" : payment.commitment === "confirmed" ? "paid" : "seen"} />}
-    >
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <div className="money text-money-lg text-ink">
-          <span className="mr-1 align-baseline text-[0.5em] font-medium">RM</span>
-          {formatMyr(myr, { symbol: false })}
-        </div>
-        <div className="text-base tabular text-ink-2">at BNM reference rate {formatRate(rate)}</div>
+    <Card>
+      <CardHeader title={title} aside={<StatusPill status={final ? "settled" : payment.commitment === "confirmed" ? "paid" : "seen"} />} />
+      <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <Amount sen={myr} size="lg" />
+        <div className="text-sm tabular text-ink-2">at BNM reference rate {formatRate(rate)}</div>
       </div>
       <Facts
+        className="mt-4"
         items={[
           { label: swapped ? `Buyer paid in ${payment.inputMint}` : "Buyer paid", value: paidLine(payment) },
           { label: "You received, exactly", value: `${formatUsdcExact(payment.amount)} USDC` },
@@ -58,13 +56,13 @@ export function ReceiptCard({ payment, invoice, rate }: { payment: Payment; invo
           ...(payment.issues.length ? [{ label: "Note", value: <span className="text-partial-fg">{payment.issues.join("; ")}</span> }] : []),
         ]}
       />
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-3 text-sm text-ink-3">
+      <Inset className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm text-ink-2">
         <span className="tabular">
           {final && payment.finalizedAt ? `Final ${formatDateTime(payment.finalizedAt)} MYT` : `Seen ${formatDateTime(payment.observedAt)} MYT`}
+          <span className="text-ink-3"> · slot {payment.slot.toLocaleString("en-MY")}</span>
         </span>
-        <span className="tabular">Slot {payment.slot.toLocaleString("en-MY")}</span>
         <Address value={payment.signature} kind="tx" label="View on Solscan" />
-      </div>
-    </Panel>
+      </Inset>
+    </Card>
   );
 }

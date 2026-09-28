@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { CalendarDays, ChevronDown } from "lucide-react";
 
 const CONTROL =
-  "h-10 w-full rounded-md border border-line-strong bg-surface px-3.5 text-base text-ink placeholder:text-ink-3 transition-colors duration-(--dur-fast) hover:border-ink-3 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/25 disabled:bg-paper-2 disabled:text-ink-3 disabled:hover:border-line-strong aria-invalid:border-disputed-fg aria-invalid:focus:ring-disputed-fg/25";
+  "h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3.5 text-base text-ink placeholder:text-ink-3 transition-colors duration-(--dur-fast) hover:border-ink-3 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/25 disabled:bg-paper-2 disabled:text-ink-3 disabled:hover:border-line-strong aria-invalid:border-disputed-fg aria-invalid:focus:ring-disputed-fg/25";
 
 export function Field({
   label,
@@ -20,7 +20,7 @@ export function Field({
   className?: string;
 }) {
   return (
-    <label className={`grid gap-1.5 ${className}`}>
+    <label className={`grid min-w-0 gap-1.5 ${className}`}>
       <span className="text-sm font-medium text-ink">
         {label}
         {required ? <span className="text-accent"> *</span> : null}

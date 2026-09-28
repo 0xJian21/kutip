@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Select, controlClass } from "@/components/ui/field";
+import { Tabs } from "@/components/ui/tabs";
 import type { Buyer } from "@/lib/ui/types";
 
 const TABS: Array<{ value: string; label: string }> = [
@@ -41,49 +41,32 @@ export function InvoiceFilters({ buyers, counts }: { buyers: Buyer[]; counts: Re
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
+  const items = TABS.map((t) => {
+    const sp = new URLSearchParams(params.toString());
+    if (t.value === "all") sp.delete("status");
+    else sp.set("status", t.value);
+    return { value: t.value, label: t.label, count: counts[t.value] ?? 0, href: `${pathname}?${sp.toString()}`, countTone: t.value === "overdue" ? ("warn" as const) : undefined };
+  });
+
   return (
-    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <nav aria-label="Filter by status" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <ul className="flex gap-1">
-          {TABS.map((t) => {
-            const active = status === t.value;
-            const sp = new URLSearchParams(params.toString());
-            if (t.value === "all") sp.delete("status");
-            else sp.set("status", t.value);
-            const n = counts[t.value] ?? 0;
-            return (
-              <li key={t.value}>
-                <Link
-                  href={`${pathname}?${sp.toString()}`}
-                  aria-current={active ? "page" : undefined}
-                  className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 text-base transition-colors duration-(--dur-fast) ${
-                    active ? "bg-surface font-medium text-ink ring-1 ring-inset ring-line" : "text-ink-2 hover:bg-paper-2 hover:text-ink"
-                  }`}
-                >
-                  {t.label}
-                  <span className={`tabular text-sm ${t.value === "overdue" && n > 0 ? "text-overdue-fg" : "text-ink-3"}`}>{n}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <Tabs label="Filter by status" value={status} items={items} className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 [&>ul]:flex-nowrap sm:[&>ul]:flex-wrap" />
       <div className="flex gap-2">
-        <Select aria-label="Buyer" value={buyerId} onChange={(e) => push({ buyer: e.target.value })} className="w-auto max-w-[200px]">
+        <Select aria-label="Buyer" value={buyerId} onChange={(e) => push({ buyer: e.target.value })} className="w-auto max-w-[220px]">
           <option value="">All buyers</option>
           {buyers.map((b) => (
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}
         </Select>
         <div className="relative">
-          <Search size={14} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
+          <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-3" />
           <input
             type="search"
             aria-label="Search invoices"
             placeholder="Search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className={`${controlClass} w-40 pl-8`}
+            className={`${controlClass} w-44 rounded-full pl-9`}
           />
         </div>
       </div>

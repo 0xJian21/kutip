@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ActionRow } from "@/components/agent/action-row";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
+import { Tabs } from "@/components/ui/tabs";
 import { fetchAgentActions } from "@/lib/data/actions";
 import { debounce, useBroadcast } from "@/lib/data/live";
 import { mockData } from "@/lib/mock";
@@ -49,43 +51,28 @@ export function ActionList({ initial, buyers, invoices, exporterId }: { initial:
 
   return (
     <>
-      <nav aria-label="Filter" className="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <ul className="flex gap-1">
-          {TABS.map((t) => {
-            const active = tab === t.value;
-            return (
-              <li key={t.value}>
-                <button
-                  type="button"
-                  onClick={() => setTab(t.value)}
-                  aria-pressed={active}
-                  className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 text-base transition-colors duration-(--dur-fast) ${
-                    active ? "bg-surface font-medium text-ink ring-1 ring-inset ring-line" : "text-ink-2 hover:bg-paper-2 hover:text-ink"
-                  }`}
-                >
-                  {t.label}
-                  <span className={`tabular text-sm ${t.value === "proposed" && counts[t.value] > 0 ? "text-partial-fg" : "text-ink-3"}`}>{counts[t.value]}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <Tabs
+        label="Filter"
+        className="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 [&>ul]:flex-nowrap sm:[&>ul]:flex-wrap"
+        value={tab}
+        onChange={setTab}
+        items={TABS.map((t) => ({ value: t.value, label: t.label, count: counts[t.value], countTone: t.value === "proposed" ? "warn" : undefined }))}
+      />
 
       {groups.length === 0 ? (
-        <div className="rounded-md border border-line bg-surface">
+        <Card padded={false}>
           <EmptyState title={tab === "all" ? "The agent hasn't done anything yet" : "Nothing here"} body={tab === "proposed" ? "When the agent wants to move money outside the rulebook, it asks you here." : "Every reminder, reply, sweep and alert is listed with its reason."} />
-        </div>
+        </Card>
       ) : (
         <div className="grid gap-6">
           {groups.map((g) => (
             <section key={g.day} aria-label={g.day}>
-              <h2 className="mb-2 text-sm font-medium text-ink-2">{g.day}</h2>
-              <div className="divide-y divide-line rounded-md border border-line bg-surface">
+              <h2 className="mb-2 px-1 text-sm font-medium text-ink-2">{g.day}</h2>
+              <Card padded={false} className="divide-y divide-line overflow-hidden py-1">
                 {g.items.map((a) => (
                   <ActionRow key={a.id} action={a} buyers={buyers} invoiceNumber={numberOf(a.invoiceId)} />
                 ))}
-              </div>
+              </Card>
             </section>
           ))}
         </div>

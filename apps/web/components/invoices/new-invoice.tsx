@@ -1,28 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Upload } from "lucide-react";
-import { useId, useRef, useState, type DragEvent } from "react";
+import { FileText, Plus, Send, Trash2, Upload } from "lucide-react";
+import { useRef, useState, type DragEvent } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Card, CardHeader, Inset } from "@/components/ui/card";
+import { Field, Input, PrefixedInput, Select, DateInput } from "@/components/ui/field";
 import { CopyField } from "@/components/ui/copy-field";
-import { Panel } from "@/components/ui/panel";
 import { QrCode } from "@/components/pay/qr-code";
+import { InvoiceDocument } from "@/components/invoices/invoice-document";
 import { createInvoice, readInvoicePdf } from "@/lib/data/actions";
 import { unwrap } from "@/lib/data/result";
-import { formatUsdc, formatUsdcExact, parseUsdc } from "@/lib/ui/money";
+import { formatUsdc, formatUsdcExact, parseUsdc, type BnmRate } from "@/lib/ui/money";
 import { formatDate } from "@/lib/ui/format";
-import type { Buyer } from "@/lib/ui/types";
+import type { Buyer, Exporter, LineItem } from "@/lib/ui/types";
 
 type Line = { description: string; quantity: string; unitPrice: string };
-type Phase = "drop" | "reading" | "edit" | "created";
+type Phase = "edit" | "reading" | "created";
 
 const EMPTY_LINES: Line[] = [{ description: "", quantity: "1", unitPrice: "" }];
 const priceInput = (n: bigint) => formatUsdcExact(n).replace(/,/g, "").replace(/0{1,4}$/, "");
 
-/** Drop a PDF → Haiku reads it (server action) → editable fields → createInvoice → pay link + QR. */
-export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
-  const [phase, setPhase] = useState<Phase>("drop");
+/**
+ * Form on the left, the invoice as a document on the right, updating as you type.
+ * "Import from PDF" fills the form through the extractor (server action); the
+ * PDF can also be dropped anywhere on the form. Send creates the invoice with a
+ * fresh reference key and emails the pay link.
+ */
+export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; exporter: Exporter; rate: BnmRate }) {
+  const [phase, setPhase] = useState<Phase>("edit");
   const [fileName, setFileName] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [buyerId, setBuyerId] = useState(buyers[0]?.id ?? "");
@@ -34,7 +40,6 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<Extract<Awaited<ReturnType<typeof createInvoice>>, { ok: true }>["value"] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const headingId = useId();
 
   const total = lines.reduce((sum, l) => {
     const unit = parseUsdc(l.unitPrice);
@@ -66,7 +71,7 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
     setPhase("edit");
   }
 
-  function onDrop(e: DragEvent<HTMLDivElement>) {
+  function onDrop(e: DragEvent<HTMLElement>) {
     e.preventDefault();
     setDragging(false);
     accept(e.dataTransfer.files[0]);
@@ -98,9 +103,15 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
   }
 
   const buyer = buyers.find((b) => b.id === buyerId);
+  const reading = phase === "reading";
+
+  // What the preview shows: every line the form has, even half-filled.
+  const previewLines: LineItem[] = lines
+    .filter((l) => l.description.trim() || l.unitPrice.trim())
+    .map((l) => ({ description: l.description, quantity: Math.max(0, Number.parseInt(l.quantity, 10) || 0), unitPriceUsdc: parseUsdc(l.unitPrice) ?? 0n }));
 
   function reset() {
-    setPhase("drop");
+    setPhase("edit");
     setCreated(null);
     setFileName(null);
     setNumber("");
@@ -110,134 +121,168 @@ export function NewInvoice({ buyers }: { buyers: Buyer[] }) {
     setError(null);
   }
 
+  const document = (
+    <InvoiceDocument
+      from={{ name: exporter.name, lines: [exporter.registrationNo ? `SSM ${exporter.registrationNo}` : "", exporter.city].filter(Boolean) }}
+      to={buyer ? { name: buyer.name, lines: [buyer.contactName, `${buyer.city}, ${buyer.countryName}`] } : undefined}
+      number={created?.number ?? number}
+      issuedAt=""
+      dueDate={dueDate || undefined}
+      lineItems={previewLines}
+      totalUsdc={total}
+      rate={rate}
+      aside={
+        <div className="w-32 shrink-0">
+          {created ? (
+            <div className="rounded-md bg-surface p-1.5 ring-1 ring-inset ring-line"><QrCode value={created.payUrl} /></div>
+          ) : (
+            <div className="flex aspect-square items-center justify-center rounded-md bg-well text-center text-xs text-ink-3 ring-1 ring-inset ring-line">Pay QR appears once sent</div>
+          )}
+        </div>
+      }
+    />
+  );
+
   if (phase === "created" && created) {
     const { id: invoiceId, payUrl } = created;
     return (
-      <Panel title="Invoice created and sent" aside={<span className="tabular">{created.number}</span>}>
-        <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-start">
-          <div className="mx-auto w-44 rounded-md border border-line bg-paper p-3 sm:mx-0">
-            <QrCode value={payUrl} />
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-6">
+        <Card>
+          <CardHeader title="Invoice sent" caption={created.number} />
+          <p className="mt-4 text-base text-ink">
+            {created.delivery === "sent" ? `Emailed to ${buyer?.contactName} at ${created.sentTo}.` : `Saved. The email to ${created.sentTo} was not sent (${created.delivery === "skipped" ? "address not on the email allowlist" : created.delivery === "recorded" ? "no email provider configured" : "the email provider refused it"}); share the pay link below.`}{" "}
+            The first reminder goes out three days before {formatDate(dueDate)}.
+          </p>
+          <div className="mt-5"><CopyField label="Pay link" value={payUrl} href={`/pay/${invoiceId}`} /></div>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <ButtonLink href={`/invoices/${invoiceId}`}>View invoice</ButtonLink>
+            <ButtonLink variant="outline" href={`/pay/${invoiceId}`}>Open pay page</ButtonLink>
+            <Button variant="ghost" onClick={reset}>Create another</Button>
           </div>
-          <div className="grid gap-4">
-            <p className="text-base text-ink">
-              {created.delivery === "sent" ? `Emailed to ${buyer?.contactName} at ${created.sentTo}.` : `Saved. The email to ${created.sentTo} was not sent (${created.delivery === "skipped" ? "address not on the email allowlist" : created.delivery === "recorded" ? "no email provider configured" : "the email provider refused it"}); share the pay link below.`}{" "}
-              The first reminder goes out three days before {formatDate(dueDate)}.
-            </p>
-            <CopyField label="Pay link" value={payUrl} href={`/pay/${invoiceId}`} />
-            <div className="flex flex-wrap gap-2">
-              <ButtonLink href={`/invoices/${invoiceId}`}>View invoice</ButtonLink>
-              <ButtonLink variant="secondary" href={`/pay/${invoiceId}`}>Open pay page</ButtonLink>
-              <Button variant="ghost" onClick={reset}>Create another</Button>
-            </div>
-          </div>
-        </div>
-      </Panel>
+        </Card>
+        <div>{document}</div>
+      </div>
     );
   }
 
   return (
-    <div className="grid gap-6">
-      {phase !== "edit" ? (
-        <div
-          role="button"
-          tabIndex={0}
-          aria-labelledby={headingId}
-          onClick={() => phase === "drop" && inputRef.current?.click()}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && phase === "drop" && inputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          className={`flex min-h-56 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border border-dashed px-6 py-10 text-center transition-colors duration-(--dur-fast) ${
-            dragging ? "border-accent bg-accent-soft/60 shadow-float" : "border-line-strong bg-surface hover:bg-paper-2/60"
-          }`}
-        >
-          <input ref={inputRef} type="file" accept="application/pdf" className="sr-only" onChange={(e) => accept(e.target.files?.[0])} />
-          {phase === "reading" ? (
-            <>
-              <span className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent">
-                <FileText size={18} aria-hidden="true" />
-                <span aria-hidden="true" className="absolute inset-0 animate-ping rounded-full bg-accent/20" />
-              </span>
-              <p id={headingId} className="text-md font-medium text-ink" aria-live="polite">AI is reading your invoice…</p>
-              <p className="text-base text-ink-2">{fileName}. Finding the buyer, line items, total and due date.</p>
-            </>
-          ) : (
-            <>
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-paper-2 text-ink-2">
-                <Upload size={18} aria-hidden="true" />
-              </span>
-              <p id={headingId} className="text-md font-medium text-ink">Drop the invoice PDF here</p>
-              <p className="text-base text-ink-2">or click to choose a file. Kutip reads it and fills the form for you to check.</p>
-              <button type="button" onClick={(e) => { e.stopPropagation(); setPhase("edit"); }} className="mt-1 text-base font-medium text-accent underline-offset-4 hover:underline">
-                Fill in the form instead
-              </button>
-            </>
-          )}
-        </div>
-      ) : null}
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-6">
+      {/* The whole form accepts a dropped PDF. */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        className={`min-w-0 rounded-xl transition-shadow duration-(--dur-fast) ${dragging ? "ring-2 ring-accent" : ""}`}
+      >
+      <Card as="section">
+        <input ref={inputRef} type="file" accept="application/pdf" className="sr-only" onChange={(e) => accept(e.target.files?.[0])} />
+        <CardHeader
+          title="Invoice details"
+          caption={fileName ? `Read from ${fileName}. Check every field.` : "Fill in the form, or import the PDF you already send."}
+          aside={
+            <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={reading}>
+              <Upload size={14} aria-hidden="true" />
+              Import from PDF
+            </Button>
+          }
+        />
 
-      {error ? <p role="alert" className="text-base text-disputed-fg">{error}</p> : null}
-      {phase === "edit" && warnings.length ? (
-        <ul className="grid gap-1 rounded-md border border-partial-fg/30 bg-partial-bg px-4 py-3 text-base text-partial-fg" aria-label="Check before sending">
-          {warnings.map((w) => <li key={w}>{w}</li>)}
-        </ul>
-      ) : null}
+        {reading ? (
+          <Inset className="mt-5 flex items-center gap-3 px-4 py-3" aria-live="polite">
+            <span className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+              <FileText size={16} aria-hidden="true" />
+              <span aria-hidden="true" className="absolute inset-0 animate-ping rounded-full bg-accent/20" />
+            </span>
+            <span>
+              <span className="block text-base font-medium text-ink">Reading {fileName}…</span>
+              <span className="block text-sm text-ink-2">Finding the buyer, line items, total and due date.</span>
+            </span>
+          </Inset>
+        ) : null}
+        {error ? <p role="alert" className="mt-4 text-base text-disputed-fg">{error}</p> : null}
+        {warnings.length ? (
+          <ul className="mt-4 grid gap-1 rounded-md bg-partial-bg px-4 py-3 text-sm text-partial-fg" aria-label="Check before sending">
+            {warnings.map((w) => <li key={w}>{w}</li>)}
+          </ul>
+        ) : null}
 
-      {phase === "edit" ? (
-        <Panel title="Check the details" aside={fileName ? <span className="truncate">Read from {fileName}</span> : undefined}>
-          <div className="grid gap-5">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Buyer" className="sm:col-span-1">
-                <Select value={buyerId} onChange={(e) => setBuyerId(e.target.value)}>
-                  {buyers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </Select>
-              </Field>
-              <Field label="Invoice number">
-                <Input value={number} placeholder="Next number" onChange={(e) => setNumber(e.target.value)} />
-              </Field>
-              <Field label="Due date" hint="Reminders start 3 days before">
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-              </Field>
+        <fieldset disabled={reading} className="mt-5 grid gap-5">
+          <Field label="Buyer" required>
+            <Select value={buyerId} onChange={(e) => setBuyerId(e.target.value)}>
+              {buyers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </Select>
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Invoice number" hint="Leave blank for the next number">
+              <Input value={number} placeholder="INV-2026-0162" onChange={(e) => setNumber(e.target.value)} />
+            </Field>
+            <Field label="Due date" hint="Reminders start 3 days before" required>
+              <DateInput value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </Field>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium text-ink">Line items <span className="text-accent">*</span></span>
+              <span className="text-sm text-ink-3">Prices in USD</span>
             </div>
-
-            <div>
-              <div className="mb-2 grid grid-cols-[1fr_72px_112px_112px] gap-2 text-sm font-medium text-ink-2">
-                <span>Item</span><span className="text-right">Qty</span><span className="text-right">Unit, USD</span><span className="text-right">Total</span>
-              </div>
-              <div className="grid gap-2">
-                {lines.map((l, i) => {
-                  const unit = parseUsdc(l.unitPrice);
-                  const qty = Number.parseInt(l.quantity, 10) || 0;
-                  return (
-                    <div key={i} className="grid grid-cols-[1fr_72px_112px_112px] items-center gap-2">
-                      <Input aria-label="Item" value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
-                      <Input aria-label="Quantity" inputMode="numeric" className="text-right" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} />
-                      <Input aria-label="Unit price" inputMode="decimal" className="text-right" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} />
-                      <span className="text-right tabular text-base text-ink">{unit === null ? "—" : formatUsdc(unit * BigInt(qty))}</span>
+            <div className="grid gap-2">
+              {lines.map((l, i) => {
+                const unit = parseUsdc(l.unitPrice);
+                const qty = Number.parseInt(l.quantity, 10) || 0;
+                return (
+                  <div key={i} className="grid gap-2 rounded-md bg-well p-2.5">
+                    <div className="flex gap-2">
+                      <Input aria-label="Item" placeholder="Teak dining table, 200 cm" value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
+                      <button
+                        type="button"
+                        aria-label="Remove line"
+                        disabled={lines.length === 1}
+                        onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-(--dur-fast) hover:bg-paper-2 hover:text-ink disabled:opacity-30"
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="mt-2 flex items-center justify-between">
-                <button type="button" onClick={() => setLines((ls) => [...ls, { description: "", quantity: "1", unitPrice: "" }])} className="text-base font-medium text-accent underline-offset-4 hover:underline">
-                  Add a line
-                </button>
-                <p className="text-base text-ink-2">
-                  Total <span className="ml-2 tabular text-lg font-semibold text-ink">{formatUsdc(total)} USD</span>
-                </p>
-              </div>
+                    <div className="grid grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2">
+                      <Input aria-label="Quantity" inputMode="numeric" className="text-right" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} />
+                      <PrefixedInput prefix="USD" aria-label="Unit price" inputMode="decimal" placeholder="0.00" className="text-right" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} />
+                      <span className="text-right tabular text-base text-ink">{unit === null ? <span className="text-ink-3">—</span> : `${formatUsdc(unit * BigInt(qty))} USD`}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-              <p className="text-sm text-ink-3">Line items stay private. Only the total and an opaque code go on chain.</p>
-              <div className="flex gap-2">
-                <Link href="/invoices" className="inline-flex h-9 items-center rounded-sm px-3 text-base font-medium text-ink-2 hover:bg-paper-2 hover:text-ink">Cancel</Link>
-                <Button onClick={create} disabled={creating}>{creating ? "Creating…" : "Create and send"}</Button>
-              </div>
+            <div className="mt-3 flex items-center justify-between">
+              <Button variant="ghost" size="sm" onClick={() => setLines((ls) => [...ls, { description: "", quantity: "1", unitPrice: "" }])}>
+                <Plus size={14} aria-hidden="true" />
+                Add a line
+              </Button>
+              <p className="text-base text-ink-2">
+                Total <span className="ml-2 tabular text-lg font-semibold text-ink">{formatUsdc(total)} USD</span>
+              </p>
             </div>
           </div>
-        </Panel>
-      ) : null}
+        </fieldset>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+          <p className="max-w-[36ch] text-sm text-ink-3">Line items stay private. Only the total and an opaque code go on chain.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/invoices" className="inline-flex h-10 items-center rounded-full px-3.5 text-base font-medium text-ink-2 hover:bg-paper-2 hover:text-ink">Cancel</Link>
+            <Button variant="outline" disabled title="Drafts arrive with the invoice update">Save draft</Button>
+            <Button variant="secondary" onClick={create} disabled={creating || reading}>
+              <Send size={15} aria-hidden="true" />
+              {creating ? "Sending…" : "Send invoice"}
+            </Button>
+          </div>
+        </div>
+      </Card>
+      </div>
+
+      <div className="lg:sticky lg:top-8 lg:self-start">
+        <p className="mb-2 text-sm font-medium text-ink-2">Preview: what the buyer receives</p>
+        {document}
+      </div>
     </div>
   );
 }

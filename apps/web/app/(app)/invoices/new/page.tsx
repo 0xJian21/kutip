@@ -7,14 +7,12 @@ export const metadata: Metadata = { title: "New invoice" };
 
 export default async function NewInvoicePage() {
   const data = await ownerData();
-  const buyers = await data.listBuyers();
+  const [buyers, exporter, summary] = await Promise.all([data.listBuyers(), data.getExporter(), data.getDashboard()]);
   return (
     <>
-      <PageHeader title="New invoice" lede="Drop the PDF you already send. Kutip reads it, you check it, and the pay link goes out with the email." />
-      <div className="max-w-3xl">
-        {/* New key per request: the sidebar link to this same URL starts a fresh form instead of showing the last invoice. */}
-        <NewInvoice key={crypto.randomUUID()} buyers={buyers} />
-      </div>
+      <PageHeader title="New invoice" lede="The buyer gets the pay link by email and pays in one scan. Kutip chases it from the due date." />
+      {/* New key per request: the sidebar link to this same URL starts a fresh form instead of showing the last invoice. */}
+      <NewInvoice key={crypto.randomUUID()} buyers={buyers} exporter={exporter} rate={summary.rate} />
     </>
   );
 }

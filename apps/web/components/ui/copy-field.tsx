@@ -14,7 +14,7 @@ export function CopyField({ label, value, href }: { label: string; value: string
     } catch {}
   }
   return (
-    <div>
+    <div className="min-w-0">
       <div className="mb-1.5 text-sm font-medium text-ink-2">{label}</div>
       <div className="flex items-center gap-1 rounded-md bg-well py-1.5 pl-3.5 pr-1.5 ring-1 ring-inset ring-line">
         {href ? (

@@ -9,13 +9,15 @@ export function Card({
   className = "",
   padded = true,
   as: Tag = "section",
+  id,
 }: {
   children: ReactNode;
   className?: string;
   padded?: boolean;
   as?: "section" | "div" | "article" | "aside";
+  id?: string;
 }) {
-  return <Tag className={`rounded-xl bg-surface shadow-card ${padded ? "p-5 sm:p-6" : ""} ${className}`}>{children}</Tag>;
+  return <Tag id={id} className={`min-w-0 rounded-xl bg-surface shadow-card ${padded ? "p-5 sm:p-6" : ""} ${className}`}>{children}</Tag>;
 }
 
 /** Title row for a card. `aside` takes a link, a pill, a menu button or a short caption. */
@@ -43,7 +45,7 @@ export function CardHeader({
 
 /** Grey well inside a card. */
 export function Inset({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-lg bg-well ${className}`}>{children}</div>;
+  return <div className={`min-w-0 rounded-lg bg-well ${className}`}>{children}</div>;
 }
 
 /** The one gradient surface: the treasury hero. Everything inside it uses on-hero tokens. */

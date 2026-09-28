@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { InvoiceFilters } from "@/components/invoices/invoice-filters";
 import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { ButtonLink } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/panel";
 import { EmptyState } from "@/components/ui/states";
 import { ownerData } from "@/lib/server/data";
@@ -48,7 +49,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
       <Suspense>
         <InvoiceFilters buyers={buyers} counts={counts} />
       </Suspense>
-      <div className="overflow-hidden rounded-md border border-line bg-surface">
+      <Card padded={false} className="overflow-hidden">
         <InvoiceTable
           invoices={invoices}
           buyers={buyers}
@@ -59,13 +60,13 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
             ) : (
               <EmptyState
                 title="No invoices yet"
-                body="Drop a PDF or fill in a form. Kutip creates the pay link and starts chasing on the due date."
+                body="Fill in the form or import a PDF. Kutip creates the pay link and starts chasing on the due date."
                 action={<ButtonLink href="/invoices/new">Create your first invoice</ButtonLink>}
               />
             )
           }
         />
-      </div>
+      </Card>
     </>
   );
 }

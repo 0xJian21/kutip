@@ -12,7 +12,7 @@ export default function Loading() {
         </div>
         <Skeleton className="h-10 w-48" />
       </div>
-      <div className="rounded-md border border-line bg-surface p-6">
+      <div className="rounded-xl bg-surface shadow-card p-6">
         <div className="grid grid-cols-4 gap-2">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="space-y-2">
@@ -23,8 +23,8 @@ export default function Loading() {
         </div>
       </div>
       <div className="mt-8 grid gap-8 lg:grid-cols-[3fr_2fr]">
-        <div className="rounded-md border border-line bg-surface"><SkeletonRows rows={3} /></div>
-        <div className="rounded-md border border-line bg-surface"><SkeletonRows rows={4} /></div>
+        <div className="rounded-xl bg-surface shadow-card"><SkeletonRows rows={3} /></div>
+        <div className="rounded-xl bg-surface shadow-card"><SkeletonRows rows={4} /></div>
       </div>
     </div>
   );

@@ -7,12 +7,12 @@ import { saveRulebook } from "@/lib/data/actions";
 import { formatUsdc, parseUsdc } from "@/lib/ui/money";
 import type { Rulebook } from "@/lib/ui/types";
 
-const NUM = "h-8 w-16 rounded-sm border border-line-strong bg-surface px-2 text-center text-base tabular text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30";
+const NUM = "no-spin h-9 w-16 rounded-md border border-line-strong bg-surface px-2 text-center text-base tabular text-ink transition-colors duration-(--dur-fast) hover:border-ink-3 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/25";
 
 function Rule({ id, children }: { id: string; children: React.ReactNode }) {
   return (
     <li className="flex items-baseline gap-4 py-3.5 first:pt-0 last:pb-0">
-      <span className="w-7 shrink-0 text-sm tabular text-ink-3">{id}</span>
+      <span className="inline-flex h-6 w-8 shrink-0 items-center justify-center rounded-full bg-paper-2 text-xs font-medium tabular text-ink-2">{id}</span>
       <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-2 text-base leading-8 text-ink">{children}</span>
     </li>
   );
@@ -20,7 +20,7 @@ function Rule({ id, children }: { id: string; children: React.ReactNode }) {
 
 function Hour({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
   return (
-    <select aria-label={label} value={value} onChange={(e) => onChange(Number(e.target.value))} className="h-8 rounded-sm border border-line-strong bg-surface px-2 text-base tabular text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">
+    <select aria-label={label} value={value} onChange={(e) => onChange(Number(e.target.value))} className="h-9 rounded-md border border-line-strong bg-surface px-2 text-base tabular text-ink transition-colors duration-(--dur-fast) hover:border-ink-3 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/25">
       {Array.from({ length: 24 }, (_, h) => (
         <option key={h} value={h}>{h === 0 ? "12am" : h < 12 ? `${h}am` : h === 12 ? "12pm" : `${h - 12}pm`}</option>
       ))}
@@ -93,7 +93,7 @@ export function RulebookForm({ initial }: { initial: Rulebook }) {
             <input aria-label="Overdue reminders before escalation" type="number" min={1} max={10} className={NUM} value={c.escalateAfterOverdueReminders} onChange={(e) => setC({ escalateAfterOverdueReminders: Number(e.target.value) })} />
             overdue reminders with no reply,
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={c.escalateOnDispute} onChange={(e) => setC({ escalateOnDispute: e.target.checked })} className="h-4 w-4 accent-(--accent)" />
+              <input type="checkbox" checked={c.escalateOnDispute} onChange={(e) => setC({ escalateOnDispute: e.target.checked })} className="h-4.5 w-4.5 accent-(--accent)" />
               and on any dispute.
             </label>
           </Rule>
@@ -108,7 +108,7 @@ export function RulebookForm({ initial }: { initial: Rulebook }) {
               {(["USDC", "SOL", "USDT"] as const).map((tok) => {
                 const on = t.acceptedTokens.includes(tok);
                 return (
-                  <button key={tok} type="button" aria-pressed={on} disabled={tok === "USDC"} onClick={() => toggleToken(tok)} className={`inline-flex h-7 items-center rounded-full px-2.5 text-sm font-medium transition-colors duration-(--dur-fast) ${on ? "bg-accent-soft text-accent ring-1 ring-inset ring-accent/30" : "bg-paper-2 text-ink-3 hover:text-ink"} disabled:opacity-100`}>
+                  <button key={tok} type="button" aria-pressed={on} disabled={tok === "USDC"} onClick={() => toggleToken(tok)} className={`inline-flex h-7 items-center rounded-full px-2.5 text-sm font-medium transition-colors duration-(--dur-fast) ${on ? "bg-accent text-on-accent" : "bg-paper-2 text-ink-3 hover:text-ink"} disabled:opacity-100`}>
                     {tok}
                   </button>
                 );
@@ -118,11 +118,11 @@ export function RulebookForm({ initial }: { initial: Rulebook }) {
           </Rule>
           <Rule id="T2">
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={t.sweepDaily} onChange={(e) => setT({ sweepDaily: e.target.checked })} className="h-4 w-4 accent-(--accent)" />
+              <input type="checkbox" checked={t.sweepDaily} onChange={(e) => setT({ sweepDaily: e.target.checked })} className="h-4.5 w-4.5 accent-(--accent)" />
               Sweep buyer accounts into the main treasury once a day
             </label>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={t.sweepRandomised} onChange={(e) => setT({ sweepRandomised: e.target.checked })} className="h-4 w-4 accent-(--accent)" />
+              <input type="checkbox" checked={t.sweepRandomised} onChange={(e) => setT({ sweepRandomised: e.target.checked })} className="h-4.5 w-4.5 accent-(--accent)" />
               at a random time.
             </label>
           </Rule>
@@ -133,7 +133,7 @@ export function RulebookForm({ initial }: { initial: Rulebook }) {
           </Rule>
           <Rule id="T4">
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={t.otherMovementsNeedApproval} onChange={(e) => setT({ otherMovementsNeedApproval: e.target.checked })} className="h-4 w-4 accent-(--accent)" />
+              <input type="checkbox" checked={t.otherMovementsNeedApproval} onChange={(e) => setT({ otherMovementsNeedApproval: e.target.checked })} className="h-4.5 w-4.5 accent-(--accent)" />
               Anything else needs your approval first.
             </label>
           </Rule>
@@ -145,7 +145,7 @@ export function RulebookForm({ initial }: { initial: Rulebook }) {
         </ol>
       </Panel>
 
-      <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-3 shadow-float">
+      <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-full bg-surface py-2.5 pl-5 pr-2.5 shadow-float">
         <p className="text-base text-ink-2" aria-live="polite">{notice ?? (dirty ? "You have unsaved changes." : "The agent is following these rules.")}</p>
         <div className="flex gap-2">
           <Button variant="ghost" onClick={discard} disabled={!dirty || pending}>Discard</Button>

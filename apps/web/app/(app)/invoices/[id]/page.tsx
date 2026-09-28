@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { InvoiceDocument } from "@/components/invoices/invoice-document";
 import { InvoiceLive } from "@/components/invoices/invoice-live";
 import { MessageThread, ReminderTimeline } from "@/components/invoices/timeline";
 import { SimulateReply } from "@/components/invoices/simulate-reply";
 import { Address } from "@/components/ui/address";
-import { Facts, Panel } from "@/components/ui/panel";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Facts } from "@/components/ui/panel";
 import { CopyField } from "@/components/ui/copy-field";
 import { ownerData } from "@/lib/server/data";
 import { scenarioFrom } from "@/lib/ui/scenario";
 import { formatDate, localTimeLabel } from "@/lib/ui/format";
-import { formatUsdc } from "@/lib/ui/money";
 
 export async function generateMetadata({ params }: PageProps<"/invoices/[id]">): Promise<Metadata> {
   const data = await ownerData();
@@ -24,9 +25,9 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
   const data = await ownerData();
   const { id } = await params;
   const scenario = scenarioFrom(await searchParams);
-  const detail = await data.getInvoice(id, { scenario });
+  const [detail, exporter] = await Promise.all([data.getInvoice(id, { scenario }), data.getExporter()]);
   if (!detail) notFound();
-  const { invoice, buyer, messages, actions } = detail;
+  const { invoice, buyer, messages, actions, rate } = detail;
 
   return (
     <>
@@ -37,41 +38,35 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
 
       <InvoiceLive initial={detail} exporterId={data.exporterId} />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr] lg:gap-8">
-        <div className="grid min-w-0 content-start gap-6">
-          <Panel title="Line items" padded={false}>
-            <table className="w-full text-base">
-              <thead className="sr-only">
-                <tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th></tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {invoice.lineItems.map((li, i) => (
-                  <tr key={i}>
-                    <td className="px-4 py-2.5 text-ink sm:px-6">{li.description}</td>
-                    <td className="whitespace-nowrap px-2 py-2.5 text-right tabular text-ink-2">{li.quantity} ×</td>
-                    <td className="px-2 py-2.5 text-right tabular text-ink-2">{formatUsdc(li.unitPriceUsdc)}</td>
-                    <td className="px-4 py-2.5 text-right tabular font-medium text-ink sm:px-6">{formatUsdc(li.unitPriceUsdc * BigInt(li.quantity))}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-line bg-paper-2/60">
-                  <td colSpan={3} className="px-4 py-2.5 text-right text-sm text-ink-2 sm:px-6">Total, USD</td>
-                  <td className="px-4 py-2.5 text-right tabular font-semibold text-ink sm:px-6">{formatUsdc(invoice.amountUsdc)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </Panel>
+      <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 lg:gap-6">
+          <InvoiceDocument
+            from={{ name: exporter.name, lines: [exporter.registrationNo ? `SSM ${exporter.registrationNo}` : "", exporter.city].filter(Boolean) }}
+            to={{ name: buyer.name, lines: [buyer.contactName, `${buyer.city}, ${buyer.countryName}`] }}
+            number={invoice.number}
+            issuedAt={invoice.issuedAt}
+            dueDate={invoice.dueDate}
+            lineItems={invoice.lineItems}
+            totalUsdc={invoice.amountUsdc}
+            receivedUsdc={invoice.receivedUsdc}
+            rate={rate}
+            note={null}
+          />
 
-          <Panel title="Messages" aside={`${messages.length} ${messages.length === 1 ? "message" : "messages"}`}>
-            <MessageThread messages={messages} buyer={buyer} />
-            <SimulateReply invoiceId={invoice.id} buyerName={buyer.contactName} />
-          </Panel>
+          <Card>
+            <CardHeader title="Messages" caption={`${messages.length} ${messages.length === 1 ? "message" : "messages"} · replies go out in ${localTimeLabel(buyer.timezone)}`} />
+            <div className="mt-4">
+              <MessageThread messages={messages} buyer={buyer} />
+              <SimulateReply invoiceId={invoice.id} buyerName={buyer.contactName} />
+            </div>
+          </Card>
         </div>
 
-        <div className="grid min-w-0 content-start gap-6">
-          <Panel title="Buyer">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 lg:gap-6">
+          <Card>
+            <CardHeader title="Buyer" />
             <Facts
+              className="mt-4"
               items={[
                 { label: "Contact", value: <span className="text-left">{buyer.contactName}</span> },
                 { label: "Email", value: <span className="break-all">{buyer.email}</span>, muted: true },
@@ -80,21 +75,25 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
                 { label: "Issued", value: formatDate(invoice.issuedAt), muted: true },
               ]}
             />
-          </Panel>
+          </Card>
 
-          <Panel title="Pay link">
-            <CopyField label="Buyer pay page" value={invoice.payUrl} href={`/pay/${invoice.id}`} />
-            <div className="mt-3">
+          <Card>
+            <CardHeader title="Pay link" />
+            <div className="mt-4 grid gap-3">
+              <CopyField label="Buyer pay page" value={invoice.payUrl} href={`/pay/${invoice.id}`} />
               <CopyField label="For the buyer's AP system (x402)" value={invoice.x402Url} />
             </div>
-          </Panel>
+          </Card>
 
-          <Panel title="Reminders">
-            <ReminderTimeline actions={actions} buyer={buyer} />
-          </Panel>
+          <Card>
+            <CardHeader title="Reminders" />
+            <div className="mt-4"><ReminderTimeline actions={actions} buyer={buyer} /></div>
+          </Card>
 
-          <Panel title="Audit trail">
+          <Card>
+            <CardHeader title="Audit trail" />
             <Facts
+              className="mt-4"
               items={[
                 { label: "Receiving account", value: <Address value={buyer.usdcAta} />, muted: true },
                 { label: "Reference key", value: <Address value={invoice.referencePubkey} />, muted: true },
@@ -102,7 +101,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
               ]}
             />
             <p className="mt-3 text-xs text-ink-3">Nothing on chain names the buyer or the invoice. The memo is an opaque code only Kutip can map back.</p>
-          </Panel>
+          </Card>
         </div>
       </div>
     </>

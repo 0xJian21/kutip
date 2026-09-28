@@ -61,9 +61,9 @@ export function Facts({
   return (
     <dl className={`divide-y divide-line ${className}`}>
       {items.map((it, i) => (
-        <div key={i} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 py-2.5 first:pt-0 last:pb-0">
+        <div key={i} className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-4 py-2.5 first:pt-0 last:pb-0">
           <dt className="text-base text-ink-2">{it.label}</dt>
-          <dd className={`text-right tabular ${it.muted ? "text-ink-2" : "text-ink"}`}>{it.value}</dd>
+          <dd className={`min-w-0 text-right tabular ${it.muted ? "text-ink-2" : "text-ink"}`}>{it.value}</dd>
         </div>
       ))}
     </dl>

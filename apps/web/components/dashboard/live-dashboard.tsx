@@ -73,8 +73,8 @@ export function LiveDashboard({
 
       <CommandBar suggestions={["What’s due this week?", "Who hasn’t paid?", "Sweep now", "Cash out RM 10k"]} />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
-        <div className="grid min-w-0 content-start gap-5 lg:gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 lg:gap-6">
           <Card>
             <CardHeader title="Collections" caption="Every invoice sent, by where its money is now" />
             <Funnel stages={funnel} emphasis={funnelEmphasis(funnel)} className="mt-5" height={150} />
@@ -85,7 +85,7 @@ export function LiveDashboard({
           </Card>
           <RecentPayments payments={recent} buyers={buyers} rate={summary.rate} />
         </div>
-        <div className="grid min-w-0 content-start gap-5 lg:gap-6">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 lg:gap-6">
           <TreasuryHero balanceUsdc={summary.treasuryBalanceUsdc} rate={summary.rate} vault={exporter.treasuryVault} />
           <NeedsYou actions={summary.activity} attention={summary.attention} buyers={buyers} invoices={invoices} rate={summary.rate} />
         </div>

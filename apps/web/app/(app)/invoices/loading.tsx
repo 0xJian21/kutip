@@ -12,7 +12,7 @@ export default function Loading() {
           <Skeleton key={i} className={`h-8 w-${w}`} />
         ))}
       </div>
-      <div className="rounded-md border border-line bg-surface"><SkeletonRows rows={8} /></div>
+      <div className="rounded-xl bg-surface shadow-card"><SkeletonRows rows={8} /></div>
     </div>
   );
 }

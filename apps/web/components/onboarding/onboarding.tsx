@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLoginWithPasskey, usePrivy, useSignupWithPasskey } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/solana";
-import { Check, Fingerprint } from "lucide-react";
+import { Check, Fingerprint, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Avatar } from "@/components/ui/avatar";
 import { Button, buttonClass } from "@/components/ui/button";
+import { Card, Inset } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
+import { Stepper } from "@/components/ui/stepper";
 import { Address } from "@/components/ui/address";
 import { establishSession } from "@/lib/data/actions";
 import { unwrap } from "@/lib/data/result";
@@ -15,7 +18,7 @@ import { useOwnerWallet } from "@/lib/treasury/owner-wallet";
 import { formatUsdc } from "@/lib/ui/money";
 import type { Exporter, Rulebook } from "@/lib/ui/types";
 
-const STEPS = ["Sign in", "Your company", "Treasury", "Rulebook"] as const;
+const STEPS = ["Account", "Company", "Treasury", "Agent permissions"] as const;
 
 const TREASURY_TASKS = [
   "Creating your treasury account (Squads)",
@@ -28,6 +31,8 @@ export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; r
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [company, setCompany] = useState({ name: "", reg: "", city: "", owner: "", email: "" });
+  // Logo preview only: the upload itself lands with the accounts update (PLAN.md Requests).
+  const [logo, setLogo] = useState<string | null>(null);
   const [tasksDone, setTasksDone] = useState(0);
   const c = rulebook.collections;
   const t = rulebook.treasury;
@@ -41,24 +46,37 @@ export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; r
   const companyValid = company.name.trim() && company.owner.trim() && company.email.includes("@");
 
   return (
-    <div className="mx-auto w-full max-w-lg">
-      <ol className="mb-8 grid grid-cols-4 gap-1.5" aria-label="Setup progress">
-        {STEPS.map((s, i) => (
-          <li key={s} aria-current={i === step ? "step" : undefined}>
-            <div className={`h-1.5 rounded-full ${i <= step ? "bg-accent" : "bg-line"}`} />
-            <div className={`mt-1.5 truncate text-xs ${i === step ? "font-medium text-ink" : "text-ink-3"}`}>{s}</div>
-          </li>
-        ))}
-      </ol>
+    <div className="mx-auto w-full max-w-xl">
+      <Stepper size="sm" className="mb-8" done={step} steps={STEPS.map((label) => ({ key: label, label }))} />
 
       {step === 0 ? <SignInStep onDone={() => (next ? router.replace(next) : setStep(1))} autoContinue={Boolean(next)} /> : null}
 
       {step === 1 ? (
-        <section className="rounded-lg border border-line bg-surface p-6 sm:p-8">
-          <h1 className="text-xl font-semibold text-ink">Your company</h1>
-          <p className="mt-2 text-base text-ink-2">Shown on pay pages and receipts so buyers know who they are paying.</p>
+        <Card className="sm:p-8">
+          <h1 className="text-xl font-semibold tracking-tight text-ink">Your company</h1>
+          <p className="mt-2 text-base text-ink-2">Shown on invoices, pay pages and receipts so buyers know who they are paying.</p>
           <form className="mt-6 grid gap-4" onSubmit={(e) => { e.preventDefault(); if (companyValid) setStep(2); }}>
-            <Field label="Company name">
+            <Field label="Company logo" hint="PNG or SVG. Optional; your initials stand in until then.">
+              <label className="flex cursor-pointer items-center gap-4 rounded-md border border-dashed border-line-strong bg-well p-4 transition-colors duration-(--dur-fast) hover:border-accent">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (logo) URL.revokeObjectURL(logo);
+                    setLogo(f ? URL.createObjectURL(f) : null);
+                  }}
+                />
+                <Avatar name={company.name || "Your company"} src={logo} size="lg" shape="square" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-base text-ink">{logo ? "Looks good. Choose another to replace it." : "Drop a logo here, or click to choose"}</span>
+                  <span className="block text-sm text-ink-3">Square works best, at least 128 px.</span>
+                </span>
+                <span className={buttonClass("outline", "sm")}><Upload size={14} aria-hidden="true" /> Choose file</span>
+              </label>
+            </Field>
+            <Field label="Company name" required>
               <Input value={company.name} placeholder="Teratai Woodworks Sdn. Bhd." onChange={(e) => setCompany({ ...company, name: e.target.value })} required />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -70,10 +88,10 @@ export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; r
               </Field>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Your name">
+              <Field label="Your name" required>
                 <Input value={company.owner} placeholder="Farid Zulkifli" onChange={(e) => setCompany({ ...company, owner: e.target.value })} required />
               </Field>
-              <Field label="Email for receipts">
+              <Field label="Email for receipts" required>
                 <Input type="email" value={company.email} placeholder="farid@teratai.example" onChange={(e) => setCompany({ ...company, email: e.target.value })} required />
               </Field>
             </div>
@@ -84,12 +102,12 @@ export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; r
               <Button type="submit" disabled={!companyValid}>Continue</Button>
             </div>
           </form>
-        </section>
+        </Card>
       ) : null}
 
       {step === 2 ? (
-        <section className="rounded-lg border border-line bg-surface p-6 sm:p-8">
-          <h1 className="text-xl font-semibold text-ink">{tasksDone < TREASURY_TASKS.length ? "Setting up your treasury" : "Your treasury is ready"}</h1>
+        <Card className="sm:p-8">
+          <h1 className="text-xl font-semibold tracking-tight text-ink">{tasksDone < TREASURY_TASKS.length ? "Setting up your treasury" : "Your treasury is ready"}</h1>
           <p className="mt-2 text-base text-ink-2">An account on Solana that only your passkey controls. Kutip gets a limited key that can sweep buyer payments into it and nothing else.</p>
           <ol className="mt-6 grid gap-3" aria-live="polite">
             {TREASURY_TASKS.map((task, i) => {
@@ -97,8 +115,8 @@ export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; r
               const active = i === tasksDone;
               return (
                 <li key={task} className="flex items-center gap-3 text-base">
-                  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${done ? "bg-paid-bg text-paid-fg" : active ? "bg-accent-soft" : "bg-paper-2"}`}>
-                    {done ? <Check size={12} strokeWidth={2.5} aria-hidden="true" /> : active ? <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-accent" /> : null}
+                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full ${done ? "bg-accent text-on-accent" : active ? "border-2 border-accent" : "border-2 border-line"}`}>
+                    {done ? <Check size={12} strokeWidth={3} aria-hidden="true" /> : active ? <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-accent" /> : null}
                   </span>
                   <span className={done ? "text-ink" : active ? "text-ink" : "text-ink-3"}>{task}</span>
                 </li>
@@ -106,48 +124,48 @@ export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; r
             })}
           </ol>
           {tasksDone >= TREASURY_TASKS.length ? (
-            <div className="mt-6 grid gap-2 rounded-md bg-paper p-4 text-sm">
+            <Inset className="mt-6 grid gap-2 p-4 text-sm">
               <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Treasury account</span><Address value={exporter.treasuryVault} /></div>
               <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Owner</span><span className="text-ink">Your passkey</span></div>
-              <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Kutip agent</span><span className="text-ink">Sweep into treasury, max USD {formatUsdc(t.agentDailyLimitUsdc, 0)} a day</span></div>
+              <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Kutip agent</span><span className="text-right text-ink">Sweep into treasury, max USD {formatUsdc(t.agentDailyLimitUsdc, 0)} a day</span></div>
               <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Setup cost</span><span className="text-ink">Paid by Kutip</span></div>
-            </div>
+            </Inset>
           ) : null}
           <div className="mt-6 flex justify-end">
             <Button onClick={() => setStep(3)} disabled={tasksDone < TREASURY_TASKS.length}>Continue</Button>
           </div>
-        </section>
+        </Card>
       ) : null}
 
       {step === 3 ? (
-        <section className="rounded-lg border border-line bg-surface p-6 sm:p-8">
-          <h1 className="text-xl font-semibold text-ink">How the agent will behave</h1>
-          <p className="mt-2 text-base text-ink-2">These are the starting rules. You can change any of them later; the agent never steps outside them.</p>
-          <div className="mt-6 grid gap-5">
-            <div>
-              <h2 className="text-sm font-medium text-ink-2">Chasing invoices</h2>
-              <ul className="mt-2 grid gap-1.5 text-base text-ink">
+        <Card className="sm:p-8">
+          <h1 className="text-xl font-semibold tracking-tight text-ink">Agent permissions</h1>
+          <p className="mt-2 text-base text-ink-2">What the agent may do on its own. Everything else waits for your tap. You can change any of these later in the rulebook.</p>
+          <div className="mt-6 grid gap-4">
+            <Inset className="p-4">
+              <h2 className="text-sm font-semibold text-ink">Chasing invoices</h2>
+              <ul className="mt-2 grid gap-1.5 text-base text-ink-2">
                 <li>First reminder {c.firstReminderDaysBeforeDue} days before the due date.</li>
                 <li>At most {c.maxMessagesPer48h} message every 48 hours, in the buyer&apos;s working hours.</li>
                 <li>Never offers more than {c.maxDiscountPctWithoutApproval}% discount without asking you.</li>
                 <li>Escalates to you after {c.escalateAfterOverdueReminders} overdue reminders, or on any dispute.</li>
               </ul>
-            </div>
-            <div>
-              <h2 className="text-sm font-medium text-ink-2">Money</h2>
-              <ul className="mt-2 grid gap-1.5 text-base text-ink">
+            </Inset>
+            <Inset className="p-4">
+              <h2 className="text-sm font-semibold text-ink">Money</h2>
+              <ul className="mt-2 grid gap-1.5 text-base text-ink-2">
                 <li>Accepts {t.acceptedTokens.join(", ")}. SOL and USDT are converted to USDC on the spot.</li>
                 <li>Sweeps buyer accounts into your treasury once a day at a random time.</li>
                 <li>Can move at most USD {formatUsdc(t.agentDailyLimitUsdc, 0)} per buyer account per day. Anything else needs your approval.</li>
                 <li>Tells you when the USD to MYR rate beats the 30-day average by {Number(t.cashOutAlertMarginBps) / 100}%.</li>
               </ul>
-            </div>
+            </Inset>
           </div>
           <div className="mt-6 flex items-center justify-between gap-3">
             <Link href="/rulebook" className="text-base font-medium text-accent underline-offset-4 hover:underline">Edit the rules</Link>
             <Button onClick={() => router.push("/dashboard")}>Go to your overview</Button>
           </div>
-        </section>
+        </Card>
       ) : null}
 
       <p className="mt-6 text-center text-sm text-ink-3">
@@ -231,15 +249,18 @@ function SignInStep({ onDone, autoContinue }: { onDone: () => void; autoContinue
   };
 
   return (
-    <section className="rounded-lg border border-line bg-surface p-6 sm:p-8">
-      <h1 className="text-xl font-semibold text-ink">Sign in to Kutip</h1>
+    <Card className="sm:p-8">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent">
+        <Fingerprint size={24} aria-hidden="true" />
+      </span>
+      <h1 className="mt-4 text-xl font-semibold tracking-tight text-ink">Sign in to Kutip</h1>
       <p className="mt-2 text-base text-ink-2">Your fingerprint or face unlocks a key held securely on your device. There is no password and no seed phrase to keep.</p>
       {signedIn ? (
         <>
-          <div className="mt-6 grid gap-2 rounded-md bg-paper p-4 text-sm">
-            <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Signed in</span><span className="inline-flex items-center gap-1 text-ink"><Check size={14} aria-hidden="true" /> Passkey</span></div>
+          <Inset className="mt-6 grid gap-2 p-4 text-sm">
+            <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Signed in</span><span className="inline-flex items-center gap-1 font-medium text-ink"><Check size={14} aria-hidden="true" /> Passkey</span></div>
             <div className="flex items-center justify-between gap-4"><span className="text-ink-2">Your wallet</span>{owner.address ? <Address value={owner.address} /> : <span className="text-ink-3">Creating…</span>}</div>
-          </div>
+          </Inset>
           {walletError ? (
             <p className="mt-3 text-center text-sm text-overdue-fg">
               {walletError}{" "}
@@ -257,7 +278,7 @@ function SignInStep({ onDone, autoContinue }: { onDone: () => void; autoContinue
         <>
           <Button size="lg" className="mt-6 w-full" onClick={() => run(signupWithPasskey)} disabled={!owner.ready || busy || platformAuth === false}>
             <Fingerprint size={18} aria-hidden="true" />
-            {busy ? "Checking with your device…" : "Create account with fingerprint / Face ID"}
+            {busy ? "Checking with your device…" : "Create account with Touch ID or Face ID"}
           </Button>
           <p className="mt-3 text-center text-sm text-ink-3" aria-live="polite">
             {platformAuth === false ? (
@@ -268,14 +289,14 @@ function SignInStep({ onDone, autoContinue }: { onDone: () => void; autoContinue
               "Works with Touch ID, Face ID and Windows Hello"
             )}
           </p>
-          <p className="mt-4 text-center text-sm text-ink-3">
-            <button type="button" onClick={() => run(() => loginWithPasskey())} disabled={!owner.ready || busy || platformAuth === false} className="font-medium text-accent underline-offset-4 hover:underline">
+          <div className="mt-4 flex justify-center">
+            <Button variant="outline" onClick={() => run(() => loginWithPasskey())} disabled={!owner.ready || busy || platformAuth === false}>
               I already have a passkey
-            </button>
-          </p>
+            </Button>
+          </div>
         </>
       )}
-    </section>
+    </Card>
   );
 }
 

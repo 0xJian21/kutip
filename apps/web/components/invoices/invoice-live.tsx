@@ -1,22 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Avatar } from "@/components/ui/avatar";
+import { Card, CardHeader } from "@/components/ui/card";
 import { MoneyFigure } from "@/components/ui/money";
-import { Panel } from "@/components/ui/panel";
 import { StatusPill } from "@/components/ui/status-pill";
+import { Stepper } from "@/components/ui/stepper";
 import { fetchInvoice } from "@/lib/data/actions";
 import { debounce, useBroadcast } from "@/lib/data/live";
 import { mergeInvoiceEvent, parseInvoiceEvent, parsePaymentEvent } from "@/lib/data/merge";
 import { MOCK } from "@/lib/ui/data";
 import { mockData } from "@/lib/mock";
-import { dueLabel, formatDate } from "@/lib/ui/format";
+import { dueLabel, formatDate, formatTime } from "@/lib/ui/format";
 import type { InvoiceDetail } from "@/lib/ui/types";
 import { ReceiptCard } from "./receipt-card";
 import { SimulateControl } from "./simulate-control";
-import { StatusBar } from "./status-bar";
+import { stageIndex, waitingText } from "./status-bar";
 
 /**
- * The live part of the invoice page: header figure, status pill, status bar,
+ * The live part of the invoice page: header figure, status pill, the stepper,
  * receipt. Broadcast `invoice:<id>` events are applied as they arrive (Seen → Paid →
  * Settled), then the full detail is refetched through a server action.
  */
@@ -45,30 +47,47 @@ export function InvoiceLive({ initial, exporterId }: { initial: InvoiceDetail; e
   const { invoice, buyer, payments, rate } = detail;
   const payment = payments.at(-1);
   const urgent = invoice.status === "overdue" || invoice.status === "disputed";
+  const done = stageIndex(invoice.status);
+  const live = invoice.status === "seen" || invoice.status === "paid";
+  const at = (iso?: string) => (iso ? formatTime(iso) : "—");
 
   return (
     <>
-      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <div className="mb-1 flex flex-wrap items-center gap-2 text-sm text-ink-2">
-            <span className="tabular">{invoice.number}</span>
-            <StatusPill status={invoice.status} />
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar name={buyer.name} size="lg" shape="square" />
+          <div className="min-w-0">
+            <div className="mb-1 flex flex-wrap items-center gap-2 text-sm text-ink-2">
+              <span className="tabular">{invoice.number}</span>
+              <StatusPill status={invoice.status} />
+            </div>
+            <h1 className="truncate text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{buyer.name}</h1>
+            <p className={`mt-1 text-base tabular ${urgent ? "font-medium text-overdue-fg" : "text-ink-2"}`}>
+              Due {formatDate(invoice.dueDate)}
+              {invoice.status !== "settled" && invoice.status !== "paid" ? <span> · {dueLabel(invoice.dueDate)}</span> : null}
+            </p>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">{buyer.name}</h1>
-          <p className={`mt-1 text-base tabular ${urgent ? "font-medium text-overdue-fg" : "text-ink-2"}`}>
-            Due {formatDate(invoice.dueDate)}
-            {invoice.status !== "settled" && invoice.status !== "paid" ? <span> · {dueLabel(invoice.dueDate)}</span> : null}
-          </p>
         </div>
         <MoneyFigure usdc={invoice.amountUsdc} rate={rate} size="lg" align="right" className="sm:items-end" />
       </div>
 
-      <Panel title="Payment" aside={<SimulateControl invoiceId={invoice.id} status={invoice.status} />}>
-        <StatusBar invoice={invoice} />
-      </Panel>
+      <Card>
+        <CardHeader title="Payment" caption={<span className="inline-flex items-center gap-2" aria-live="polite">{live ? <span aria-hidden="true" className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent" /> : null}{waitingText(invoice)}</span>} aside={<SimulateControl invoiceId={invoice.id} status={invoice.status} />} />
+        <Stepper
+          className="mt-5"
+          done={done}
+          live={live}
+          steps={[
+            { key: "sent", label: "Sent", caption: at(invoice.sentAt) },
+            { key: "seen", label: <><span className="sm:hidden">Seen</span><span className="hidden sm:inline">Payment seen</span></>, caption: at(invoice.seenAt) },
+            { key: "paid", label: "Paid", caption: at(invoice.paidAt) },
+            { key: "settled", label: "Settled", caption: at(invoice.settledAt) },
+          ]}
+        />
+      </Card>
 
       {payment ? (
-        <div className="mt-6">
+        <div className="mt-5 lg:mt-6">
           <ReceiptCard payment={payment} invoice={invoice} rate={rate} />
         </div>
       ) : null}

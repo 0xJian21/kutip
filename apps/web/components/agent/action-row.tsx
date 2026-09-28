@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { AgentStatusPill } from "@/components/ui/status-pill";
+import { AgentStatusPill, Chip } from "@/components/ui/status-pill";
 import { Address } from "@/components/ui/address";
 import { decideAction } from "@/lib/data/actions";
 import { useApproveProposal } from "@/lib/treasury/use-approve-proposal";
@@ -80,16 +80,15 @@ export function ActionRow({
       {compact ? null : <p className="text-base text-ink-2">{current.reason}</p>}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1">
         <AgentStatusPill status={current.status} />
-        <span className="text-sm tabular text-ink-3">
-          Rule {current.ruleId} · {confidenceLabel(current.confidence)} confidence
-        </span>
+        <Chip>Rule {current.ruleId}</Chip>
+        <Chip>{confidenceLabel(current.confidence)} confidence</Chip>
         {current.txSignature ? <Address value={current.txSignature} kind="tx" label="View on Solscan" /> : null}
         {current.status === "proposed" ? (
           <span className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" onClick={() => decide("rejected")} disabled={pending}>
+            <Button variant="ghost" size="sm" onClick={() => decide("rejected")} disabled={pending}>
               Reject
             </Button>
-            <Button variant="secondary" onClick={() => decide("approved")} disabled={pending}>
+            <Button variant="secondary" size="sm" onClick={() => decide("approved")} disabled={pending}>
               {state.status === "signing" ? "Confirm with your passkey…" : state.status === "sending" ? "Sending…" : pending ? "Approving…" : "Approve"}
             </Button>
           </span>
