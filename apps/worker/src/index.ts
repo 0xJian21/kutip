@@ -3,7 +3,7 @@
  * daily sweep hook. One process, one gRPC stream. HTTP is only a health check.
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { connect, createStore } from "@kutip/db";
+import { connect, createInboxStore, createStore } from "@kutip/db";
 import type { SubscribeUpdate } from "@triton-one/yellowstone-grpc";
 import bs58 from "bs58";
 import { writeFileSync } from "node:fs";
@@ -26,7 +26,8 @@ const store = createStore(db, { appUrl: cfg.appUrl });
 const rpc = createRpc(cfg.rpcUrl);
 const anthropic = cfg.anthropicApiKey ? new Anthropic({ apiKey: cfg.anthropicApiKey }) : undefined;
 const mailer = createMailer({ apiKey: cfg.resendApiKey, from: cfg.emailFrom, allowlist: cfg.emailAllowlist, log });
-const collections = createCollections({ store, anthropic, mailer, log, dryRun: cfg.collections === "dry" });
+const inbox = createInboxStore(db);
+const collections = createCollections({ store, anthropic, mailer, log, dryRun: cfg.collections === "dry", replyTo: (e) => inbox.getContactEmail(e) });
 const balances = createBalances({ store, feePayer: cfg.feePayer, minLamports: cfg.feePayerMinLamports, log });
 const tracker = createPaymentTracker({
   store,

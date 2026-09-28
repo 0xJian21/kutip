@@ -5,7 +5,7 @@
  */
 import type { Email } from "./writer";
 
-export type Mailer = { send(to: string, email: Email): Promise<"sent" | "recorded" | "skipped" | "failed"> };
+export type Mailer = { send(to: string, email: Email, opts?: { replyTo?: string }): Promise<"sent" | "recorded" | "skipped" | "failed"> };
 
 /** a+tag@x.com matches a@x.com. Case-insensitive. */
 function allowed(to: string, allowlist: string[]): boolean {
@@ -18,7 +18,7 @@ export function createMailer(opts: { apiKey?: string; from: string; log: (msg: s
   const fetchFn = opts.fetchFn ?? fetch;
   const allowlist = opts.allowlist ?? [];
   return {
-    async send(to, email) {
+    async send(to, email, o = {}) {
       if (!opts.apiKey) return "recorded";
       if (!allowed(to, allowlist)) {
         opts.log(`email to ${to} skipped: not on EMAIL_ALLOWLIST`);
@@ -28,7 +28,8 @@ export function createMailer(opts: { apiKey?: string; from: string; log: (msg: s
         const res = await fetchFn("https://api.resend.com/emails", {
           method: "POST",
           headers: { authorization: `Bearer ${opts.apiKey}`, "content-type": "application/json" },
-          body: JSON.stringify({ from: opts.from, to: [to], subject: email.subject, text: email.body }),
+          // Reply-To = the exporter's own address, so a buyer who hits Reply reaches them (IMPROVEMENTS E2.2).
+          body: JSON.stringify({ from: opts.from, to: [to], subject: email.subject, text: email.body, ...(o.replyTo?.trim() ? { reply_to: o.replyTo.trim() } : {}) }),
           signal: AbortSignal.timeout(10_000),
         });
         if (res.ok) return "sent";

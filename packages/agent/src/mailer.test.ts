@@ -53,3 +53,13 @@ test("with a key but no allowlist nothing is sent (fail closed); '*' allows ever
   expect(await createMailer({ apiKey: "k", from: "f", log: () => {}, fetchFn }).send("a@b.test", email)).toBe("skipped");
   expect(await createMailer({ apiKey: "k", from: "f", log: () => {}, fetchFn, allowlist: ["*"] }).send("a@b.test", email)).toBe("sent");
 });
+
+test("Reply-To is the exporter's own address when given (IMPROVEMENTS E2.2)", async () => {
+  const bodies: unknown[] = [];
+  const fetchFn = (async (_url: string, init: RequestInit) => (bodies.push(JSON.parse(String(init.body))), new Response("{}"))) as unknown as typeof fetch;
+  const m = createMailer({ apiKey: "re_test", from: "Kutip <a@b.test>", log: () => {}, fetchFn, allowlist: ["*"] });
+  await m.send("buyer@x.test", email, { replyTo: "owner@teratai.test" });
+  await m.send("buyer@x.test", email, { replyTo: "  " });
+  await m.send("buyer@x.test", email);
+  expect(bodies.map((b) => (b as { reply_to?: string }).reply_to)).toEqual(["owner@teratai.test", undefined, undefined]);
+});

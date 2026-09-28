@@ -9,6 +9,7 @@ import { askHaiku, fence } from "./llm";
 import { formatUsdc, parseUsdc } from "./money";
 import type { Decision } from "./rules/decision";
 import type { Tone } from "./rules/reminders";
+import { REPLY_TOPICS, type ReplyTopic } from "./rules/reply-permission";
 import { localParts, parseIsoDate } from "./rules/time";
 
 export type Email = { subject: string; body: string };
@@ -21,14 +22,15 @@ export type AgentActionKind =
   | "escalate"
   | "cash_out_alert"
   | "extract_invoice"
-  | "cancel_reminders";
+  | "cancel_reminders"
+  | "reply";
 
 const emailSchema = z.object({ subject: z.string(), body: z.string() });
 
 const STYLE = `Style for every email:
 - Plain, polite business English. Short: under 120 words in the body. No markdown.
 - Address the contact by first name and sign off as the seller company.
-- Use only the facts given. State amounts exactly as written in the facts. Write dates in words.
+- Use only the facts given. State amounts exactly as written in the facts. Write dates like "25 September 2026" (never in digits only, never spelled out).
 - Do not include payment instructions or links; they are added after your text.
 - Never mention cryptocurrency, blockchain, wallets, tokens or networks.
 - Never offer discounts, extensions or anything the facts do not state. Never threaten legal action.
@@ -55,7 +57,7 @@ export async function writeReminder(client: Anthropic, ctx: BuyerContext, req: {
     days > 0 ? `Status: ${days} day${days === 1 ? "" : "s"} overdue` : days === 0 ? "Status: due today" : `Status: due in ${-days} day${days === -1 ? "" : "s"}`,
   ];
   const draft = await draftEmail(client, ctx, `Write a payment reminder. Tone: ${TONE[req.tone]}`, facts);
-  checkDraft(draft, [inv.amountUsdc]);
+  checkDraft(draft, [inv.amountUsdc, ...printedOn(inv)]);
   return { subject: draft.subject, body: draft.body.trimEnd() + PAY_FOOTER(inv.payUrl) };
 }
 
@@ -72,6 +74,56 @@ export async function writeReceipt(client: Anthropic, ctx: BuyerContext, req: { 
   const draft = await draftEmail(client, ctx, "Write a short payment receipt thanking the buyer.", facts);
   checkDraft(draft, [inv.amountUsdc, req.paidUsdc, ...(balance > 0n ? [balance] : [])]);
   return { subject: draft.subject, body: draft.body.trimEnd() + (balance > 0n ? PAY_FOOTER(inv.payUrl) : "") };
+}
+
+const replySchema = z.object({ subject: z.string(), body: z.string(), topic: z.string() });
+const DISCOUNT = /\b(discount|rebate|waive[ds]?|credit note|refund|\d+(?:\.\d+)?\s?% off)\b/i;
+
+/**
+ * M2: draft a reply to one buyer message. Facts come from code; the model writes and proposes a topic
+ * (resend_invoice | payment_instructions | payment_received | other), which only the rules engine acts on.
+ * Promises nothing: no discounts, dates or amounts beyond the facts.
+ */
+export async function writeReply(
+  client: Anthropic,
+  ctx: BuyerContext,
+  req: { invoiceId: string; message: { body: string; receivedAt: string }; channel: "email" | "pay_page"; now: Date },
+): Promise<Email & { topic: ReplyTopic }> {
+  const inv = invoiceIn(ctx, req.invoiceId);
+  const days = daysPastDue(inv.dueDate, req.now, ctx.buyer.timezone);
+  const paid = inv.status === "paid" || inv.status === "settled";
+  const facts = [
+    `Invoice: ${inv.number}`,
+    `Amount: ${formatUsdc(inv.amountUsdc)}`,
+    `Due date: ${longDate(inv.dueDate)}`,
+    paid ? "Status: paid in full; the payment has arrived" : inv.status === "partially_paid" ? "Status: part paid; the rest is still due" : days > 0 ? `Status: unpaid, ${days} day${days === 1 ? "" : "s"} overdue` : "Status: unpaid, not yet due",
+    req.channel === "pay_page"
+      ? "The buyer wrote from the invoice's payment page. That page shows the full invoice (they can save or print it) and the pay button; point them there. You cannot attach files."
+      : "The pay link, which opens the full invoice, is added below your text automatically. You cannot attach files.",
+    "The only way to pay is the pay button on the invoice's payment page. Do not confirm any other method (bank transfer, cheque, card); if the buyer wants one, say the team will reply personally.",
+  ];
+  const out = await askHaiku(client, {
+    system:
+      `You write replies from ${ctx.exporterName} to its buyer ${ctx.buyer.name}.\n${STYLE}\n` +
+      `- Answer only what the buyer asked. If they raise a problem, acknowledge it and say the team will look into it and reply personally; promise nothing else.\n` +
+      `- Never agree to discounts, new dates, refunds or changes to the amount.\n` +
+      `Also return "topic": resend_invoice (they want the invoice again), payment_instructions (how to pay), payment_received (they say they paid), or other.`,
+    maxTokens: 800,
+    schema: replySchema,
+    content: [
+      {
+        type: "text",
+        text: `${fence("buyer_account", renderBuyerContext(ctx))}\n\nFacts:\n${facts.map((f) => `- ${f}`).join("\n")}\n\nThe buyer's message, received ${req.message.receivedAt}:\n${fence("buyer_message", req.message.body)}`,
+      },
+    ],
+  });
+  const draft = { subject: out.subject, body: out.body };
+  checkDraft(draft, [inv.amountUsdc, ...printedOn(inv)]);
+  const discount = DISCOUNT.exec(`${draft.subject}\n${draft.body}`);
+  if (discount) throw new Error(`Draft talks about a discount ("${discount[0]}")`);
+  const topic: ReplyTopic = (REPLY_TOPICS as readonly string[]).includes(out.topic) ? (out.topic as ReplyTopic) : "other";
+  const footer = req.channel === "email" && (topic === "resend_invoice" || topic === "payment_instructions") && !paid ? PAY_FOOTER(inv.payUrl) : "";
+  return { subject: draft.subject, body: draft.body.trimEnd() + footer, topic };
 }
 
 const explanationSchema = z.object({ decision: z.string(), reason: z.string() });
@@ -110,6 +162,11 @@ async function draftEmail(client: Anthropic, ctx: BuyerContext, task: string, fa
     schema: emailSchema,
     content: [{ type: "text", text: `${fence("buyer_account", renderBuyerContext(ctx))}\n\n${task}\nFacts:\n${facts.map((f) => `- ${f}`).join("\n")}` }],
   });
+}
+
+/** Amounts printed on the invoice itself: unit prices and line totals (all computed from stored integers). */
+function printedOn(inv: { lineItems: ReadonlyArray<{ quantity: number; unitPriceUsdc: bigint }> }): bigint[] {
+  return inv.lineItems.flatMap((l) => [l.unitPriceUsdc, l.unitPriceUsdc * BigInt(l.quantity)]);
 }
 
 /** The model may only restate amounts we gave it, and may not talk crypto to the buyer. */

@@ -117,6 +117,8 @@ export type AgentActionInput = {
   ruleId: string; // C1–C6, T1–T5, I1
   status: AgentActionStatus;
   txSignature?: string;
+  /** Who approved it (E3): a user id, or "agent". */
+  approvedBy?: string;
   /** Squads proposal index, for actions the owner settles on-chain (approve+execute or reject). */
   proposalIndex?: bigint;
   at?: Date;
@@ -390,7 +392,7 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       if (!row) return null;
       const [payments, messages, actions] = await Promise.all([
         db.select().from(s.payments).where(eq(s.payments.invoiceId, id)).orderBy(asc(s.payments.observedAt)),
-        db.select().from(s.messages).where(eq(s.messages.invoiceId, id)).orderBy(asc(s.messages.createdAt)),
+        db.select().from(s.messages).where(and(eq(s.messages.invoiceId, id), eq(s.messages.status, "sent"))).orderBy(asc(s.messages.createdAt)),
         db.select().from(s.agentActions).where(eq(s.agentActions.invoiceId, id)).orderBy(desc(s.agentActions.createdAt)),
       ]);
       return {
@@ -932,7 +934,7 @@ export function createStore(db: Db, opts: { appUrl: string }) {
           .select({ m: s.messages })
           .from(s.messages)
           .innerJoin(s.invoices, eq(s.invoices.id, s.messages.invoiceId))
-          .where(eq(s.invoices.buyerId, buyerId))
+          .where(and(eq(s.invoices.buyerId, buyerId), eq(s.messages.status, "sent")))
           .orderBy(asc(s.messages.createdAt)),
         db.select().from(s.agentActions).where(eq(s.agentActions.buyerId, buyerId)).orderBy(desc(s.agentActions.createdAt)),
       ]);

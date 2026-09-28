@@ -149,3 +149,15 @@ describe("onPaid", () => {
     expect(mail).toEqual([{ to: a.email, subject: "Payment received", body: "Thank you, we received USD 50.00." }]);
   });
 });
+
+describe("Reply-To (IMPROVEMENTS E2.2)", () => {
+  test("reminders go out with Reply-To = the exporter's contact email", async () => {
+    await invoice(a, "2026-09-29");
+    const seen: unknown[] = [];
+    const replyMailer: Mailer = { send: async (_to, _email, o) => (seen.push(o), "recorded") };
+    const { client } = fakeAnthropic(() => ({ output: { subject: "Invoice reminder", body: "Hi, a gentle reminder about your invoice." } }));
+    const replyTo = async (e: string) => (e === exporterId ? "owner@teratai.test" : null);
+    await createCollections({ store, anthropic: client, mailer: replyMailer, log: () => {}, replyTo }).runReminders(NOW);
+    expect(seen).toEqual([{ replyTo: "owner@teratai.test" }]);
+  });
+});

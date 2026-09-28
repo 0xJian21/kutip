@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { useEffect, useState } from "react";
-import { Bot, BookOpen, FileText, LayoutGrid, Landmark, LogOut, Menu, Plus, Settings, X } from "lucide-react";
+import { Bot, BookOpen, CalendarDays, FileText, Inbox, LayoutGrid, Landmark, LogOut, Menu, Plus, Settings, X } from "lucide-react";
 import { Avatar, KutipMark } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { buttonClass } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import { endSession } from "@/lib/data/actions";
 const ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutGrid },
   { href: "/invoices", label: "Invoices", icon: FileText },
+  { href: "/inbox", label: "Inbox", icon: Inbox },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/agent", label: "Agent activity", icon: Bot },
   { href: "/rulebook", label: "Rulebook", icon: BookOpen },
   { href: "/treasury", label: "Treasury", icon: Landmark },

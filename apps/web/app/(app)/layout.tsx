@@ -1,3 +1,4 @@
+import { CommandPalette } from "@/components/agent/command-palette";
 import { SideNav, TopBar } from "@/components/shell/nav";
 import { ownerData } from "@/lib/server/data";
 
@@ -11,6 +12,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <TopBar exporterName={exporter.name} ownerName={exporter.ownerName} logoUrl={exporter.logoUrl} />
         <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
       </div>
+      <CommandPalette />
     </div>
   );
 }

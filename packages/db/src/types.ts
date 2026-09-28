@@ -14,7 +14,8 @@ export type AgentActionKind =
   | "escalate"
   | "cash_out_alert"
   | "extract_invoice"
-  | "cancel_reminders";
+  | "cancel_reminders"
+  | "reply";
 export type Commitment = "processed" | "confirmed" | "finalized";
 export type Token = "USDC" | "SOL" | "USDT";
 
