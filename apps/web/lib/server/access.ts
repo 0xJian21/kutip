@@ -3,13 +3,24 @@
  */
 import { parseRulebook } from "@kutip/agent";
 import { UserError } from "../data/result";
+import type { Session } from "./session-token";
 import type { Rulebook } from "@/lib/ui/types";
 
-/** A verified Privy user without a Kutip user is refused, unless the demo fallback is explicitly on (DEMO_FALLBACK=1). */
-export function exporterForSignIn(user: { exporterId: string } | null, opts: { demoFallback?: string }): string {
-  if (user) return user.exporterId;
-  if (opts.demoFallback) return opts.demoFallback;
-  throw new UserError("This sign-in isn't linked to a Kutip account. Ask the owner to add you.");
+type SignedInUser = { userId: string; exporterId: string; role: "owner" | "admin"; walletPubkey?: string };
+
+/**
+ * The session a verified Privy identity gets. The wallet on the session is the exporter's
+ * registered owner wallet, and only when the Privy account actually holds that key; admins
+ * and DEMO_FALLBACK visitors get no wallet, so nothing that needs the owner's signature can
+ * be done from their sessions (security review, Session 8b).
+ */
+export function sessionFor(p: { user: SignedInUser | null; demoExporterId?: string; privyUserId: string; wallets: string[] }): Session {
+  if (!p.user) {
+    if (!p.demoExporterId) throw new UserError("This sign-in isn't linked to a Kutip account. Ask the owner to add you.");
+    return { exporterId: p.demoExporterId, privyUserId: p.privyUserId, role: "demo" };
+  }
+  const ownerWallet = p.user.role === "owner" && p.user.walletPubkey && p.wallets.includes(p.user.walletPubkey) ? p.user.walletPubkey : undefined;
+  return { exporterId: p.user.exporterId, privyUserId: p.privyUserId, role: p.user.role, ...(ownerWallet ? { wallet: ownerWallet } : {}) };
 }
 
 /** Kutip's fee payer only co-signs an approval for the signed-in owner's own wallet. */

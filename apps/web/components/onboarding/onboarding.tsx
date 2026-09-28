@@ -111,9 +111,9 @@ export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; r
           <h1 className="text-xl font-semibold tracking-tight text-ink">Your company</h1>
           <p className="mt-2 text-base text-ink-2">Shown on invoices, pay pages and receipts so buyers know who they are paying.</p>
           <form className="mt-6 grid gap-4" onSubmit={(e) => { e.preventDefault(); if (companyValid && !uploading) setStep(2); }}>
-            <Field label="Company logo" hint={logoError ?? "PNG, JPEG, WebP or SVG under 512 KB. Optional; your initials stand in until then."} error={logoError ?? undefined}>
+            <Field label="Company logo" hint={logoError ?? "PNG, JPEG or WebP under 512 KB. Optional; your initials stand in until then."} error={logoError ?? undefined}>
               <label className="flex cursor-pointer items-center gap-4 rounded-md border border-dashed border-line-strong bg-well p-4 transition-colors duration-(--dur-fast) hover:border-accent">
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={(e) => chooseLogo(e.target.files?.[0])} />
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => chooseLogo(e.target.files?.[0])} />
                 <Avatar name={company.name || "Your company"} src={company.logoUrl ?? logoPreview} size="lg" shape="square" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-base text-ink">{uploading ? "Uploading…" : company.logoUrl ? "Looks good. Choose another to replace it." : "Drop a logo here, or click to choose"}</span>

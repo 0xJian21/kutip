@@ -32,14 +32,15 @@ async function ensureBucket(sb: ReturnType<typeof client>): Promise<void> {
   return bucketReady;
 }
 
-/** Uploads under <exporterId>/<sha256>.<ext> (content-addressed, so re-uploads are idempotent) and returns the public URL. */
-export async function uploadLogo(exporterId: string, file: File): Promise<string> {
-  const { ext } = checkLogo(file);
+/** Uploads under <folder>/<sha256>.<ext> (content-addressed, so re-uploads are idempotent) and returns the public URL. The type comes from the bytes. */
+export async function uploadLogo(folder: string, file: File): Promise<string> {
+  if (!/^[a-zA-Z0-9_-]+$/.test(folder)) throw new Error(`bad logo folder ${folder}`);
   const bytes = Buffer.from(await file.arrayBuffer());
+  const { ext, contentType } = checkLogo(bytes);
   const sb = client();
   await ensureBucket(sb);
-  const path = `${exporterId}/${createHash("sha256").update(bytes).digest("hex").slice(0, 32)}.${ext}`;
-  const { error } = await sb.storage.from(LOGO_BUCKET).upload(path, bytes, { contentType: file.type, upsert: true, cacheControl: "31536000" });
+  const path = `${folder}/${createHash("sha256").update(bytes).digest("hex").slice(0, 32)}.${ext}`;
+  const { error } = await sb.storage.from(LOGO_BUCKET).upload(path, bytes, { contentType, upsert: true, cacheControl: "31536000" });
   if (error) throw new Error(`logo upload: ${error.message}`);
   return sb.storage.from(LOGO_BUCKET).getPublicUrl(path).data.publicUrl;
 }

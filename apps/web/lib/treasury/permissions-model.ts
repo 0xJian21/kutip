@@ -5,8 +5,6 @@
  */
 import { parseRulebook, type Rulebook } from "@kutip/agent";
 
-export const PERMISSIONS_PURPOSE = "Approve agent permissions";
-
 export type AgentPermissions = {
   dailyCapUsdc: bigint;
   destination: "treasury";

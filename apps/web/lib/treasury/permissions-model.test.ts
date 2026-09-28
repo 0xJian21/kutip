@@ -29,3 +29,14 @@ describe("describePermissions", () => {
     expect(describePermissions({ ...permissionsOf(DEFAULT_RULEBOOK), buyerReplies: "off" })[1]).toMatch(/Do not answer/);
   });
 });
+
+describe("permissionsPurpose", () => {
+  it("binds the statement to exactly the permissions being approved", async () => {
+    const { permissionsPurpose } = await import("./permissions-purpose");
+    const a = permissionsOf(DEFAULT_RULEBOOK);
+    expect(permissionsPurpose(a)).toMatch(/^Approve agent permissions · [0-9a-f]{16}$/);
+    expect(permissionsPurpose(a)).toBe(permissionsPurpose({ ...a }));
+    expect(permissionsPurpose({ ...a, buyerReplies: "routine" })).not.toBe(permissionsPurpose(a));
+    expect(permissionsPurpose({ ...a, dailyCapUsdc: a.dailyCapUsdc + 1n })).not.toBe(permissionsPurpose(a));
+  });
+});

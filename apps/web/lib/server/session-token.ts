@@ -4,7 +4,12 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type Session = { exporterId: string; privyUserId: string; wallet?: string };
+/**
+ * `wallet` is only ever the exporter's registered owner wallet (users.wallet_pubkey, role owner)
+ * when the Privy account holds it; `role` "demo" = DEMO_FALLBACK visitor, read-only.
+ */
+export type SessionRole = "owner" | "admin" | "demo";
+export type Session = { exporterId: string; privyUserId: string; role?: SessionRole; wallet?: string };
 
 export const SESSION_TTL_MS = 12 * 3_600_000;
 
@@ -25,7 +30,8 @@ export function verifySession(token: string | undefined, key: string, now: Date 
   try {
     const p = JSON.parse(Buffer.from(body, "base64url").toString()) as Session & { exp: number };
     if (typeof p.exp !== "number" || p.exp < now.getTime() || !p.exporterId || !p.privyUserId) return null;
-    return { exporterId: p.exporterId, privyUserId: p.privyUserId, ...(p.wallet ? { wallet: p.wallet } : {}) };
+    const role = p.role === "owner" || p.role === "admin" || p.role === "demo" ? p.role : undefined;
+    return { exporterId: p.exporterId, privyUserId: p.privyUserId, ...(role ? { role } : {}), ...(p.wallet ? { wallet: p.wallet } : {}) };
   } catch {
     return null;
   }
