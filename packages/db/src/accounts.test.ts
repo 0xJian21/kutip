@@ -156,11 +156,12 @@ describe("dashboard and pay page extras", () => {
 
 describe("buyer accounts for the sweeper and permissions", () => {
   test("listBuyerAccounts exposes the stored spending-limit PDA and setBuyerSpendingLimit replaces it", async () => {
+    // Both fixture buyers can share a created_at millisecond, so don't rely on their order.
     const before = await store.listBuyerAccounts(exporterId);
-    expect(before.map((x) => x.id)).toEqual([a.id, expect.any(String)]);
-    expect(before[0]).toMatchObject({ id: a.id, multisig: a.multisig, usdcAta: a.usdcAta, spendingLimitPda: undefined });
+    expect(before).toHaveLength(2);
+    expect(before.find((x) => x.id === a.id)).toMatchObject({ multisig: a.multisig, usdcAta: a.usdcAta, spendingLimitPda: undefined });
     await store.setBuyerSpendingLimit(exporterId, a.id, "Limit111");
-    expect((await store.listBuyerAccounts(exporterId))[0]?.spendingLimitPda).toBe("Limit111");
+    expect((await store.listBuyerAccounts(exporterId)).find((x) => x.id === a.id)?.spendingLimitPda).toBe("Limit111");
     await expect(store.setBuyerSpendingLimit("exp_other", a.id, "Limit222")).rejects.toThrow(/buyer not found/);
   });
 });
