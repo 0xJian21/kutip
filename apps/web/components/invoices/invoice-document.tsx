@@ -61,12 +61,12 @@ export function InvoiceDocument({
   const balance = receivedUsdc !== undefined ? totalUsdc - receivedUsdc : undefined;
   const article = (
       <article className={`${tone === "flat" ? "rounded-xl bg-surface ring-1 ring-inset ring-line" : "rounded-md bg-surface shadow-card"} ${pad}`} aria-label={`Invoice ${number}`}>
-        {/* The number block drops under the name on narrow screens, so the exporter's name is never cut. */}
+        {/* The exporter's legal name always wraps in full; the number block drops beneath it when space is tight. */}
         <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-          <div className="flex min-w-0 flex-1 basis-[160px] items-center gap-3">
+          <div className="flex min-w-0 flex-1 basis-[240px] items-center gap-3">
             <Avatar name={from.name} src={from.logo} size={compact ? "md" : "lg"} shape="square" />
             <div className="min-w-0">
-              <p className="line-clamp-2 text-base font-semibold leading-snug text-ink">{from.name}</p>
+              <p className="break-words text-base font-semibold leading-snug text-ink">{from.name}</p>
               {from.lines?.map((l) => (
                 <p key={l} className="text-xs text-ink-3">{l}</p>
               ))}
