@@ -11,6 +11,7 @@ import { refresh } from "next/cache";
 import { MOCK, signIn, signOut } from "@/lib/server/auth";
 import { getPayInvoice, ownerDataOrThrow } from "@/lib/server/data";
 import { validateRulebook } from "@/lib/server/access";
+import { llmBudget } from "@/lib/server/llm-budget";
 import { handleBuyerReply } from "@/lib/server/replies";
 import { store } from "@/lib/server/store";
 import { inbox } from "@/app/api/agent/_lib/deps";
@@ -51,11 +52,11 @@ export async function fetchPayInvoice(id: string) {
 
 /** Reject any proposed action, or approve one that needs no signature (Squads proposals go through useApproveProposal). */
 export async function decideAction(id: string, decision: "approved" | "rejected") {
-  return (await ownerDataOrThrow()).decideAction(id, decision);
+  return (await ownerDataOrThrow({ write: true })).decideAction(id, decision);
 }
 
 export async function saveRulebook(rulebook: Rulebook) {
-  return (await ownerDataOrThrow()).saveRulebook(validateRulebook(rulebook));
+  return (await ownerDataOrThrow({ write: true })).saveRulebook(validateRulebook(rulebook));
 }
 
 const PDF_MAX_BYTES = 4 * 1024 * 1024;
@@ -77,6 +78,7 @@ async function readInvoicePdfImpl(form: FormData): Promise<ExtractedDraft> {
   if (!(file instanceof File) || file.size === 0) throw new UserError("No PDF received");
   // Vercel caps request bodies at 4.5 MB, so anything larger would 413 before reaching us (FOLLOWUPS).
   if (file.size > PDF_MAX_BYTES) throw new UserError("That PDF is over 4 MB. Export a smaller one or fill in the form.");
+  llmBudget.spend(data.exporterId);
   const x = await extractInvoice(anthropic(), new Uint8Array(await file.arrayBuffer()));
   const buyers = await data.listBuyers();
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -103,7 +105,7 @@ async function createInvoiceImpl(input: {
   dueDate: string;
   lineItems: LineItem[];
 }): Promise<{ id: string; number: string; payUrl: string; sentTo: string; delivery: "sent" | "recorded" | "skipped" | "failed" }> {
-  const { exporterId } = await ownerDataOrThrow();
+  const { exporterId } = await ownerDataOrThrow({ write: true });
   if (MOCK) throw new UserError("Creating invoices needs the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) throw new UserError("Enter a due date");
   if (input.lineItems.length === 0 || input.lineItems.some((l) => l.quantity <= 0 || l.unitPriceUsdc < 0n)) throw new UserError("Every line needs a quantity and a price");
@@ -143,10 +145,11 @@ async function createInvoiceImpl(input: {
 
 /** Demo scene (SPEC F8): a buyer reply goes through Jev (Haiku fallback) → rules engine → agent log. */
 async function simulateBuyerReplyImpl(invoiceId: string, body: string) {
-  const { exporterId } = await ownerDataOrThrow();
+  const { exporterId } = await ownerDataOrThrow({ write: true });
   if (MOCK) throw new UserError("Buyer replies need the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
   if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_DEMO_CONTROLS !== "1") throw new UserError("Simulated replies are turned off");
   if (!body.trim()) throw new UserError("Write the buyer's reply first");
+  llmBudget.spend(exporterId);
   const client = anthropic();
   const haiku = haikuClassifier(client);
   const key = process.env.OPENROUTER_API_KEY;

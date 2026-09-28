@@ -202,7 +202,7 @@ describe("confirmReminder: the only way a command bar reminder goes out", () => 
     expect(writes[1]![1]).toMatchObject({ kind: "reminder", status: "executed", buyerId: HARBOURLINE.id, invoiceId: "inv_0142", approvedBy: "usr_owner" });
   });
 
-  it("refuses paid or unknown invoices", async () => {
+  it("refuses paid or unknown invoices, and oversized text", async () => {
     const deps = {
       store: { ...fakePort().port, async recordMessage() {}, async recordAgentAction() { return { id: "x" }; }, async getContactEmail() { return null; } },
       mailer: { async send() { return "sent" as const; } },
@@ -210,5 +210,7 @@ describe("confirmReminder: the only way a command bar reminder goes out", () => 
     };
     await expect(confirmReminder(deps, E, { invoiceId: "inv_0151", subject: "s", body: "b", approvedBy: "u" })).rejects.toThrow(/paid/i);
     await expect(confirmReminder(deps, E, { invoiceId: "inv_nope", subject: "s", body: "b", approvedBy: "u" })).rejects.toThrow(/not found/i);
+    await expect(confirmReminder(deps, E, { invoiceId: "inv_0142", subject: "s", body: "b".repeat(4001), approvedBy: "u" })).rejects.toThrow(/4,000/);
+    await expect(confirmReminder(deps, E, { invoiceId: "inv_0142", subject: "s".repeat(201), body: "b", approvedBy: "u" })).rejects.toThrow(/subject/i);
   });
 });

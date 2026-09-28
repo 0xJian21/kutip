@@ -1,7 +1,7 @@
 import "server-only";
 import { mockData } from "@/lib/mock";
 import type { KutipData } from "@/lib/ui/data";
-import { DEMO_EXPORTER_ID, MOCK, requireSession, sessionOrThrow } from "./auth";
+import { DEMO_EXPORTER_ID, MOCK, requireSession, sessionOrThrow, writeSessionOrThrow } from "./auth";
 import { store } from "./store";
 
 /** KutipData over @kutip/db, every owner call scoped to one exporter. */
@@ -32,9 +32,9 @@ export async function ownerData(next?: string): Promise<KutipData & { exporterId
   return { ...(MOCK ? mockData : forExporter(exporterId)), exporterId };
 }
 
-/** Server actions: same, but throws instead of redirecting. */
-export async function ownerDataOrThrow(): Promise<KutipData & { exporterId: string }> {
-  const { exporterId } = await sessionOrThrow();
+/** Server actions: same, but throws instead of redirecting. `write` refuses DEMO_FALLBACK visitors (read-only role). */
+export async function ownerDataOrThrow(opts: { write?: boolean } = {}): Promise<KutipData & { exporterId: string }> {
+  const { exporterId } = await (opts.write ? writeSessionOrThrow() : sessionOrThrow());
   return { ...(MOCK ? mockData : forExporter(exporterId)), exporterId };
 }
 
