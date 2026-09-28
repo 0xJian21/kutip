@@ -121,7 +121,11 @@ async function main() {
         continue;
       }
       const t0 = Date.now();
-      const r = await screenWallet(w, { rpc: screeningRpcFromConnection(connection) });
+      // A transient RPC error fails closed as "could not be screened" (Solami's history paging timed out twice
+      // in a row on the Solflare wallet, 2026-09-29): up to three tries before recording it.
+      const rpcError = (x: { result: string; reasons: string[] }) => x.result === "flag" && x.reasons.every((m) => m.startsWith("wallet could not be screened"));
+      let r = await screenWallet(w, { rpc: screeningRpcFromConnection(connection) });
+      for (let i = 1; i < 3 && rpcError(r); i++) r = await screenWallet(w, { rpc: screeningRpcFromConnection(connection) });
       await store.recordScreening({ wallet, result: r.result, reasons: r.reasons });
       console.log(`  5. ${wallet} screened: ${r.result} in ${Date.now() - t0} ms (${r.reasons.join("; ")})`);
     }
