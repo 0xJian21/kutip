@@ -56,7 +56,7 @@ export async function previewCashOut(exporterId: string, input: { amountUsdc: bi
     input.amountUsdc <= 0n
       ? "Enter an amount above 0"
       : input.amountUsdc > t.mainBalanceUsdc
-        ? `Your treasury holds USD ${formatUsdc(t.mainBalanceUsdc)}`
+        ? `Your treasury holds ${formatUsdc(t.mainBalanceUsdc)}`
         : !destination
           ? "Whitelist your exchange deposit address first"
           : open
