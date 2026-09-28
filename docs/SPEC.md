@@ -65,7 +65,7 @@ Deadline assumption: **demo-ready Oct 3, 5pm MYT** (Demo Day KL Oct 4). See `DEC
 ### F7 — Treasury (agent, rule-bound)
 - **Sweep:** on a schedule at a randomised time, the agent uses the spending limit to move funds from buyer vaults → main treasury, batching buyers so sweep amounts don't map to invoices.
 - **Anything else** (a treasury swap, moving to a yield vault, cash-out) → agent creates a Squads **proposal**; owner approves with one tap.
-- **Cash-out alert:** when USDC→MYR effective rate beats the 30-day average by the configured margin, notify the owner. Cash-out itself = owner sends to their **own whitelisted** Luno/Tokenize deposit address.
+- **Cash-out alert:** when USDC→MYR effective rate beats the 30-day average by the configured margin, notify the owner. Cash-out itself = owner sends to their **own whitelisted** deposit address at an SC-registered DAX (HATA lists USDC on Solana; Luno Malaysia does not offer USDC).
 
 ### F8 — Collections (agent)
 - Reminder schedule per rulebook (e.g. 3 days before due, then every 48h, buyer's local 9am–6pm).
