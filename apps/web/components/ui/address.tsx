@@ -10,7 +10,7 @@ export function Address({ value, kind = "account", label }: { value: string; kin
       target="_blank"
       rel="noopener noreferrer"
       title={value}
-      className="inline-flex items-center gap-1 whitespace-nowrap text-sm tabular text-ink-2 underline-offset-4 hover:text-accent hover:underline"
+      className="inline-flex items-center gap-1 whitespace-nowrap text-sm tabular text-ink-2 underline-offset-4 transition-colors duration-(--dur-fast) hover:text-accent hover:underline"
     >
       {label ?? shortAddress(value)}
       <ExternalLink size={12} aria-hidden="true" />

@@ -1,9 +1,17 @@
 @import "tailwindcss";
 
 /*
-  Kutip design tokens: "calm ledger".
+  Kutip design tokens: "daylight ledger".
   Canonical values are OKLCH. See docs/DESIGN.md for the reasoning.
-  Light = cream ledger paper with teal stamp ink. Dark = the same paper at night.
+  Light = grey canvas, white cards, violet for the one thing to press.
+  Dark = the same room with the lights off; violet lifts, cards stay a step above the canvas.
+
+  Token names are stable across the Session 8 redesign so that screens built in
+  parallel sessions restyle themselves on merge:
+    paper     = the canvas (page background)
+    paper-2   = a quiet fill on the canvas or inside a card (table header, track, hover)
+    surface   = a card
+    well      = an inset area inside a card (QR, invoice paper, code)
 */
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -12,41 +20,57 @@
   color-scheme: light;
 
   /* Surfaces */
-  --paper: oklch(97.5% 0.008 85);
-  --paper-2: oklch(95% 0.01 85);
-  --surface: oklch(99.2% 0.004 85);
+  --paper: oklch(96.2% 0.006 290);
+  --paper-2: oklch(93.4% 0.009 290);
+  --surface: oklch(99.4% 0.002 290);
+  --well: oklch(97.6% 0.004 290);
 
   /* Ink */
-  --ink: oklch(23% 0.015 70);
-  --ink-2: oklch(46% 0.012 70);
-  --ink-3: oklch(54% 0.01 70);
+  --ink: oklch(21% 0.025 290);
+  --ink-2: oklch(44% 0.02 290);
+  --ink-3: oklch(55% 0.018 290);
 
   /* Lines */
-  --line: oklch(88% 0.01 80);
-  --line-strong: oklch(78% 0.012 80);
+  --line: oklch(90.5% 0.008 290);
+  --line-strong: oklch(82% 0.012 290);
 
-  /* Accent: the teal of the RM50 note */
-  --accent: oklch(44% 0.085 195);
-  --accent-hover: oklch(38% 0.085 195);
-  --accent-soft: oklch(93% 0.03 195);
-  --on-accent: oklch(97.5% 0.008 85);
+  /* Accent: violet. Actions, focus, selection, the live fill. */
+  --accent: oklch(52% 0.21 292);
+  --accent-hover: oklch(46% 0.21 292);
+  --accent-soft: oklch(94.5% 0.035 292);
+  --accent-soft-2: oklch(90% 0.07 292);
+  --on-accent: oklch(99% 0.005 292);
+  /* Indigo: only ever the far end of the hero gradient. */
+  --accent-2: oklch(34% 0.17 278);
+
+  /* The hero card (treasury). The only dark, gradient surface in the product. */
+  --hero: linear-gradient(135deg, oklch(60% 0.22 302) 0%, oklch(48% 0.22 290) 42%, oklch(31% 0.16 276) 100%);
+  --on-hero: oklch(99% 0.005 292);
+  --on-hero-2: oklch(88% 0.04 292);
+  --hero-line: oklch(100% 0 0 / 0.18);
+  --hero-fill: oklch(100% 0 0 / 0.12);
+  /* Text on the hero's white button. Deep indigo in both themes: the button is always white. */
+  --hero-button-fg: oklch(34% 0.17 278);
 
   /* Status */
-  --seen-fg: oklch(44% 0.12 255);
-  --seen-bg: oklch(93% 0.03 255);
-  --paid-fg: oklch(42% 0.11 150);
+  --seen-fg: oklch(44% 0.13 255);
+  --seen-bg: oklch(93% 0.035 255);
+  --paid-fg: oklch(42% 0.12 150);
   --paid-bg: oklch(93% 0.05 150);
-  --settled-bg: oklch(44% 0.12 150);
-  --settled-fg: oklch(97.5% 0.008 85);
-  --overdue-fg: oklch(46% 0.15 35);
+  --settled-bg: oklch(44% 0.13 150);
+  --settled-fg: oklch(99% 0.005 150);
+  --overdue-fg: oklch(46% 0.16 35);
   --overdue-bg: oklch(94% 0.04 35);
-  --disputed-fg: oklch(44% 0.16 20);
+  --disputed-fg: oklch(44% 0.17 20);
   --disputed-bg: oklch(94% 0.04 20);
   --partial-fg: oklch(46% 0.12 70);
   --partial-bg: oklch(94% 0.05 70);
 
-  /* Elevation: flat by default; one shadow for things that float */
-  --shadow-float: 0 8px 24px oklch(20% 0.02 70 / 0.14), 0 1px 2px oklch(20% 0.02 70 / 0.08);
+  /* Elevation */
+  --shadow-card: 0 1px 2px oklch(25% 0.03 290 / 0.05), 0 12px 32px -16px oklch(25% 0.03 290 / 0.16);
+  --shadow-float: 0 2px 6px oklch(20% 0.03 290 / 0.08), 0 16px 40px -12px oklch(20% 0.03 290 / 0.28);
+  --shadow-hero: 0 24px 48px -20px oklch(50% 0.2 290 / 0.55);
+  --shadow-pill: 0 1px 2px oklch(25% 0.03 290 / 0.08), 0 2px 8px -2px oklch(25% 0.03 290 / 0.1);
 
   /* Motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -58,36 +82,49 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --paper: oklch(17% 0.01 70);
-  --paper-2: oklch(20% 0.01 70);
-  --surface: oklch(22.5% 0.01 70);
+  --paper: oklch(14% 0.014 290);
+  --paper-2: oklch(19.5% 0.016 290);
+  --surface: oklch(21.5% 0.016 290);
+  --well: oklch(17.5% 0.014 290);
 
-  --ink: oklch(92% 0.01 85);
-  --ink-2: oklch(72% 0.01 85);
-  --ink-3: oklch(58% 0.01 85);
+  --ink: oklch(94% 0.01 290);
+  --ink-2: oklch(74% 0.015 290);
+  --ink-3: oklch(60% 0.015 290);
 
-  --line: oklch(30% 0.01 70);
-  --line-strong: oklch(38% 0.01 70);
+  --line: oklch(28% 0.014 290);
+  --line-strong: oklch(37% 0.016 290);
 
-  --accent: oklch(74% 0.1 195);
-  --accent-hover: oklch(80% 0.1 195);
-  --accent-soft: oklch(27% 0.04 195);
-  --on-accent: oklch(15% 0.02 195);
+  --accent: oklch(77% 0.14 292);
+  --accent-hover: oklch(83% 0.13 292);
+  --accent-soft: oklch(28% 0.06 292);
+  --accent-soft-2: oklch(35% 0.1 292);
+  --on-accent: oklch(16% 0.04 292);
+  --accent-2: oklch(70% 0.14 278);
 
-  --seen-fg: oklch(78% 0.1 255);
-  --seen-bg: oklch(27% 0.04 255);
-  --paid-fg: oklch(78% 0.12 150);
-  --paid-bg: oklch(26% 0.05 150);
-  --settled-bg: oklch(66% 0.14 150);
-  --settled-fg: oklch(15% 0.02 150);
-  --overdue-fg: oklch(80% 0.12 35);
-  --overdue-bg: oklch(27% 0.05 35);
-  --disputed-fg: oklch(80% 0.13 20);
-  --disputed-bg: oklch(27% 0.05 20);
-  --partial-fg: oklch(82% 0.11 70);
-  --partial-bg: oklch(27% 0.05 70);
+  --hero: linear-gradient(135deg, oklch(58% 0.22 302) 0%, oklch(44% 0.21 290) 45%, oklch(26% 0.14 276) 100%);
+  --on-hero: oklch(99% 0.005 292);
+  --on-hero-2: oklch(86% 0.045 292);
+  --hero-line: oklch(100% 0 0 / 0.16);
+  --hero-fill: oklch(100% 0 0 / 0.1);
+  --hero-button-fg: oklch(34% 0.17 278);
 
-  --shadow-float: 0 8px 24px oklch(0% 0 0 / 0.5), 0 1px 2px oklch(0% 0 0 / 0.4);
+  --seen-fg: oklch(80% 0.1 255);
+  --seen-bg: oklch(28% 0.045 255);
+  --paid-fg: oklch(80% 0.12 150);
+  --paid-bg: oklch(27% 0.05 150);
+  --settled-bg: oklch(70% 0.15 150);
+  --settled-fg: oklch(15% 0.03 150);
+  --overdue-fg: oklch(82% 0.12 35);
+  --overdue-bg: oklch(28% 0.05 35);
+  --disputed-fg: oklch(82% 0.13 20);
+  --disputed-bg: oklch(28% 0.05 20);
+  --partial-fg: oklch(84% 0.11 70);
+  --partial-bg: oklch(28% 0.05 70);
+
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3), 0 12px 32px -16px oklch(0% 0 0 / 0.6);
+  --shadow-float: 0 2px 6px oklch(0% 0 0 / 0.4), 0 16px 40px -12px oklch(0% 0 0 / 0.7);
+  --shadow-hero: 0 24px 48px -20px oklch(50% 0.2 290 / 0.5);
+  --shadow-pill: 0 1px 2px oklch(0% 0 0 / 0.3);
 }
 
 @theme inline {
@@ -95,6 +132,7 @@
   --color-paper: var(--paper);
   --color-paper-2: var(--paper-2);
   --color-surface: var(--surface);
+  --color-well: var(--well);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
@@ -103,7 +141,14 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-2: var(--accent-soft-2);
+  --color-accent-2: var(--accent-2);
   --color-on-accent: var(--on-accent);
+  --color-on-hero: var(--on-hero);
+  --color-on-hero-2: var(--on-hero-2);
+  --color-hero-line: var(--hero-line);
+  --color-hero-fill: var(--hero-fill);
+  --color-hero-button-fg: var(--hero-button-fg);
   --color-seen-fg: var(--seen-fg);
   --color-seen-bg: var(--seen-bg);
   --color-paid-fg: var(--paid-fg);
@@ -120,7 +165,6 @@
   --color-current: currentColor;
 
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-source-serif), ui-serif, Georgia, serif;
 
   /* Type scale (fixed rem, ratio ~1.2). UI text is 14px; prose is 16px. */
   --text-xs: 0.75rem;
@@ -139,21 +183,29 @@
   --text-2xl--line-height: 2rem;
   --text-3xl: 2.25rem;
   --text-3xl--line-height: 2.5rem;
-  /* Money display sizes (serif) */
+  /* Money display sizes (bold sans, see @utility money) */
+  --text-money-sm: 1.25rem;
+  --text-money-sm--line-height: 1.5rem;
   --text-money-md: 1.5rem;
   --text-money-md--line-height: 1.75rem;
-  --text-money-lg: 2.5rem;
-  --text-money-lg--line-height: 2.75rem;
-  --text-money-xl: 3.5rem;
-  --text-money-xl--line-height: 3.75rem;
-  --text-money-2xl: 4.5rem;
-  --text-money-2xl--line-height: 4.5rem;
+  --text-money-lg: 2.125rem;
+  --text-money-lg--line-height: 2.375rem;
+  --text-money-xl: 2.75rem;
+  --text-money-xl--line-height: 3rem;
+  --text-money-2xl: 3.5rem;
+  --text-money-2xl--line-height: 3.75rem;
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
 
+  --shadow-card: var(--shadow-card);
   --shadow-float: var(--shadow-float);
+  --shadow-hero: var(--shadow-hero);
+  --shadow-pill: var(--shadow-pill);
 
   --ease-out: var(--ease-out);
 }
@@ -163,7 +215,7 @@
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-sans);
-    font-feature-settings: "tnum" 1, "kern" 1;
+    font-feature-settings: "kern" 1;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -174,13 +226,13 @@
     line-height: var(--text-base--line-height);
   }
   ::selection {
-    background: var(--accent-soft);
+    background: var(--accent-soft-2);
     color: var(--ink);
   }
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: 4px;
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -192,15 +244,44 @@
   }
 }
 
+/* Money: bold sans, tight, proportional lining figures at display sizes. */
 @utility money {
-  font-family: var(--font-serif);
-  font-variant-numeric: tabular-nums lining-nums;
-  font-feature-settings: "tnum" 1, "lnum" 1;
-  letter-spacing: -0.01em;
-  font-weight: 500;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  font-variant-numeric: lining-nums;
+  font-feature-settings: "lnum" 1;
 }
 
+/* Tabular figures for anything that sits in a column. */
 @utility tabular {
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* The hero surface: one gradient, one shadow. */
+@utility hero-surface {
+  background: var(--hero);
+  color: var(--on-hero);
+  box-shadow: var(--shadow-hero);
+}
+
+/* Hatched fill: 45° strokes of the current colour. Chart marks and meters. */
+@utility hatch {
+  background-image: repeating-linear-gradient(-45deg, currentColor 0 1.5px, transparent 1.5px 5px);
+}
+
+/* Dot-matrix fill: a grid of dots in the current colour. */
+@utility dots {
+  background-image: radial-gradient(circle at center, currentColor 0 1.6px, transparent 1.7px);
+  background-size: 7px 7px;
+}
+
+/* Hide native number spinners in compact rule inputs. */
+@utility no-spin {
+  -moz-appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }

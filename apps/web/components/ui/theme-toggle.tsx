@@ -1,5 +1,6 @@
 "use client";
 
+import { Moon, Sun } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 type Theme = "light" | "dark";
@@ -39,18 +40,9 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={() => setTheme(next)}
       aria-label={next === "dark" ? "Switch to dark mode" : "Switch to light mode"}
       title={next === "dark" ? "Dark mode" : "Light mode"}
-      className={`inline-flex h-8 w-8 items-center justify-center rounded-sm text-ink-2 transition-colors duration-(--dur-fast) hover:bg-paper-2 hover:text-ink ${className}`}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-2 transition-colors duration-(--dur-fast) hover:bg-paper-2 hover:text-ink ${className}`}
     >
-      {theme === "dark" ? (
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.4 1.4M11.55 11.55l1.4 1.4M3.05 12.95l1.4-1.4M11.55 4.45l1.4-1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      ) : (
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-        </svg>
-      )}
+      {theme === "dark" ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
     </button>
   );
 }

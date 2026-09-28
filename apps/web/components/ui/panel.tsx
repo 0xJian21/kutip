@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
+import { Card, CardHeader } from "./card";
 
-/** One idea per panel. Never nest a panel inside a panel. */
+/**
+ * Panel = Card with an optional title row. Kept for the screens that predate
+ * the Session 8 redesign; new screens compose Card + CardHeader directly.
+ */
 export function Panel({
   title,
   aside,
@@ -14,16 +18,12 @@ export function Panel({
   className?: string;
   padded?: boolean;
 }) {
+  const hasHeader = Boolean(title || aside);
   return (
-    <section className={`rounded-md border border-line bg-surface ${className}`}>
-      {title || aside ? (
-        <header className="flex items-center justify-between gap-4 border-b border-line px-4 py-3 sm:px-6">
-          <h2 className="text-lg font-medium text-ink">{title}</h2>
-          {aside ? <div className="text-sm text-ink-2">{aside}</div> : null}
-        </header>
-      ) : null}
-      <div className={padded ? "px-4 py-4 sm:px-6 sm:py-5" : ""}>{children}</div>
-    </section>
+    <Card className={`overflow-hidden ${className}`} padded={false}>
+      {hasHeader ? <CardHeader title={title} aside={aside} className="px-5 pt-5 sm:px-6 sm:pt-6" /> : null}
+      <div className={padded ? `px-5 pb-5 sm:px-6 sm:pb-6 ${hasHeader ? "pt-4" : "pt-5 sm:pt-6"}` : hasHeader ? "pt-4" : ""}>{children}</div>
+    </Card>
   );
 }
 
@@ -42,15 +42,15 @@ export function PageHeader({
     <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         {eyebrow ? <div className="mb-1 text-sm text-ink-2">{eyebrow}</div> : null}
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
-        {lede ? <p className="mt-1 max-w-[65ch] text-base text-ink-2">{lede}</p> : null}
+        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{title}</h1>
+        {lede ? <p className="mt-1.5 max-w-[65ch] text-base text-ink-2">{lede}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
 
-/** Definition list used by receipts and detail panels. */
+/** Definition list used by receipts and detail cards. */
 export function Facts({
   items,
   className = "",

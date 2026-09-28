@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Source_Serif_4 } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -9,12 +9,6 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const sourceSerif = Source_Serif_4({
-  variable: "--font-source-serif",
-  subsets: ["latin"],
-  axes: ["opsz"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: { default: "Kutip", template: "%s · Kutip" },
@@ -31,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${jakarta.variable} ${sourceSerif.variable} h-full`}
+      className={`${jakarta.variable} h-full`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />

@@ -1,23 +1,35 @@
 import Link from "next/link";
 import type { ComponentProps } from "react";
 
-type Variant = "primary" | "secondary" | "ghost";
-type Size = "md" | "lg";
+/**
+ * primary   = violet pill: the one thing to press on a screen.
+ * secondary = near-black pill: the strong alternative (Send, Approve, Cash out).
+ * outline   = white pill with a hairline: quiet actions that sit on cards.
+ * ghost     = text only: Cancel, Reject, tertiary links in rows.
+ * hero      = white pill on the treasury card; heroOutline = its quiet sibling.
+ */
+type Variant = "primary" | "secondary" | "outline" | "ghost" | "hero" | "heroOutline";
+type Size = "sm" | "md" | "lg";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm font-medium transition-colors duration-(--dur-fast) disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-colors duration-(--dur-fast) disabled:pointer-events-none disabled:opacity-50";
 const VARIANT: Record<Variant, string> = {
   primary: "bg-accent text-on-accent hover:bg-accent-hover",
-  secondary: "border border-line-strong bg-surface text-ink hover:bg-paper-2",
+  secondary: "bg-ink text-paper hover:bg-ink/85",
+  outline: "border border-line-strong bg-surface text-ink hover:bg-paper-2 shadow-pill",
   ghost: "text-ink-2 hover:bg-paper-2 hover:text-ink",
+  hero: "bg-on-hero text-hero-button-fg hover:opacity-90",
+  heroOutline: "border border-hero-line bg-hero-fill text-on-hero hover:bg-on-hero/20",
 };
 const SIZE: Record<Size, string> = {
-  md: "h-9 px-4 text-base",
-  lg: "h-12 px-5 text-md",
+  sm: "h-8 px-3.5 text-sm",
+  md: "h-10 px-5 text-base",
+  lg: "h-12 px-6 text-md",
 };
+const GHOST_PAD: Record<Size, string> = { sm: "px-2.5", md: "px-3.5", lg: "px-4" };
 
 export function buttonClass(variant: Variant = "primary", size: Size = "md", className = "") {
-  const pad = variant === "ghost" ? (size === "lg" ? "px-4" : "px-3") : "";
+  const pad = variant === "ghost" ? GHOST_PAD[size] : "";
   return `${BASE} ${VARIANT[variant]} ${SIZE[size]} ${pad} ${className}`;
 }
 
@@ -38,4 +50,26 @@ export function ButtonLink({
   ...props
 }: ComponentProps<typeof Link> & { variant?: Variant; size?: Size }) {
   return <Link className={buttonClass(variant, size, className)} {...props} />;
+}
+
+/** Round icon-only button (card menus, close, copy). Always give it an aria-label. */
+export function IconButton({
+  size = "md",
+  variant = "outline",
+  className = "",
+  type = "button",
+  ...props
+}: ComponentProps<"button"> & { size?: "sm" | "md"; variant?: "outline" | "ghost" }) {
+  const dims = size === "sm" ? "h-8 w-8" : "h-10 w-10";
+  const look =
+    variant === "outline"
+      ? "border border-line bg-surface text-ink-2 hover:bg-paper-2 hover:text-ink"
+      : "text-ink-2 hover:bg-paper-2 hover:text-ink";
+  return (
+    <button
+      type={type}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full transition-colors duration-(--dur-fast) disabled:pointer-events-none disabled:opacity-50 ${dims} ${look} ${className}`}
+      {...props}
+    />
+  );
 }
