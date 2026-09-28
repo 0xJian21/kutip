@@ -32,11 +32,8 @@ Don't take: dark full-page theme (02), vanity charts with fake data, gamificatio
 - Status colours only in status pills; one accent colour for actions.
 - Mobile-first pay page; light + dark mode; WCAG AA; tabular figures.
 
-## Open choice (owner decides before 8a builds)
-Accent colour — pick one:
-1. **Electric blue** (01, 07): most "trustworthy fintech".
-2. **Violet** (02, 05): closest to Solana / web3 feel.
-3. **Keep Kutip teal** (current brand, RM50-note teal) but on the new layout.
+## Decided (owner, 2026-09-28)
+- **Accent: violet** (refs 02 Stakent, 05 LoopAI) — closest to the Solana / web3 feel. Violet for primary actions, focus and the treasury hero card gradient (violet → deep indigo); near-black for secondary emphasis; status colours unchanged. Check AA contrast for violet text on white and in dark mode.
 
 ## Screens to redo (priority order)
 1. **Dashboard**: KPI row (received this month, outstanding, overdue, in treasury) with deltas; collections chart; agent command bar; "Agent needs you" panel; recent payments with buyer logos; treasury hero card.

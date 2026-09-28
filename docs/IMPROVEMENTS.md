@@ -30,8 +30,17 @@ Owner feedback 2026-09-28, checked against the product, the regulations and the 
 - **I1 Create invoice with a real preview.** ✅ Valid (refs 06, 07). Form left, live preview right; "Import from PDF" fills the form via the existing extractor. **M · P0** (mostly Session 8a)
 
 ## "Contract" / email ownership
-- **E1 Reading from the exporter's own mailbox (Gmail/Outlook permission).** ✗ Not now. Gmail's restricted scopes need Google's security assessment (weeks), and it gives Kutip access to all of the exporter's mail. *Owner: confirm this is what "Contract … allow permission then we can read from them" meant.*
-- **E2 Recommended instead: Kutip sends and receives on its own domain.** Emails go "from Teratai Woodworks via Kutip" with a per-exporter reply address (e.g. `teratai@reply.<domain>`); buyer replies arrive in the Kutip inbox via Resend inbound and get classified; a copy is forwarded to the exporter. Needs a domain verified in Resend. **M · P1** (P0 if you want live buyer replies in the demo)
+- **E1 Reading from the exporter's own mailbox (Gmail/Outlook permission).** ✗ Not now (owner confirmed this is what "contract" meant). Gmail's restricted scopes need Google's security assessment (weeks), and it gives Kutip access to all of the exporter's mail.
+- **E2 How buyer messages reach Kutip without a domain** (owner: no domain for now, stay on kutip-app.vercel.app). ✅ Three channels, all P0/P1:
+  1. **Message box on the pay page** (primary, works today): below the invoice, "Questions about this invoice? Message Teratai Woodworks". The buyer writes; it lands in the Kutip inbox instantly (Realtime), the agent classifies it and drafts a reply; the reply appears in the same thread on the pay page. Scoped to that invoice (the link is the credential); rate-limited; no other invoice/buyer data visible. **M · P0**
+  2. **Reply-To on outgoing emails = the exporter's own email address**, so a buyer who hits "Reply" reaches the exporter directly (never lost). **S · P0**
+  3. **"Log a buyer message"** in the inbox: the exporter pastes an email/WhatsApp message they received; the agent classifies and drafts as usual. **S · P1**
+  - Later, with a domain: Resend inbound replies straight into the inbox.
+- **E3 Agent reply permission** (owner: "agent to reply, permission is the thing"). ✅ New rulebook section **"Replies"**, set during onboarding (R4) and editable in Settings → Agent permissions:
+  - `Reminders & receipts`: **Automatic** (rule-based, already today) / Draft only.
+  - `Replies to buyer messages`: **Draft — I approve** (default) / Automatic for routine answers only (resend invoice, payment instructions, "we received your payment") / Off.
+  - Never automatic: discounts (C3), disputes (C4), promised dates beyond 7 days, anything that moves money.
+  Every sent reply is logged as an agent_action with rule id + who approved. **S–M · P0**
 
 ## Agent
 - **A1 Agent command bar on the dashboard ("agentic all the flows").** ✅ Valid, high demo value (ref 01). Ask in plain words: "Sweep now", "Remind Najd about INV-0141", "What's due this week?", "Cash out RM 10k". The agent (Claude tool use; Jev for routing) calls existing functions, shows a preview card, and **only acts after confirmation** (Touch ID for money). **M–L · P1**
@@ -43,7 +52,7 @@ Owner feedback 2026-09-28, checked against the product, the regulations and the 
 |---|---|---|
 | Sep 28–29 | **8a UI** (Fable): style tile first, then screens | UI-FEEDBACK.md, I1, P1 UI, R1 UI |
 | Sep 28–29 | **8b Accounts & treasury** (Fable) | R2, R3, R4, T2, T3, T4, A2 (+ FOLLOWUPS money/security items) |
-| Sep 29–30 | **8c Agent & messages** (Opus) | A1, M1, M2, E2 (if domain), A3 if time |
+| Sep 29–30 | **8c Agent & messages** (Opus) | A1, M1, M2, E2, E3, A3 if time |
 | Oct 1 | **8d Hardening** (Opus) | FOLLOWUPS.md, security review, full rehearsal |
 | Oct 2 | **9 Submission** | deck, videos, write-up |
 | P2 if time | — | T1 team, A3 calendar |
