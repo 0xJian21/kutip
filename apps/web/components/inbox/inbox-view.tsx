@@ -129,7 +129,7 @@ export function InboxView({
                     <Avatar name={t.buyerName} size="sm" shape="square" className="mt-0.5" />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className={`truncate text-base ${t.needsReply ? "font-semibold text-ink" : "font-medium text-ink"}`}>{t.buyerName}</span>
+                        <span className={`min-w-0 text-base ${t.needsReply ? "font-semibold text-ink" : "font-medium text-ink"}`}>{t.buyerName}</span>
                         <span className="shrink-0 text-xs tabular text-ink-3">{relativeTime(t.last.createdAt)}</span>
                       </span>
                       <span className="block truncate text-sm tabular text-ink-2">{t.invoiceNumber}</span>

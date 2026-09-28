@@ -57,7 +57,7 @@ export async function writeReminder(client: Anthropic, ctx: BuyerContext, req: {
     days > 0 ? `Status: ${days} day${days === 1 ? "" : "s"} overdue` : days === 0 ? "Status: due today" : `Status: due in ${-days} day${days === -1 ? "" : "s"}`,
   ];
   const draft = await draftEmail(client, ctx, `Write a payment reminder. Tone: ${TONE[req.tone]}`, facts);
-  checkDraft(draft, [inv.amountUsdc]);
+  checkDraft(draft, [inv.amountUsdc, ...printedOn(inv)]);
   return { subject: draft.subject, body: draft.body.trimEnd() + PAY_FOOTER(inv.payUrl) };
 }
 
@@ -118,7 +118,7 @@ export async function writeReply(
     ],
   });
   const draft = { subject: out.subject, body: out.body };
-  checkDraft(draft, [inv.amountUsdc]);
+  checkDraft(draft, [inv.amountUsdc, ...printedOn(inv)]);
   const discount = DISCOUNT.exec(`${draft.subject}\n${draft.body}`);
   if (discount) throw new Error(`Draft talks about a discount ("${discount[0]}")`);
   const topic: ReplyTopic = (REPLY_TOPICS as readonly string[]).includes(out.topic) ? (out.topic as ReplyTopic) : "other";
@@ -162,6 +162,11 @@ async function draftEmail(client: Anthropic, ctx: BuyerContext, task: string, fa
     schema: emailSchema,
     content: [{ type: "text", text: `${fence("buyer_account", renderBuyerContext(ctx))}\n\n${task}\nFacts:\n${facts.map((f) => `- ${f}`).join("\n")}` }],
   });
+}
+
+/** Amounts printed on the invoice itself: unit prices and line totals (all computed from stored integers). */
+function printedOn(inv: { lineItems: ReadonlyArray<{ quantity: number; unitPriceUsdc: bigint }> }): bigint[] {
+  return inv.lineItems.flatMap((l) => [l.unitPriceUsdc, l.unitPriceUsdc * BigInt(l.quantity)]);
 }
 
 /** The model may only restate amounts we gave it, and may not talk crypto to the buyer. */

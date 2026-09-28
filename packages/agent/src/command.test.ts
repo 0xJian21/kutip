@@ -117,6 +117,15 @@ describe("planCommand: previews only, numbers from code", () => {
     expect(calls.filter((c) => !["listInvoices", "listBuyers", "getRulebook", "getBuyerContext", "getTreasury", "agenda"].includes(c))).toEqual([]);
   });
 
+  it("a draft that fails the fact check is retried once, then explained instead of thrown", async () => {
+    let n = 0;
+    const flaky = fakeAnthropic(() => (++n === 1 ? { output: { subject: "x", body: "Pay USD 1.00 now" } } : reminderDraft()));
+    expect(await plan({ tool: "draft_reminder", invoice: "0142" }, fakePort().port, flaky.client)).toMatchObject({ kind: "reminder" });
+    const bad = fakeAnthropic(() => ({ output: { subject: "x", body: "Pay USD 1.00 now" } }));
+    expect(await plan({ tool: "draft_reminder", invoice: "0142" }, fakePort().port, bad.client)).toMatchObject({ kind: "clarify", message: expect.stringMatching(/didn.t pass/) });
+    expect(bad.requests).toHaveLength(2);
+  });
+
   it("ambiguous or unknown buyers ask, they don't guess", async () => {
     expect(await plan({ tool: "draft_reminder", buyer: "Acme" })).toMatchObject({ kind: "clarify" });
     const two = await plan({ tool: "draft_reminder", buyer: "i" }); // matches both names
@@ -127,6 +136,19 @@ describe("planCommand: previews only, numbers from code", () => {
   it("a reminder for a disputed invoice is refused: the dispute is answered in the inbox", async () => {
     const port = fakePort({ async listInvoices() { return [{ ...invoices[0]!, status: "disputed" as const }]; } }).port;
     expect(await plan({ tool: "draft_reminder", invoice: "0142" }, port)).toMatchObject({ kind: "clarify", message: expect.stringMatching(/disputed/i) });
+  });
+
+  it("naming only the buyer skips their disputed invoices", async () => {
+    const port = fakePort({
+      async listInvoices() {
+        return [{ ...invoices[0]!, status: "disputed" as const, dueDate: "2026-09-01" }, invoices[2]!];
+      },
+      async getBuyerContext() {
+        return { exporterName: EXPORTER_NAME, buyer: HARBOURLINE, invoices: [...HARBOURLINE_INVOICES, invoices[2]!], messages: HARBOURLINE_MESSAGES };
+      },
+    }).port;
+    const { client } = fakeAnthropic(() => ({ output: { subject: "INV-2026-0150", body: "Hi Claire, INV-2026-0150 for USD 5,000.00 is due soon." } }));
+    expect(await plan({ tool: "draft_reminder", buyer: "harbourline" }, port, client)).toMatchObject({ kind: "reminder", line: { number: "INV-2026-0150" } });
   });
 
   it("a reminder for a paid invoice is refused in code", async () => {

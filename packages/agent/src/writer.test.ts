@@ -32,6 +32,14 @@ describe("writeReminder", () => {
     await expect(writeReminder(client, ctx, { invoiceId: "inv_0142", tone: "firm", now })).rejects.toThrow(/amount/);
   });
 
+  it("allows amounts printed on the invoice itself (unit price, line total), nothing else", async () => {
+    // inv_0142: 12 × USD 1,040.00 = USD 12,480.00
+    const { client } = fakeAnthropic(draft("Hi Claire, INV-2026-0142 (12 tables at USD 1,040.00) for USD 12,480.00 is overdue."));
+    await expect(writeReminder(client, ctx, { invoiceId: "inv_0142", tone: "firm", now })).resolves.toBeTruthy();
+    const { client: c2 } = fakeAnthropic(draft("Hi Claire, INV-2026-0142 for USD 1,041.00 is overdue."));
+    await expect(writeReminder(c2, ctx, { invoiceId: "inv_0142", tone: "firm", now })).rejects.toThrow(/amount/);
+  });
+
   it("rejects crypto jargon in the model's text", async () => {
     const { client } = fakeAnthropic(draft("Hi Claire, just connect your Solana wallet to pay USD 12,480.00."));
     await expect(writeReminder(client, ctx, { invoiceId: "inv_0142", tone: "firm", now })).rejects.toThrow(/jargon/);

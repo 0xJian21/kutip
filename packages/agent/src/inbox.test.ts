@@ -81,7 +81,8 @@ describe("handleInbound (E2.1 → M2 → E3)", () => {
     const out = await handleInbound({ store: port, classifier: classifier({ label: "question", confidence: 0.95 }), client, mailer, now: () => NOW }, { exporterId: E, invoiceId: INV.id, messageId: "msg_in" });
 
     expect(out.permission).toMatchObject({ mode: "draft", ruleId: "C7" });
-    expect(writes.map((w) => w[0])).toEqual(["setClassification", "recordAgentAction", "saveDraft"]);
+    expect(writes.map((w) => w[0])).toEqual(["setClassification", "saveDraft", "recordAgentAction"]);
+    expect(writes[2]![1]).toMatchObject({ kind: "classify_reply", status: "escalated", decision: expect.stringMatching(/drafted a reply for you to approve/) });
     expect(messages.at(-1)).toMatchObject({ status: "draft", channel: "pay_page", inReplyTo: "msg_in" });
     expect(sent).toEqual([]);
   });
@@ -94,6 +95,7 @@ describe("handleInbound (E2.1 → M2 → E3)", () => {
     expect(out.permission.mode).toBe("auto");
     expect(out.sent).toBe(true);
     expect(writes.find((w) => w[0] === "sendDraft")![2]).toMatchObject({ approvedBy: "agent", ruleId: "C7" });
+    expect(writes.find((w) => w[0] === "recordAgentAction")![1]).toMatchObject({ status: "executed", decision: expect.stringMatching(/answered it automatically/) });
     expect(messages.at(-1)).toMatchObject({ status: "sent" });
     expect(sent).toEqual([]); // pay-page reply: shown on the page, not emailed
   });

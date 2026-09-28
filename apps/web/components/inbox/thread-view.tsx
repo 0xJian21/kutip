@@ -43,15 +43,17 @@ export function ThreadView({ detail, rate, busy, onChanged }: { detail: InboxThr
       <Card>
         <div className="flex flex-wrap items-center gap-3">
           <Avatar name={buyer.name} size="md" shape="square" />
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-lg font-semibold tracking-tight text-ink">{buyer.name}</h2>
-            <p className="truncate text-sm text-ink-2">
+          <div className="min-w-[12rem] flex-1">
+            <h2 className="text-lg font-semibold tracking-tight text-ink">{buyer.name}</h2>
+            <p className="text-sm text-ink-2">
               {buyer.contactName} · {buyer.city}, {buyer.countryName} ·{" "}
               <Link href={`/invoices/${invoice.id}`} className="tabular text-accent underline-offset-4 hover:underline">{invoice.number}</Link>
             </p>
           </div>
-          <StatusPill status={invoice.status} />
-          <MoneyCell usdc={outstanding > 0n ? outstanding : invoice.amountUsdc} rate={rate} />
+          <div className="flex items-center gap-3 max-sm:w-full max-sm:justify-between">
+            <StatusPill status={invoice.status} />
+            <MoneyCell usdc={outstanding > 0n ? outstanding : invoice.amountUsdc} rate={rate} />
+          </div>
         </div>
       </Card>
 

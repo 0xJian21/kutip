@@ -120,27 +120,31 @@ export async function handleInbound(deps: InboxDeps, req: { exporterId: string; 
   if (decision.action === "pause" && decision.promisedDate) await deps.store.setPromisedDate(exporterId, invoiceId, decision.promisedDate);
   if (decision.markDisputed) await deps.store.setInvoiceStatus(exporterId, invoiceId, "disputed", now);
 
-  // The log line is written in code, not by a model: it must say exactly what happened (nothing is sent here).
   const settings = parseReplySettings(rulebook.replies);
-  const willDraft = settings.buyerMessages !== "off";
-  const text = {
-    decision: `Read the message on ${thread.invoice.number} as ${LABEL[c.label]}${decision.allowed ? "" : " and flagged it for you"}${willDraft ? "; drafting a reply" : ""}`,
-    reason: decision.reason,
-  };
-  await deps.store.recordAgentAction({
-    exporterId, buyerId: thread.invoice.buyerId, invoiceId, kind: "classify_reply",
-    inputSummary: `Message on ${thread.invoice.number}: ${c.label} (${c.confidence.toFixed(2)})`,
-    decision: text.decision, reason: text.reason, confidence: c.confidence, ruleId: decision.ruleId,
-    status: decision.allowed ? "executed" : "escalated", at: now,
-  });
+  // The log line is written in code, not by a model, and after the outcome is known: it says exactly what happened.
+  const logReading = (outcome: string, handled: boolean) =>
+    deps.store.recordAgentAction({
+      exporterId, buyerId: thread.invoice.buyerId, invoiceId, kind: "classify_reply",
+      inputSummary: `Message on ${thread.invoice.number}: ${c.label} (${c.confidence.toFixed(2)})`,
+      decision: `Read the message on ${thread.invoice.number} as ${LABEL[c.label]} and ${outcome}`,
+      reason: decision.reason, confidence: c.confidence, ruleId: decision.ruleId,
+      status: handled ? "executed" : "escalated", at: now,
+    });
 
   const off = replyPermission({ settings, classification: c, decision, topic: "other", invoiceStatus: thread.invoice.status });
-  if (off.mode === "none") return { classification: c, decision, permission: off, sent: false };
+  if (off.mode === "none") {
+    await logReading("left the reply to you", decision.allowed);
+    return { classification: c, decision, permission: off, sent: false };
+  }
 
   const { draft, topic } = await draftFor(deps, loaded, exporterId, inbound);
   const permission: ReplyPermission = replyPermission({ settings, classification: c, decision, topic, invoiceStatus: thread.invoice.status });
-  if (permission.mode !== "auto") return { classification: c, decision, permission, draftId: draft.id, sent: false };
+  if (permission.mode !== "auto") {
+    await logReading("drafted a reply for you to approve", decision.allowed);
+    return { classification: c, decision, permission, draftId: draft.id, sent: false };
+  }
 
+  await logReading("answered it automatically (routine)", true);
   await deliver(deps, exporterId, thread, draft, {
     body: draft.body, approvedBy: "agent", ruleId: permission.ruleId, confidence: c.confidence, at: now,
     decision: `Answered ${thread.invoice.number} automatically`, reason: permission.reason,
