@@ -19,9 +19,10 @@
  */
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { eq, like } from "drizzle-orm";
-import { deleteExporter, schema } from "@kutip/db";
+import { createStore, deleteExporter, schema } from "@kutip/db";
+// The seed lives with @kutip/db; its fixtures come from apps/web through the "@/" alias in scripts/tsconfig.json.
+import { resetDemo, seedDemo } from "../packages/db/seed/demo";
 import { createKeyFor, deriveAccounts, keypairFromEnv, limitCreateKeyFor, reusableScreening, screeningRpcFromConnection, screenWallet, spendingLimitPdaFor } from "@kutip/solana";
-import { execFileSync } from "node:child_process";
 import * as readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { EXPORTER_ID, YES, arg, chain, closePrompt, db } from "./_shared";
@@ -33,7 +34,7 @@ const LIVE_INVOICES = [
 
 async function main() {
   const { connection, feePayer, usdcMint } = chain();
-  const { store, db: raw, close } = db();
+  const { store, db: raw, close } = db(); // `store` only reads (screenings); writes go through the transaction below
   try {
     // ---------------- read-only phase ----------------
     const [ownerRow] = await raw.select().from(schema.users).where(eq(schema.users.id, "usr_owner"));
@@ -79,33 +80,39 @@ async function main() {
     }
 
     // ---------------- write phase (database only) ----------------
-    // The seed imports apps/web's mock fixtures through a path alias, so it runs as its own package script.
-    execFileSync("pnpm", ["--filter", "@kutip/db", "db:seed", "--reset"], { stdio: ["ignore", "inherit", "inherit"] });
-    console.log(`  1. ${EXPORTER_ID} re-seeded`);
-    for (const e of zz) {
-      await deleteExporter(raw, e.id);
-      console.log(`  2. deleted ${e.name} (${e.id})`);
-    }
-    await store.updateTreasuryAccounts(EXPORTER_ID, { treasuryMultisig: treasury.multisigPda.toBase58(), treasuryVault: treasury.vaultPda.toBase58(), treasuryUsdcAta: treasury.vaultAta.toBase58() });
-    for (const b of buyers) {
-      await store.updateBuyerAccounts(EXPORTER_ID, b.id, { multisig: b.multisigPda.toBase58(), vault: b.vaultPda.toBase58(), usdcAta: b.vaultAta.toBase58(), spendingLimitPda: b.spendingLimitPda.toBase58() });
-      await raw.update(schema.buyers).set({ email: inbox }).where(eq(schema.buyers.id, b.id));
-    }
-    await raw.update(schema.users).set({ walletPubkey: owner.toBase58() }).where(eq(schema.users.id, "usr_owner"));
-    // demo_funds: the seeded business numbers stay, the hero says "Live on Solana mainnet · demo funds" next to the real balance.
-    await raw.update(schema.exporters).set({ cashOutWhitelist: [{ label: "HATA USDC deposit (Solana) · Teratai Woodworks", address: cashOut.toBase58() }], demoFunds: true }).where(eq(schema.exporters.id, EXPORTER_ID));
-    console.log(`  3. treasury, buyers, owner wallet and cash-out whitelist (HATA) attached, demo flag on; buyer emails → ${inbox}`);
+    // Steps 1–4 are one transaction (nested calls become savepoints): a failure leaves the previous demo state as it was.
+    const lines: string[] = [];
+    await raw.transaction(async (tx) => {
+      const store = createStore(tx, { appUrl: process.env.APP_URL ?? "http://localhost:3000" });
+      await resetDemo(tx);
+      await seedDemo(tx);
+      lines.push(`  1. ${EXPORTER_ID} re-seeded`);
+      for (const e of zz) {
+        await deleteExporter(tx, e.id);
+        lines.push(`  2. deleted ${e.name} (${e.id})`);
+      }
+      await store.updateTreasuryAccounts(EXPORTER_ID, { treasuryMultisig: treasury.multisigPda.toBase58(), treasuryVault: treasury.vaultPda.toBase58(), treasuryUsdcAta: treasury.vaultAta.toBase58() });
+      for (const b of buyers) {
+        await store.updateBuyerAccounts(EXPORTER_ID, b.id, { multisig: b.multisigPda.toBase58(), vault: b.vaultPda.toBase58(), usdcAta: b.vaultAta.toBase58(), spendingLimitPda: b.spendingLimitPda.toBase58() });
+        await tx.update(schema.buyers).set({ email: inbox }).where(eq(schema.buyers.id, b.id));
+      }
+      await tx.update(schema.users).set({ walletPubkey: owner.toBase58() }).where(eq(schema.users.id, "usr_owner"));
+      // demo_funds: the seeded business numbers stay, the hero says "Live on Solana mainnet · demo funds" next to the real balance.
+      await tx.update(schema.exporters).set({ cashOutWhitelist: [{ label: "HATA USDC deposit (Solana) · Teratai Woodworks", address: cashOut.toBase58() }], demoFunds: true }).where(eq(schema.exporters.id, EXPORTER_ID));
+      lines.push(`  3. treasury, buyers, owner wallet and cash-out whitelist (HATA) attached, demo flag on; buyer emails → ${inbox}`);
 
-    const today = new Date().toISOString().slice(0, 10);
-    const due = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
-    for (const inv of LIVE_INVOICES) {
-      const reference = Keypair.generate().publicKey.toBase58();
-      const created = await store.createInvoice({
-        exporterId: EXPORTER_ID, buyerId: inv.buyerId, issuedAt: today, dueDate: due, referencePubkey: reference, status: "sent",
-        lineItems: [{ description: inv.description, quantity: 1, unitPriceUsdc: inv.unitPriceUsdc }],
-      });
-      console.log(`  4. ${inv.label}: ${created.number} ${created.id} USDC ${created.amountUsdc} memo ${created.memoCode} reference ${reference}\n       pay ${created.payUrl}`);
-    }
+      const today = new Date().toISOString().slice(0, 10);
+      const due = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+      for (const inv of LIVE_INVOICES) {
+        const reference = Keypair.generate().publicKey.toBase58();
+        const created = await store.createInvoice({
+          exporterId: EXPORTER_ID, buyerId: inv.buyerId, issuedAt: today, dueDate: due, referencePubkey: reference, status: "sent",
+          lineItems: [{ description: inv.description, quantity: 1, unitPriceUsdc: inv.unitPriceUsdc }],
+        });
+        lines.push(`  4. ${inv.label}: ${created.number} ${created.id} USDC ${created.amountUsdc} memo ${created.memoCode} reference ${reference}\n       pay ${created.payUrl}`);
+      }
+    });
+    for (const l of lines) console.log(l);
 
     for (const w of warm) {
       const wallet = w.toBase58();
