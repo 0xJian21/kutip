@@ -4,7 +4,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { UserError } from "@/lib/data/result";
-import { exporterForSignIn } from "./access";
+import { sessionFor } from "./access";
 import { SESSION_TTL_MS, signSession, verifySession, type Session } from "./session-token";
 import { store } from "./store";
 
@@ -52,6 +52,21 @@ export async function sessionOrThrow(): Promise<Session> {
   return s;
 }
 
+/** Writes to the exporter's own data (profile, logo): owners and admins, never DEMO_FALLBACK visitors. */
+export async function writeSessionOrThrow(): Promise<Session> {
+  const s = await sessionOrThrow();
+  if (s.role === "demo") throw new UserError("You are viewing the demo account. Sign in as its owner to change anything.");
+  return s;
+}
+
+/** Anything the owner approves with the passkey (whitelist, permissions, sweeps, cash-outs): owner role with the registered wallet. */
+export async function ownerSessionOrThrow(): Promise<Session & { wallet: string }> {
+  const s = await sessionOrThrow();
+  if (s.role === "demo") throw new UserError("You are viewing the demo account. Only its owner can move money or change permissions.");
+  if (s.role !== "owner" || !s.wallet) throw new UserError("Only the account owner, signed in with the passkey that owns the treasury, can do this.");
+  return { ...s, wallet: s.wallet };
+}
+
 async function privySolanaWallets(privyUserId: string): Promise<string[]> {
   const appId = env("NEXT_PUBLIC_PRIVY_APP_ID");
   const res = await fetch(`https://auth.privy.io/api/v1/users/${encodeURIComponent(privyUserId)}`, {
@@ -93,14 +108,13 @@ export async function signIn(accessToken: string): Promise<SignInResult> {
   const { privyUserId, wallets } = await verifyPrivyToken(accessToken);
   const user = await store().findUser({ privyUserId, wallets });
   if (user) await store().linkPrivyUser(user.userId, privyUserId);
-  const demoFallback = process.env.DEMO_FALLBACK === "1" ? DEMO_EXPORTER_ID : undefined;
-  if (!user && !demoFallback) {
+  const demoExporterId = process.env.DEMO_FALLBACK === "1" ? DEMO_EXPORTER_ID : undefined;
+  if (!user && !demoExporterId) {
     console.warn(`[auth] ${privyUserId} has no Kutip user; onboarding`);
     return { linked: false, privyUserId, ...(wallets[0] ? { wallet: wallets[0] } : {}) };
   }
-  if (!user) console.warn(`[auth] ${privyUserId} has no Kutip user; DEMO_FALLBACK → ${DEMO_EXPORTER_ID}`);
-  const exporterId = exporterForSignIn(user, { demoFallback });
-  const session: Session = { exporterId, privyUserId, ...(wallets[0] ? { wallet: wallets[0] } : {}) };
+  if (!user) console.warn(`[auth] ${privyUserId} has no Kutip user; DEMO_FALLBACK → ${DEMO_EXPORTER_ID} (read-only)`);
+  const session = sessionFor({ user, demoExporterId, privyUserId, wallets });
   await setSessionCookie(session);
   return { linked: true, session };
 }

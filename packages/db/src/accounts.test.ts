@@ -155,3 +155,12 @@ describe("buyer accounts for the sweeper and permissions", () => {
     await expect(store.setBuyerSpendingLimit("exp_other", a.id, "Limit222")).rejects.toThrow(/buyer not found/);
   });
 });
+
+describe("findUser exposes the registered wallet so sign-in can bind the session to it", () => {
+  test("returns walletPubkey and role", async () => {
+    await store.createUser({ exporterId, name: "Farid", role: "owner", privyUserId: "did:privy:owner", walletPubkey: "Owner111" });
+    expect(await store.findUser({ privyUserId: "did:privy:owner", wallets: [] })).toMatchObject({ exporterId, role: "owner", walletPubkey: "Owner111" });
+    await store.createUser({ exporterId, name: "Mei", role: "admin", privyUserId: "did:privy:admin" });
+    expect(await store.findUser({ privyUserId: "did:privy:admin", wallets: [] })).toMatchObject({ role: "admin", walletPubkey: undefined });
+  });
+});

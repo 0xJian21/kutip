@@ -4,7 +4,7 @@ import { createKeyFor, provisionMultisig } from "@kutip/solana";
 import { PublicKey } from "@solana/web3.js";
 import { UserError } from "@/lib/data/result";
 import { startSession, verifyPrivyToken } from "./auth";
-import { validateCompany, type CompanyInput } from "./input";
+import { signupLogoPrefix, validateCompany, type CompanyInput } from "./input";
 import { store } from "./store";
 import { agentPubkey, treasuryContext } from "@/lib/treasury/server";
 
@@ -23,8 +23,9 @@ const SIGNUPS_PER_HOUR = 5;
 const signups: number[] = [];
 
 export async function completeOnboarding(accessToken: string, input: CompanyInput): Promise<{ exporterId: string; treasuryVault: string; signature?: string }> {
-  const company = validateCompany(input);
   const { privyUserId, wallets } = await verifyPrivyToken(accessToken);
+  // A logo is kept only if it sits under this sign-up's own upload path (never an arbitrary URL).
+  const company = validateCompany(input, { logoPrefix: process.env.SUPABASE_URL ? signupLogoPrefix(process.env.SUPABASE_URL, privyUserId) : undefined });
   const owner = wallets[0];
   if (!owner) throw new UserError("Your wallet is still being created. Try again in a moment.");
   const existing = await store().findUser({ privyUserId, wallets });
@@ -64,6 +65,6 @@ export async function completeOnboarding(accessToken: string, input: CompanyInpu
   });
   await store().updateTreasuryAccounts(exporter.id, { treasuryMultisig: r.multisigPda.toBase58(), treasuryVault: r.vaultPda.toBase58(), treasuryUsdcAta: r.vaultAta.toBase58() });
   await store().createUser({ exporterId: exporter.id, name: company.ownerName, role: "owner", privyUserId, walletPubkey: owner });
-  await startSession({ exporterId: exporter.id, privyUserId, wallet: owner });
+  await startSession({ exporterId: exporter.id, privyUserId, role: "owner", wallet: owner });
   return { exporterId: exporter.id, treasuryVault: r.vaultPda.toBase58(), signature: r.signature };
 }

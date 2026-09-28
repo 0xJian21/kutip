@@ -7,11 +7,11 @@
  * show the card, then execute/propose after the owner confirms.
  */
 import { refresh } from "next/cache";
-import { sessionOrThrow } from "@/lib/server/auth";
+import { ownerSessionOrThrow, sessionOrThrow, writeSessionOrThrow } from "@/lib/server/auth";
 import { completeOnboarding as completeOnboardingImpl } from "@/lib/server/onboarding";
 import { store } from "@/lib/server/store";
 import { uploadLogo } from "@/lib/server/storage";
-import { validateCompany, type CompanyInput } from "@/lib/server/input";
+import { signupFolder, validateCompany, type CompanyInput } from "@/lib/server/input";
 import { addCashOutAddress, previewCashOut, proposeCashOut, removeCashOutAddress, whitelistStatement, type CashOutPreview, type CashOutProposal } from "@/lib/treasury/cashout";
 import { buildLimitChangeTxs, permissionsStatement, readAgentPermissions, savePermissions, type LimitChangeTx, type PermissionsApproval, type PermissionsView } from "@/lib/treasury/permissions";
 import type { AgentPermissions } from "@/lib/treasury/permissions-model";
@@ -29,7 +29,7 @@ export async function sweepPreview() {
 
 export async function sweepNow() {
   return toResult(async () => {
-    const r = await executeSweep((await sessionOrThrow()).exporterId);
+    const r = await executeSweep((await ownerSessionOrThrow()).exporterId);
     refresh();
     return r;
   });
@@ -44,7 +44,7 @@ export async function cashOutPreview(input: { amountUsdc: bigint; destination?: 
 /** The agent creates the proposal; the client then approves it with useApproveProposal (Touch ID). */
 export async function cashOutPropose(input: { amountUsdc: bigint; destination: string }) {
   return toResult(async () => {
-    const r = await proposeCashOut((await sessionOrThrow()).exporterId, input);
+    const r = await proposeCashOut((await ownerSessionOrThrow()).exporterId, input);
     refresh();
     return r;
   });
@@ -57,7 +57,7 @@ export async function whitelistStatementFor(address: string) {
 
 export async function whitelistAdd(input: { label: string; address: string; message: string; signature: string }) {
   return toResult(async () => {
-    const { exporterId, wallet } = await sessionOrThrow();
+    const { exporterId, wallet } = await ownerSessionOrThrow();
     const list = await addCashOutAddress({ exporterId, wallet, ...input });
     refresh();
     return list;
@@ -70,7 +70,7 @@ export async function whitelistRemoveStatementFor(address: string) {
 
 export async function whitelistRemove(input: { address: string; message: string; signature: string }) {
   return toResult(async () => {
-    const { exporterId, wallet } = await sessionOrThrow();
+    const { exporterId, wallet } = await ownerSessionOrThrow();
     const list = await removeCashOutAddress({ exporterId, wallet, ...input });
     refresh();
     return list;
@@ -83,18 +83,19 @@ export async function agentPermissions() {
   return toResult(async () => readAgentPermissions((await sessionOrThrow()).exporterId));
 }
 
-export async function permissionsStatementNow() {
-  return toResult(async () => permissionsStatement((await sessionOrThrow()).exporterId));
+/** The statement binds the exact permissions being approved (a digest is in the purpose line). */
+export async function permissionsStatementNow(permissions: AgentPermissions) {
+  return toResult(async () => permissionsStatement((await ownerSessionOrThrow()).exporterId, permissions));
 }
 
 /** Owner-signed config transactions that re-issue the on-chain daily cap on every out-of-sync buyer multisig. */
 export async function permissionsLimitTxs(dailyCapUsdc: bigint) {
-  return toResult(async () => buildLimitChangeTxs((await sessionOrThrow()).exporterId, dailyCapUsdc));
+  return toResult(async () => buildLimitChangeTxs((await ownerSessionOrThrow()).exporterId, dailyCapUsdc));
 }
 
 export async function permissionsSave(input: { permissions: AgentPermissions; approval: PermissionsApproval }) {
   return toResult(async () => {
-    const { exporterId, wallet } = await sessionOrThrow();
+    const { exporterId, wallet } = await ownerSessionOrThrow();
     const r = await savePermissions({ exporterId, wallet, ...input });
     refresh();
     return r;
@@ -105,7 +106,7 @@ export async function permissionsSave(input: { permissions: AgentPermissions; ap
 
 export async function companyProfileSave(input: Partial<CompanyInput>) {
   return toResult(async () => {
-    const { exporterId } = await sessionOrThrow();
+    const { exporterId } = await writeSessionOrThrow();
     const current = await store().getExporter(exporterId);
     if (!current) throw new UserError("Your company could not be found");
     const c = validateCompany({
@@ -125,7 +126,7 @@ export async function companyProfileSave(input: Partial<CompanyInput>) {
 /** FormData with a `logo` file. Stores it and points exporters.logo_url at it. */
 export async function logoUpload(form: FormData) {
   return toResult(async () => {
-    const { exporterId } = await sessionOrThrow();
+    const { exporterId } = await writeSessionOrThrow();
     const file = form.get("logo");
     if (!(file instanceof File)) throw new UserError("Choose an image file");
     const url = await uploadLogo(exporterId, file);
@@ -147,6 +148,6 @@ export async function logoUploadForSignup(accessToken: string, form: FormData) {
     const { privyUserId } = await verifyPrivyToken(accessToken);
     const file = form.get("logo");
     if (!(file instanceof File)) throw new UserError("Choose an image file");
-    return { logoUrl: await uploadLogo(`signup-${privyUserId.replace(/[^a-z0-9]/gi, "").slice(-24)}`, file) };
+    return { logoUrl: await uploadLogo(signupFolder(privyUserId), file) };
   });
 }

@@ -4,7 +4,8 @@ import { PublicKey } from "@solana/web3.js";
 import { UserError } from "@/lib/data/result";
 import { validateRulebook } from "@/lib/server/access";
 import { ownerStatement, verifyOwnerSignature } from "@/lib/server/owner-signature";
-import { applyPermissions, PERMISSIONS_PURPOSE, permissionsOf, type AgentPermissions } from "./permissions-model";
+import { applyPermissions, permissionsOf, type AgentPermissions } from "./permissions-model";
+import { PERMISSIONS_PURPOSE, permissionsPurpose } from "./permissions-purpose";
 import { agentPubkey, treasuryContext } from "./server";
 
 export { applyPermissions, PERMISSIONS_PURPOSE, permissionsOf, type AgentPermissions };
@@ -110,7 +111,8 @@ export type PermissionsApproval =
  * signature is the approval record either way.
  */
 export async function savePermissions(p: { exporterId: string; wallet?: string; permissions: AgentPermissions; approval: PermissionsApproval }): Promise<{ signatures: string[]; approvedAt: string }> {
-  if (!verifyOwnerSignature({ wallet: p.wallet, message: p.approval.message, signature: p.approval.signature, exporterId: p.exporterId, purpose: PERMISSIONS_PURPOSE })) {
+  // The purpose carries a digest of the permissions, so the signature covers exactly what is applied below.
+  if (!verifyOwnerSignature({ wallet: p.wallet, message: p.approval.message, signature: p.approval.signature, exporterId: p.exporterId, purpose: permissionsPurpose(p.permissions) })) {
     throw new UserError("That approval didn't come from your signed-in passkey wallet. Try again.");
   }
   const { connection, feePayer, store } = treasuryContext();
@@ -143,6 +145,6 @@ export async function savePermissions(p: { exporterId: string; wallet?: string; 
   return { signatures, approvedAt: at.toISOString() };
 }
 
-export function permissionsStatement(exporterId: string, at = new Date()): string {
-  return ownerStatement({ exporterId, purpose: PERMISSIONS_PURPOSE, at });
+export function permissionsStatement(exporterId: string, permissions: AgentPermissions, at = new Date()): string {
+  return ownerStatement({ exporterId, purpose: permissionsPurpose(permissions), at });
 }

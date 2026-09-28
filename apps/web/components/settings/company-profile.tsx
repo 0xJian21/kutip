@@ -40,9 +40,9 @@ export function CompanyProfileForm({ initial }: { initial: Exporter }) {
     <Card>
       <CardHeader title="Company" caption="Shown on invoices, pay pages and receipts so buyers know who they are paying." />
       <form className="mt-5 grid gap-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
-        <Field label="Company logo" hint="PNG, JPEG, WebP or SVG, under 512 KB. Square works best.">
+        <Field label="Company logo" hint="PNG, JPEG or WebP, under 512 KB. Square works best.">
           <label className="flex cursor-pointer items-center gap-4 rounded-md border border-dashed border-line-strong bg-well p-4 transition-colors duration-(--dur-fast) hover:border-accent">
-            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} disabled={pending} />
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} disabled={pending} />
             <Avatar name={c.name || "Your company"} src={logoUrl} size="lg" shape="square" />
             <span className="min-w-0 flex-1 text-base text-ink">{logoUrl ? "Choose another file to replace it." : "Drop a logo here, or click to choose"}</span>
             <span className={buttonClass("outline", "sm")}><Upload size={14} aria-hidden="true" /> Choose file</span>

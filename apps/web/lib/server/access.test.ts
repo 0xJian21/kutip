@@ -1,16 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RULEBOOK } from "@kutip/agent";
-import { assertApprover, exporterForSignIn, safeNext, validateRulebook } from "./access";
-
-describe("exporterForSignIn (C1)", () => {
-  it("a linked Kutip user gets their exporter", () => {
-    expect(exporterForSignIn({ exporterId: "exp_a" }, {})).toBe("exp_a");
-  });
-  it("an unknown Privy user is refused unless the demo fallback is explicitly on", () => {
-    expect(() => exporterForSignIn(null, {})).toThrow(/isn't linked to a Kutip account/);
-    expect(exporterForSignIn(null, { demoFallback: "exp_teratai" })).toBe("exp_teratai");
-  });
-});
+import { assertApprover, safeNext, validateRulebook } from "./access";
 
 describe("assertApprover (C1)", () => {
   it("only the signed-in owner's own wallet may get a co-signed approval", () => {
