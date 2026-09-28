@@ -70,7 +70,8 @@ export type AgentActionKind =
   | "escalate"
   | "cash_out_alert"
   | "extract_invoice"
-  | "cancel_reminders";
+  | "cancel_reminders"
+  | "reply";
 
 export const AGENT_KIND_LABEL: Record<AgentActionKind, string> = {
   reminder: "Reminder",
@@ -81,4 +82,5 @@ export const AGENT_KIND_LABEL: Record<AgentActionKind, string> = {
   cash_out_alert: "Cash-out alert",
   extract_invoice: "Invoice read",
   cancel_reminders: "Payment received",
+  reply: "Reply sent",
 };

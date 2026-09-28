@@ -47,6 +47,7 @@ export const agentActionKind = pgEnum("agent_action_kind", [
   "cash_out_alert",
   "extract_invoice",
   "cancel_reminders",
+  "reply",
 ]);
 export const messageDirection = pgEnum("message_direction", ["out", "in"]);
 export const userRole = pgEnum("user_role", ["owner", "admin"]);
@@ -87,6 +88,8 @@ export const exporters = pgTable("exporters", {
   rulebook: jsonb("rulebook").$type<RulebookJson>().notNull(),
   /** Owner's own whitelisted DAX deposit addresses (cash-out). */
   cashOutWhitelist: jsonb("cash_out_whitelist").$type<Array<{ label: string; address: string }>>().notNull().default([]),
+  /** Where buyers' replies go: Reply-To on every outgoing email (IMPROVEMENTS E2.2). */
+  contactEmail: text("contact_email"),
   createdAt: createdAt(),
 }).enableRLS();
 
@@ -229,6 +232,8 @@ export const agentActions = pgTable(
     ruleId: text("rule_id").notNull(),
     status: agentActionStatus("status").notNull(),
     txSignature: text("tx_signature"),
+    /** Who approved a sent reply (E3): a user id, or "agent" for an automatic routine reply. */
+    approvedBy: text("approved_by"),
     createdAt: createdAt(),
   },
   (t) => [index("agent_actions_exporter_created_idx").on(t.exporterId, t.createdAt), index("agent_actions_buyer_idx").on(t.buyerId)],
@@ -240,14 +245,22 @@ export const messages = pgTable(
     id: text("id").primaryKey(),
     invoiceId: text("invoice_id").notNull().references(() => invoices.id),
     direction: messageDirection("direction").notNull(),
-    channel: text("channel").notNull().default("email"),
+    channel: text("channel").$type<"email" | "pay_page" | "logged">().notNull().default("email"),
     from: text("from").notNull(),
     subject: text("subject").notNull(),
     body: text("body").notNull(),
     classification: jsonb("classification").$type<{ intent: string; confidence: number }>(),
+    /** Outbound agent drafts wait as "draft" until the owner approves (E3); only "sent" rows count as sent. */
+    status: text("status").$type<"draft" | "sent" | "discarded">().notNull().default("sent"),
+    /** The inbound message this reply answers. */
+    inReplyTo: text("in_reply_to"),
     createdAt: createdAt(),
   },
-  (t) => [index("messages_invoice_idx").on(t.invoiceId)],
+  (t) => [
+    index("messages_invoice_idx").on(t.invoiceId),
+    check("messages_status_valid", sql`${t.status} in ('draft', 'sent', 'discarded')`),
+    check("messages_channel_valid", sql`${t.channel} in ('email', 'pay_page', 'logged')`),
+  ],
 ).enableRLS();
 
 export const sweeps = pgTable(

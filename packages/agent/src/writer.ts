@@ -21,7 +21,8 @@ export type AgentActionKind =
   | "escalate"
   | "cash_out_alert"
   | "extract_invoice"
-  | "cancel_reminders";
+  | "cancel_reminders"
+  | "reply";
 
 const emailSchema = z.object({ subject: z.string(), body: z.string() });
 

@@ -36,6 +36,13 @@
       "when": 1790498531195,
       "tag": "0004_owner_broadcast_no_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790608068753,
+      "tag": "0006_inbox",
+      "breakpoints": true
     }
   ]
 }
