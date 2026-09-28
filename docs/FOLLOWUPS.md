@@ -32,3 +32,7 @@ Known gaps left open on purpose (2026-09-27). Each has where, what goes wrong, a
 - [ ] **Fee payer balance.** `BGs4mR…yr7L` has about 0.053 SOL. Each proposal costs about 0.0041 SOL rent (refundable after execution), each re-provision about 0.027 SOL, and each payment about 0.00001 SOL. Top up before demo day if you plan more rehearsals.
 - [ ] **Fly bill.** `kutip-worker` is shared-cpu-1x, 512 MB, in Tokyo: $0.00000075/s CPU plus $0.00000193/GB/s for the extra 0.25 GB, both ×1.3077 for the region, which comes to about **US$4.17 per 30 days**. Inbound data (the gRPC stream) is free; outbound is $0.04/GB (cents). The machine uses about 127 MB. After the demo, `fly scale memory 256 -a kutip-worker` brings it to about US$2.54.
 - [ ] **Fly machine count.** Keep exactly one machine: the Solami Pro plan allows 2 gRPC streams, and two workers would double-process payments.
+
+## Later (after the hackathon)
+
+- [ ] **Move to Singapore, all together or not at all.** The database decides where the servers go: Supabase is in ap-northeast-1 (Tokyo), so Vercel (`hnd1`) and Fly (`nrt`) sit next to it. Moving only the servers to Singapore would add ~70 ms to every DB round trip, and pages make 5–9 of them. For Malaysian users, create a Supabase project in `ap-southeast-1`, run `db:migrate` and `demo-reset`, swap `DATABASE_URL` / `SUPABASE_URL` / `SUPABASE_ANON_KEY` in `.env`, Vercel and Fly, then set Vercel `regions: ["sin1"]` and Fly `primary_region = "sin"`. Gain: ~60 ms faster page loads from KL.
