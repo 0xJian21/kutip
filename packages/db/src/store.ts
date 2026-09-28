@@ -110,6 +110,8 @@ export type AgentActionInput = {
   ruleId: string; // C1–C6, T1–T5, I1
   status: AgentActionStatus;
   txSignature?: string;
+  /** Who approved it (E3): a user id, or "agent". */
+  approvedBy?: string;
   at?: Date;
 };
 

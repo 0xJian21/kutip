@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildBuyerContext } from "./context";
 import { fakeAnthropic, promptText } from "./testing/fake-anthropic";
 import { EXPORTER_NAME, HARBOURLINE, HARBOURLINE_INVOICES, HARBOURLINE_MESSAGES } from "./testing/buyers";
-import { explainAction, writeReceipt, writeReminder } from "./writer";
+import { explainAction, writeReceipt, writeReminder, writeReply } from "./writer";
 
 const ctx = buildBuyerContext({ exporterName: EXPORTER_NAME, buyer: HARBOURLINE, invoices: HARBOURLINE_INVOICES, messages: HARBOURLINE_MESSAGES });
 const now = new Date("2026-09-25T23:00:00Z"); // 26 Sep, 09:00 Sydney: 5 days overdue
@@ -80,5 +80,40 @@ describe("explainAction", () => {
     const { client } = fakeAnthropic(() => ({ output: { decision: "Paused reminders — buyer promised", reason: "Promise within 7 days" } }));
     const out = await explainAction(client, ctx, { kind: "classify_reply", decision: { allowed: true, ruleId: "C5", reason: "x" }, facts: [] });
     expect(out.decision).not.toContain("—");
+  });
+});
+
+describe("writeReply (M2)", () => {
+  const message = { body: "Hi, could you send the invoice again? And how do we pay?", receivedAt: "2026-09-26T01:00:00Z" };
+  const reply = (body: string, topic = "resend_invoice") => () => ({ output: { subject: "Re: INV-2026-0142", body, topic } });
+
+  it("drafts from code-computed facts and returns the model's topic as a proposal", async () => {
+    const { client, requests } = fakeAnthropic(reply("Hi Claire, here is INV-2026-0142 again, USD 12,480.00, due 21 September 2026."));
+    const out = await writeReply(client, ctx, { invoiceId: "inv_0142", message, channel: "email", now });
+    const text = promptText(requests[0]);
+    expect(text).toContain("USD 12,480.00");
+    expect(text).toContain("21 September 2026");
+    expect(text).toContain("could you send the invoice again");
+    expect(out).toMatchObject({ topic: "resend_invoice", subject: "Re: INV-2026-0142" });
+  });
+
+  it("adds the pay link itself for email replies that resend the invoice or explain how to pay", async () => {
+    const { client } = fakeAnthropic(reply("Hi Claire, here is how to pay INV-2026-0142.", "payment_instructions"));
+    expect((await writeReply(client, ctx, { invoiceId: "inv_0142", message, channel: "email", now })).body).toContain("https://kutip.my/pay/inv_0142");
+    const { client: c2 } = fakeAnthropic(reply("Hi Claire, here is how to pay INV-2026-0142.", "payment_instructions"));
+    // On the pay page the buyer is already on the link.
+    expect((await writeReply(c2, ctx, { invoiceId: "inv_0142", message, channel: "pay_page", now })).body).not.toContain("https://");
+  });
+
+  it("rejects a draft with an amount that isn't in the facts, or discount talk", async () => {
+    const { client } = fakeAnthropic(reply("Hi Claire, you can pay USD 12,000.00 instead."));
+    await expect(writeReply(client, ctx, { invoiceId: "inv_0142", message, channel: "email", now })).rejects.toThrow(/amount/);
+    const { client: c2 } = fakeAnthropic(reply("Hi Claire, we can offer a 5% discount if you pay this week."));
+    await expect(writeReply(c2, ctx, { invoiceId: "inv_0142", message, channel: "email", now })).rejects.toThrow(/discount/);
+  });
+
+  it("treats an unknown topic as other", async () => {
+    const { client } = fakeAnthropic(reply("Hi Claire, thanks for your message.", "refund_everything"));
+    expect((await writeReply(client, ctx, { invoiceId: "inv_0142", message, channel: "email", now })).topic).toBe("other");
   });
 });

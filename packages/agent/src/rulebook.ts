@@ -1,6 +1,6 @@
 /**
  * The owner's rulebook (SPEC §4). Same shape as `Rulebook` in apps/web/lib/ui/types.ts.
- * Rule ids used in decisions: C1–C6 collections, T1–T5 treasury, I1 invoice reading.
+ * Rule ids used in decisions: C1–C7 collections (C7 = replies to buyer messages, IMPROVEMENTS E3), T1–T5 treasury, I1 invoice reading.
  */
 import { z } from "zod";
 
