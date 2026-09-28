@@ -56,6 +56,15 @@ describe("company profile", () => {
   });
 });
 
+describe("sign-up cap", () => {
+  test("countExportersCreatedSince counts every exporter created after the instant (onboarding's cross-instance cap)", async () => {
+    const before = await store.countExportersCreatedSince(new Date(Date.now() - 3_600_000));
+    await store.createExporter({ name: "New Co", treasuryMultisig: "", treasuryVault: "", treasuryUsdcAta: "", rulebook: RULEBOOK });
+    expect(await store.countExportersCreatedSince(new Date(Date.now() - 3_600_000))).toBe(before + 1);
+    expect(await store.countExportersCreatedSince(new Date(Date.now() + 60_000))).toBe(0);
+  });
+});
+
 describe("buyer address", () => {
   test("createBuyer stores the billing address and getInvoice exposes it", async () => {
     const b = await store.createBuyer({ ...buyerInput(exporterId, "Kobayashi"), address: "1-2-3 Umeda, Osaka" });

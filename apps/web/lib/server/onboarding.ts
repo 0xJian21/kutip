@@ -13,12 +13,13 @@ import { agentPubkey, treasuryContext } from "@/lib/treasury/server";
  * exporter + owner user, provision the main treasury multisig on Solana (owner = the
  * user's embedded wallet, agent = Initiate only, USDC ATA pre-created; Kutip pays the
  * rent), then start the session. Idempotent per owner wallet: the create key is derived
- * from it, so a retry finds the same multisig and skips the chain write.
+ * from the wallet alone, so a retry after a failed or timed-out provision (which leaves an
+ * empty exporter row) finds the same multisig and skips the chain write.
  */
 
 /** Kutip's fee payer must keep enough SOL for payments after paying a treasury's rent. */
 export const PROVISION_MIN_LAMPORTS = 20_000_000n;
-/** Provisioning is a mainnet write anyone with a browser can trigger: cap it per instance. */
+/** Provisioning is a mainnet write anyone with a browser can trigger: 5 an hour across instances (DB), 5 per instance (memory, race-free). */
 const SIGNUPS_PER_HOUR = 5;
 const signups: number[] = [];
 
@@ -33,7 +34,10 @@ export async function completeOnboarding(accessToken: string, input: CompanyInpu
 
   const now = Date.now();
   while (signups.length && signups[0]! < now - 3_600_000) signups.shift();
-  if (signups.length >= SIGNUPS_PER_HOUR) throw new UserError("Too many new accounts right now. Try again in an hour.");
+  const busy = new UserError("Too many new accounts right now. Try again in an hour.");
+  if (signups.length >= SIGNUPS_PER_HOUR) throw busy;
+  signups.push(now); // reserved before any await, so parallel requests on this instance can't all pass
+  if ((await store().countExportersCreatedSince(new Date(now - 3_600_000))) >= SIGNUPS_PER_HOUR) throw busy;
 
   const { connection, feePayer, usdcMint } = treasuryContext();
   const balance = await connection.getBalance(feePayer.publicKey);
@@ -52,11 +56,10 @@ export async function completeOnboarding(accessToken: string, input: CompanyInpu
     treasuryUsdcAta: "",
     rulebook: DEFAULT_RULEBOOK,
   });
-  signups.push(now);
   const r = await provisionMultisig({
     connection,
     feePayer,
-    createKey: createKeyFor(feePayer.secretKey, `treasury:${exporter.id}:${owner}`),
+    createKey: createKeyFor(feePayer.secretKey, `treasury:onboarding:${owner}`),
     owner: ownerKey,
     agent: agentPubkey(),
     usdcMint,

@@ -43,7 +43,9 @@ export type CashOutPreview = {
 
 export async function previewCashOut(exporterId: string, input: { amountUsdc: bigint; destination?: string }): Promise<CashOutPreview> {
   const { store } = treasuryContext();
-  const [t, rulebook] = await Promise.all([store.getTreasury(exporterId), store.getRulebook(exporterId)]);
+  const [t, rulebook, actions] = await Promise.all([store.getTreasury(exporterId), store.getRulebook(exporterId), store.listAgentActions(exporterId)]);
+  // Each proposal locks ~0.0041 SOL of fee-payer rent until it is executed or closed: one open cash-out at a time.
+  const open = actions.find((a) => a.kind === "cash_out_alert" && a.status === "proposed" && a.proposalIndex !== undefined);
   const rate = t.cashOut.currentRate;
   const grossMyrSen = toMyr(input.amountUsdc, rate);
   const feeMyrSen = (grossMyrSen * CASH_OUT_FEE_BPS + 5_000n) / 10_000n;
@@ -57,7 +59,9 @@ export async function previewCashOut(exporterId: string, input: { amountUsdc: bi
         ? `Your treasury holds USD ${formatUsdc(t.mainBalanceUsdc)}`
         : !destination
           ? "Whitelist your exchange deposit address first"
-          : undefined;
+          : open
+            ? `Cash-out proposal #${open.proposalIndex} is still waiting for you. Approve or reject it in Agent activity first.`
+            : undefined;
   return {
     amountUsdc: input.amountUsdc,
     rate,

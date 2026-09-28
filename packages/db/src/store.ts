@@ -3,7 +3,7 @@
  * buyer-facing calls (getPayInvoice, getBuyerContext) take one invoice/buyer id
  * and only ever read that buyer's rows.
  */
-import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, like, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, or, type SQL } from "drizzle-orm";
 import type { Db } from "./client";
 import { newId, newMemoCode } from "./ids";
 import { iso, rulebookFromJson, rulebookToJson, toAction, toBuyer, toInvoice, toMessage, toPayment, toSweep } from "./map";
@@ -275,6 +275,12 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       const e = await store.getExporter(id);
       if (!e) throw new Error("exporter insert failed");
       return e;
+    },
+
+    /** Onboarding's sign-up cap across serverless instances (each sign-up provisions a treasury on mainnet). */
+    async countExportersCreatedSince(since: Date): Promise<number> {
+      const [r] = await db.select({ n: count() }).from(s.exporters).where(gte(s.exporters.createdAt, since));
+      return Number(r?.n ?? 0);
     },
 
     async createUser(input: CreateUserInput): Promise<{ id: string }> {
