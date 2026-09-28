@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Funnel, StackedColumns } from "@/components/ui/charts";
+import { CommandPanel, SUGGESTIONS } from "@/components/agent/command-panel";
 import { CommandBar } from "@/components/ui/command-bar";
 import { Stat } from "@/components/ui/stat";
 import { fetchDashboard } from "@/lib/data/actions";
@@ -71,7 +72,7 @@ export function LiveDashboard({
         </div>
       </Card>
 
-      <CommandBar suggestions={["What’s due this week?", "Who hasn’t paid?", "Sweep now", "Cash out RM 10k"]} />
+      {MOCK ? <CommandBar suggestions={SUGGESTIONS} /> : <CommandPanel />}
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 lg:gap-6">

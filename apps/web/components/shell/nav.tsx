@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bot, BookOpen, FileText, LayoutGrid, Landmark, Menu, Plus, X } from "lucide-react";
+import { Bot, BookOpen, CalendarDays, FileText, Inbox, LayoutGrid, Landmark, Menu, Plus, X } from "lucide-react";
 import { Avatar, KutipMark } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { buttonClass } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { buttonClass } from "@/components/ui/button";
 const ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutGrid },
   { href: "/invoices", label: "Invoices", icon: FileText },
+  { href: "/inbox", label: "Inbox", icon: Inbox },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/agent", label: "Agent activity", icon: Bot },
   { href: "/rulebook", label: "Rulebook", icon: BookOpen },
   { href: "/treasury", label: "Treasury", icon: Landmark },

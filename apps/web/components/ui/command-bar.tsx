@@ -11,11 +11,13 @@ export function CommandBar({
   placeholder = "Ask Kutip: “What’s due this week?”, “Remind Najd about INV-0141”, “Sweep now”",
   suggestions = [],
   onSubmit,
+  autoFocus = false,
   className = "",
 }: {
   placeholder?: string;
   suggestions?: string[];
   onSubmit?: (text: string) => void | Promise<void>;
+  autoFocus?: boolean;
   className?: string;
 }) {
   const [text, setText] = useState("");
@@ -36,6 +38,7 @@ export function CommandBar({
           placeholder={placeholder}
           aria-label="Ask the agent"
           disabled={!wired}
+          autoFocus={autoFocus}
           className="h-9 min-w-0 flex-1 bg-transparent text-base text-ink placeholder:text-ink-3 focus:outline-none disabled:cursor-default"
         />
         <button
@@ -54,7 +57,7 @@ export function CommandBar({
               key={s}
               type="button"
               disabled={!wired}
-              onClick={() => setText(s)}
+              onClick={() => (wired ? void onSubmit?.(s) : setText(s))}
               className="inline-flex h-7 items-center rounded-full bg-paper-2 px-3 text-xs font-medium text-ink-2 transition-colors duration-(--dur-fast) hover:bg-accent-soft hover:text-accent disabled:cursor-default disabled:hover:bg-paper-2 disabled:hover:text-ink-2"
             >
               {s}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { MessageThread } from "@/components/pay/message-thread";
 import { PayCard } from "@/components/pay/pay-card";
 import { KutipMark } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -33,8 +34,9 @@ export default async function PayPage({ params, searchParams }: PageProps<"/pay/
       </header>
       <main className="mx-auto w-full max-w-md flex-1 px-4 pb-10 pt-1">
         <PayCard initial={pay} solHref={solHref} />
-        {/* Session 8c: buyer message thread ("Questions about this invoice? Message {exporter}") renders here, scoped to this invoice. */}
-        <section id="buyer-messages" aria-label="Messages about this invoice" className="mt-4" />
+        <section id="buyer-messages" aria-label="Messages about this invoice" className="mt-4">
+          <MessageThread invoiceId={pay.invoiceId} exporterName={pay.exporterName} />
+        </section>
         <p className="mt-6 text-center text-xs text-ink-3">
           Kutip builds this payment for you and covers the network fee. Your wallet shows the exact amount before you approve.
           <br />Made in Muar, Malaysia.
