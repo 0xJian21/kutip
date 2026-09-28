@@ -7,7 +7,14 @@
  */
 import { decodeHeader, encodeHeader, paymentRequired, paymentRequirements, settleX402, verifyX402, X402_HEADERS, type PaymentPayload, type SettleResponse } from "@kutip/solana";
 import type { NextRequest } from "next/server";
-import { amountDue, json, PAYABLE, payTarget, runtime, type PayTarget } from "../../../pay/_lib/server";
+import { amountDue, clientIp, json, PAYABLE, payTarget, runtime, screenPayer, type PayTarget } from "../../../pay/_lib/server";
+
+// Fee-payer protection (per instance): a payload that passes simulation can still fail on-chain, and Kutip pays for it.
+/** One settlement in flight per invoice; a parallel payload gets 409 instead of a second co-signed tx. */
+const settling = new Set<string>();
+/** A payer whose co-signed tx failed on-chain waits before Kutip co-signs for it again. */
+const cooldown = new Map<string, number>();
+const COOLDOWN_MS = 10 * 60_000;
 
 type Ctx = { params: Promise<{ id: string }> };
 const CORS = { "access-control-allow-methods": "GET,OPTIONS", "access-control-allow-headers": "Content-Type, PAYMENT-SIGNATURE", "access-control-expose-headers": "PAYMENT-REQUIRED, PAYMENT-RESPONSE" };
@@ -53,6 +60,31 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 
   const header = req.headers.get(X402_HEADERS.signature);
   if (!header) return respond402("payment required");
+  if (!rt.invoiceLimiter.allow(`x402:${id}`) || !rt.walletLimiter.allow(`x402-ip:${clientIp(req.headers)}`)) {
+    return json(429, { error: "too many payment attempts; retry in a minute" }, CORS);
+  }
+  if (settling.has(id)) return json(409, { error: "a payment for this invoice is being settled; retry shortly" }, CORS);
+  settling.add(id);
+  try {
+    return await settle({ id, rt, target, due, requirements, required, respond402, header });
+  } finally {
+    settling.delete(id);
+  }
+}
+
+async function settle(
+  c: {
+    id: string;
+    rt: ReturnType<typeof runtime>;
+    target: PayTarget;
+    due: bigint;
+    requirements: ReturnType<typeof paymentRequirements>;
+    required: (error?: string) => ReturnType<typeof paymentRequired>;
+    respond402: (error: string, extra?: Record<string, string>) => Response;
+    header: string;
+  },
+): Promise<Response> {
+  const { id, rt, target, due, requirements, required, respond402, header } = c;
 
   let payload: PaymentPayload;
   try {
@@ -67,9 +99,14 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     return json(400, { ...required(verified.message), invalidReason: verified.reason }, { ...CORS, [X402_HEADERS.required]: encodeHeader(required(verified.message)), [X402_HEADERS.response]: encodeHeader(fail) });
   }
 
+  if ((cooldown.get(verified.payer) ?? 0) > Date.now()) return json(429, { error: "a recent payment from this wallet failed on-chain; retry later" }, CORS);
+  const gate = await screenPayer(rt, target, verified.payer); // same sanctions + history gate as Solana Pay
+  if (!gate.ok) return json(403, { error: gate.message }, CORS);
+
   const settled = await settleX402({ verified, feePayer: rt.config.feePayer, rpc: rt.x402Rpc });
   if (!settled.success) {
     console.error(`[x402] settle failed ${id}: ${settled.errorReason}`);
+    if (settled.errorReason?.startsWith("transaction failed on-chain")) cooldown.set(verified.payer, Date.now() + COOLDOWN_MS); // landed and failed: the fee payer paid
     return respond402(settled.errorReason ?? "settlement failed", { [X402_HEADERS.response]: encodeHeader(settled) });
   }
   rt.receipts.set(id, settled);

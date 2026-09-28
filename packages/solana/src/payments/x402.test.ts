@@ -1,7 +1,7 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, createTransferCheckedInstruction, createTransferInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { ComputeBudgetProgram, Keypair, PublicKey, SystemProgram, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { describe, expect, test } from "vitest";
-import { MAX_CU_LIMIT, MAX_CU_PRICE_MICROLAMPORTS, USDC_MINT } from "../shared/constants";
+import { USDC_MINT, X402_MAX_CU_LIMIT, X402_MAX_CU_PRICE_MICROLAMPORTS } from "../shared/constants";
 import { memoInstruction } from "../shared/memo";
 import {
   buildX402ClientTransaction,
@@ -142,8 +142,12 @@ describe("verifyX402: every rule has a negative case", () => {
   test("rejects more than 7 instructions", () => expectReason(payloadWith([...cu(), transfer(), lighthouse(), lighthouse(), lighthouse(), lighthouse(), memoInstruction("k_test0001")]), /instructions/));
   test("rejects when instruction 0 is not SetComputeUnitLimit", () => expectReason(payloadWith([cu()[1]!, cu()[0]!, transfer(), memoInstruction("k_test0001")]), /SetComputeUnitLimit/));
   test("rejects when instruction 1 is not SetComputeUnitPrice", () => expectReason(payloadWith([cu()[0]!, memoInstruction("x"), transfer(), memoInstruction("k_test0001")]), /SetComputeUnitPrice/));
-  test("rejects a compute unit price above the cap", () => expectReason(payloadWith([...cu(20_000, MAX_CU_PRICE_MICROLAMPORTS + 1), transfer(), memoInstruction("k_test0001")]), /price/));
-  test("rejects a compute unit limit above the cap", () => expectReason(payloadWith([...cu(MAX_CU_LIMIT + 1, 1), transfer(), memoInstruction("k_test0001")]), /limit/));
+  test("rejects a compute unit price above the cap", () => expectReason(payloadWith([...cu(20_000, X402_MAX_CU_PRICE_MICROLAMPORTS + 1), transfer(), memoInstruction("k_test0001")]), /price/));
+  test("x402 caps are tight: a failed settle costs the fee payer at most ~12k lamports", () => {
+    expect(X402_MAX_CU_LIMIT).toBeLessThanOrEqual(200_000);
+    expect(X402_MAX_CU_PRICE_MICROLAMPORTS).toBeLessThanOrEqual(10_000);
+  });
+  test("rejects a compute unit limit above the cap", () => expectReason(payloadWith([...cu(X402_MAX_CU_LIMIT + 1, 1), transfer(), memoInstruction("k_test0001")]), /limit/));
   test("rejects a plain Transfer instead of TransferChecked", () => expectReason(payloadWith([...cu(), createTransferInstruction(clientAta, destAta, client.publicKey, 100_000n), memoInstruction("k_test0001")]), /TransferChecked/));
   test("rejects a look-alike mint", () => {
     const fake = Keypair.generate().publicKey;
@@ -210,12 +214,13 @@ describe("settleX402", () => {
     expect(sent.signatures.every((sig) => sig.some((b) => b !== 0))).toBe(true);
     expect(sent.message.staticAccountKeys[0]!.equals(feePayer.publicKey)).toBe(true);
   });
-  test("reports a send failure without a signature", async () => {
-    const rpc = fakeRpc({ sendRawTransaction: async () => { throw new Error("blockhash not found"); } });
+  test("reports a send failure without a signature, and without the RPC error text (it can carry the RPC URL + key)", async () => {
+    const rpc = fakeRpc({ sendRawTransaction: async () => { throw new Error("request to https://rpc.example/?api_key=SECRET failed"); } });
     const v = await verify(payloadWith(good()), { rpc });
     if (!v.ok) throw new Error("expected valid");
     const s = await settleX402({ verified: v, feePayer, rpc });
-    expect(s).toMatchObject({ success: false, transaction: "", errorReason: expect.stringMatching(/blockhash not found/) });
+    expect(s).toMatchObject({ success: false, transaction: "", errorReason: "send_failed" });
+    expect(JSON.stringify(s)).not.toContain("SECRET");
   });
   test("reports an on-chain failure with the signature", async () => {
     const rpc = fakeRpc({ confirmTransaction: async () => ({ slot: 5, err: { InstructionError: [2, "Custom"] } }) });

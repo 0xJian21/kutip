@@ -4,8 +4,10 @@
  * globalThis so `next dev` HMR and per-instance serverless reuse them.
  */
 import path from "node:path";
+import { after } from "next/server";
 import { connect, createStore, type Store } from "@kutip/db";
 import {
+  blockingScreening,
   InFlight,
   jupiterClient,
   LiveTxCache,
@@ -13,14 +15,18 @@ import {
   paymentsConfigFromEnv,
   RateLimiter,
   ReplayCache,
+  reusableScreening,
   rpcFromConnection,
+  SANCTIONED,
   screeningRpcFromConnection,
+  screenWithBudget,
   x402RpcFromConnection,
   type BuiltPayment,
   type JupiterClient,
   type PaymentsConfig,
   type SettleResponse,
   type Connection,
+  PublicKey,
 } from "@kutip/solana";
 
 type Runtime = {
@@ -143,3 +149,56 @@ export async function recordQuote(reference: string, quote: { inputMint: "SOL" |
 
 export const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   Response.json(body, { status, headers: { "access-control-allow-origin": "*", "cache-control": "no-store", ...headers } });
+
+const SCREEN_BUDGET_MS = 2_500;
+
+/**
+ * The payer gate shared by Solana Pay and x402. A recorded flag (incl. a late verdict) keeps the wallet out;
+ * a pass from the last 24 h is reused; the static sanctions list is always checked. A fresh history check
+ * gets SCREEN_BUDGET_MS: past that the wallet passes provisionally and the verdict is recorded after the
+ * response (Fluid compute: 300 s function lifetime, a slow screen takes 12–37 s).
+ */
+export async function screenPayer(rt: Runtime, target: PayTarget, wallet: string): Promise<{ ok: true; note: string } | { ok: false; message: string }> {
+  const refused = { ok: false as const, message: `This wallet can't be used to pay ${target.exporterName}. Please contact them for another payment method.` };
+  const latest = SANCTIONED.has(wallet) ? null : await rt.store.latestScreening(wallet);
+  const blocked = blockingScreening(latest);
+  if (blocked) {
+    console.warn(`[pay] refused ${wallet} for ${target.invoiceId}: ${blocked.reasons.join("; ")}`);
+    return refused;
+  }
+  const reused = reusableScreening(latest, new Date());
+  const budgeted = reused ? null : await screenWithBudget(new PublicKey(wallet), { rpc: rt.screeningRpc, budgetMs: SCREEN_BUDGET_MS });
+  const screening = reused ?? budgeted!.result;
+  if (budgeted?.late) after(() => finishScreening(rt, target, wallet, budgeted.late!));
+  // Every invoice gets its own row, even when the screening was reused (the compliance trail shows which check covered which invoice).
+  else await rt.store.recordScreening({ wallet, invoiceId: target.invoiceId, result: screening.result, reasons: reused ? [`reused screening ${latest?.id} from ${latest?.createdAt}`, ...screening.reasons] : screening.reasons });
+  if (screening.result === "flag") {
+    console.warn(`[pay] flagged ${wallet} for ${target.invoiceId}: ${screening.reasons.join("; ")}`);
+    return refused;
+  }
+  return { ok: true, note: reused ? " (reused)" : budgeted?.late ? " (provisional)" : "" };
+}
+
+/** The history check that ran past the budget: record it; a bad verdict escalates the invoice for the owner to review. */
+async function finishScreening(rt: Runtime, target: PayTarget, wallet: string, late: Promise<{ result: "pass" | "flag"; reasons: string[] }>) {
+  const t0 = Date.now();
+  const r = await late;
+  await rt.store.recordScreening({ wallet, invoiceId: target.invoiceId, result: r.result, reasons: r.reasons });
+  console.log(`[pay] late screening for ${wallet.slice(0, 6)}… on ${target.invoiceId}: ${r.result} (+${Date.now() - t0} ms after the response)`);
+  if (r.result === "pass") return;
+  await rt.store.recordAgentAction({
+    exporterId: target.exporterId,
+    buyerId: target.buyerId,
+    invoiceId: target.invoiceId,
+    kind: "escalate",
+    status: "escalated",
+    ruleId: "T1",
+    confidence: 1,
+    inputSummary: `Payer ${wallet.slice(0, 6)}… on ${target.invoiceNumber}: ${r.reasons.join("; ")}`,
+    decision: `Flagged the paying wallet on ${target.invoiceNumber} for your review`,
+    reason: "The wallet check finished after the payment was prepared and did not pass",
+  });
+}
+
+/** The caller's IP as the platform saw it (Vercel sets x-real-ip; the first x-forwarded-for entry is client-controlled elsewhere). */
+export const clientIp = (h: Headers): string => h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",").at(-1)?.trim() ?? "unknown";

@@ -22,9 +22,19 @@ export class LiveTxCache<T = string> {
 
 export class RateLimiter {
   private readonly hits = new Map<string, number[]>();
+  private pruneAt = 1_000;
   constructor(private readonly opts: { limit: number; windowMs: number }) {}
 
+  /** Keys currently held (for tests). */
+  size(): number {
+    return this.hits.size;
+  }
+
   allow(key: string, now = Date.now()): boolean {
+    if (this.hits.size >= this.pruneAt) {
+      for (const [k, ts] of this.hits) if (!ts.some((t) => now - t < this.opts.windowMs)) this.hits.delete(k);
+      this.pruneAt = Math.max(1_000, this.hits.size * 2); // amortised: a flood of live keys doesn't prune on every call
+    }
     const recent = (this.hits.get(key) ?? []).filter((t) => now - t < this.opts.windowMs);
     if (recent.length >= this.opts.limit) {
       this.hits.set(key, recent);

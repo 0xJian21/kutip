@@ -1,6 +1,6 @@
 import { approveExecuteInstructions, buildOwnerTx } from "@kutip/solana";
 import { assertApprover } from "@/lib/server/access";
-import { json, pubkey, treasuryContext, treasuryMultisig } from "@/lib/treasury/server";
+import { agentPubkey, json, pubkey, routeError, treasuryContext, treasuryMultisig } from "@/lib/treasury/server";
 
 /**
  * Builds proposalApprove + vaultTransactionExecute for the owner, fee paid by
@@ -12,13 +12,16 @@ export async function POST(req: Request, ctx: RouteContext<"/api/treasury/propos
     const { index } = await ctx.params;
     const body = (await req.json()) as { owner?: string };
     const owner = pubkey(body.owner, "owner");
-    const { multisig: multisigPda, wallet } = await treasuryMultisig();
+    const { multisig: multisigPda, vaultAta, wallet } = await treasuryMultisig();
     assertApprover(owner.toBase58(), wallet); // never co-sign (and pay fees) for someone else's key
     const { connection, feePayer } = treasuryContext();
-    const { ixs, lookupTables } = await approveExecuteInstructions({ connection, multisigPda, transactionIndex: BigInt(index), member: owner });
+    const { ixs, lookupTables } = await approveExecuteInstructions({
+      connection, multisigPda, transactionIndex: BigInt(index), member: owner,
+      expect: { agent: agentPubkey(), feePayer: feePayer.publicKey, vaultAta }, // only Kutip-built USDC transfers
+    });
     const built = await buildOwnerTx({ connection, feePayer, ixs, lookupTables });
     return json({ transaction: built.base64, lastValidBlockHeight: built.lastValidBlockHeight });
   } catch (e) {
-    return json({ error: (e as Error).message }, 400);
+    return routeError(e, 400);
   }
 }

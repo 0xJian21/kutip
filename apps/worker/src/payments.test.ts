@@ -147,6 +147,28 @@ describe("backfill after a (re)connect", () => {
   });
 });
 
+describe("backfill isolation", () => {
+  beforeEach(() => invoiceFor(SPIKE_C, SPIKE_C_REF, 100_000n));
+
+  test("one signature that can't be recorded (or fetched) doesn't stop the rest of the catch-up", async () => {
+    const sig = SPIKE_C.transaction.signatures[0]!;
+    const broken = "BrokenSig1111111111111111111111111111111111111111111111111111111";
+    const rpc: TrackerRpc = {
+      ...noRpc,
+      // the broken one comes first, as it would for a newer tx on the same reference
+      getSignaturesForAddress: async (addr) => (addr === reference ? [{ signature: broken, slot: 1, err: null, confirmationStatus: "finalized" }, { signature: sig, slot: SPIKE_C.slot, err: null, confirmationStatus: "finalized" }] : []),
+      getTransaction: async (s) => {
+        if (s === broken) throw new Error("rpc hiccup");
+        return s === sig ? SPIKE_C : null;
+      },
+    };
+    const t = tracker(rpc);
+    await t.backfill(T(0));
+    expect((await store.getInvoice(exporterId, invoiceId))!.invoice.status).toBe("settled");
+    expect(logs.some((l) => l.includes("BrokenSi") && l.includes("rpc hiccup"))).toBe(true);
+  });
+});
+
 describe("swap payment", () => {
   const SWAP = fixture("spike-a-swap-phantom");
   beforeEach(async () => {

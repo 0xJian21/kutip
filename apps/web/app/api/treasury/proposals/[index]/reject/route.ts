@@ -1,6 +1,6 @@
 import { buildOwnerTx, rejectProposalInstructions } from "@kutip/solana";
 import { assertApprover } from "@/lib/server/access";
-import { json, pubkey, treasuryContext, treasuryMultisig } from "@/lib/treasury/server";
+import { json, pubkey, routeError, treasuryContext, treasuryMultisig } from "@/lib/treasury/server";
 
 /**
  * Builds proposalReject for the owner (FOLLOWUPS: rejecting used to update only the
@@ -19,6 +19,6 @@ export async function POST(req: Request, ctx: RouteContext<"/api/treasury/propos
     const built = await buildOwnerTx({ connection, feePayer, ixs });
     return json({ transaction: built.base64, lastValidBlockHeight: built.lastValidBlockHeight });
   } catch (e) {
-    return json({ error: (e as Error).message }, 400);
+    return routeError(e, 400);
   }
 }

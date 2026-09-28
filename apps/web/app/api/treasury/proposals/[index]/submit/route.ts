@@ -1,6 +1,6 @@
 import { parseSignedOwnerTx, sendSigned } from "@kutip/solana";
 import { assertApprover } from "@/lib/server/access";
-import { json, pubkey, treasuryContext, treasuryMultisig } from "@/lib/treasury/server";
+import { json, pubkey, routeError, treasuryContext, treasuryMultisig } from "@/lib/treasury/server";
 
 /**
  * Sends the owner-signed transaction from ../approve or ../reject.
@@ -29,6 +29,6 @@ export async function POST(req: Request, ctx: RouteContext<"/api/treasury/propos
     }
     return json({ transactionIndex: index, signature, decision, settled });
   } catch (e) {
-    return json({ error: (e as Error).message }, 400);
+    return routeError(e, 400);
   }
 }

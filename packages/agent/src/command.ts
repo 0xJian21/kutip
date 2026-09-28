@@ -359,6 +359,8 @@ export async function confirmReminder(
   const subject = req.subject.trim();
   const body = req.body.trim();
   if (!subject || !body) throw new InputError("The reminder is empty");
+  if (body.length > 4000) throw new InputError("Keep the reminder under 4,000 characters");
+  if (subject.length > 200) throw new InputError("Keep the subject under 200 characters");
   const now = deps.now();
 
   await deps.store.recordMessage({ invoiceId: inv.id, direction: "out", from: deps.store.exporterName ?? "You", subject, body, at: now });

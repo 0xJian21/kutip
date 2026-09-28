@@ -57,6 +57,13 @@ describe("pay-page messages (E2.1)", () => {
     expect((await inbox.postPayMessage(inv.id, "later", { now: at("2026-09-28T03:00:01Z") })).ok).toBe(true);
   });
 
+  test("parallel posts cannot exceed the hourly limit (count and insert are one locked step)", async () => {
+    const inv = await invoiceFor(a);
+    const now = at("2026-09-28T05:00:00Z");
+    const results = await Promise.all(Array.from({ length: 12 }, (_, i) => inbox.postPayMessage(inv.id, `burst ${i}`, { now })));
+    expect(results.filter((r) => r.ok)).toHaveLength(PAY_MESSAGES_PER_HOUR);
+  });
+
   test("leak test: the pay thread shows only this invoice's pay-page conversation, never drafts, emails or other invoices", async () => {
     const mine = await invoiceFor(a);
     const sibling = await invoiceFor(a); // same buyer, other invoice

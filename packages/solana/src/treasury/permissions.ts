@@ -54,7 +54,7 @@ export function spendingLimitChangeInstructions(p: {
     treasuryVaultPda: p.newLimit.treasuryVaultPda,
     treasuryVaultAta: p.newLimit.treasuryVaultAta,
   });
-  const actions: multisig.types.ConfigAction[] = p.currentLimitPda ? [{ __kind: "RemoveSpendingLimit", spendingLimit: p.currentLimitPda }, add] : [add];
+  const actions = limitChangeActions(add, p.currentLimitPda);
   const spendingLimitPda = spendingLimitPdaFor(p.multisigPda, p.newLimit.createKey);
   const common = { multisigPda: p.multisigPda, transactionIndex: p.transactionIndex };
   const ixs = [
@@ -69,6 +69,15 @@ export function spendingLimitChangeInstructions(p: {
     }),
   ];
   return { ixs, spendingLimitPda };
+}
+
+/**
+ * Add first, then remove. Remove closes the old limit by crediting the multisig's rent collector (the fee
+ * payer) directly; if Add's system-program CPI then debits that same account, the runtime rejects the
+ * execute with UnbalancedInstruction (seen on mainnet 2026-09-29, simulated both orders).
+ */
+export function limitChangeActions(add: multisig.types.ConfigAction, currentLimitPda?: PublicKey): multisig.types.ConfigAction[] {
+  return currentLimitPda ? [add, { __kind: "RemoveSpendingLimit", spendingLimit: currentLimitPda }] : [add];
 }
 
 /** Owner rejects an Active proposal on-chain (FOLLOWUPS: "Reject = DB only" before this). */

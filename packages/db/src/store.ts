@@ -3,7 +3,7 @@
  * buyer-facing calls (getPayInvoice, getBuyerContext) take one invoice/buyer id
  * and only ever read that buyer's rows.
  */
-import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, like, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, ne, or, type SQL } from "drizzle-orm";
 import type { Db } from "./client";
 import { newId, newMemoCode } from "./ids";
 import { iso, rulebookFromJson, rulebookToJson, toAction, toBuyer, toInvoice, toMessage, toPayment, toSweep } from "./map";
@@ -275,6 +275,14 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       const e = await store.getExporter(id);
       if (!e) throw new Error("exporter insert failed");
       return e;
+    },
+
+    /** Onboarding's sign-up cap across serverless instances (each sign-up provisions a treasury on mainnet). */
+    async countExportersCreatedSince(since: Date, o: { except?: string } = {}): Promise<number> {
+      // Only exporters that got a treasury count: an empty row from a failed provision cost nothing on-chain.
+      const where = and(gte(s.exporters.createdAt, since), ne(s.exporters.treasuryMultisig, ""), o.except ? ne(s.exporters.id, o.except) : undefined);
+      const [r] = await db.select({ n: count() }).from(s.exporters).where(where);
+      return Number(r?.n ?? 0);
     },
 
     async createUser(input: CreateUserInput): Promise<{ id: string }> {
@@ -929,7 +937,7 @@ export function createStore(db: Db, opts: { appUrl: string }) {
         .where(and(eq(s.buyers.id, buyerId), eq(s.buyers.exporterId, exporterId)));
       if (!r) return null;
       const [invoiceRows, messageRows, actionRows] = await Promise.all([
-        db.select().from(s.invoices).where(eq(s.invoices.buyerId, buyerId)).orderBy(asc(s.invoices.dueDate), asc(s.invoices.id)),
+        db.select().from(s.invoices).where(and(eq(s.invoices.buyerId, buyerId), ne(s.invoices.status, "draft"))).orderBy(asc(s.invoices.dueDate), asc(s.invoices.id)),
         db
           .select({ m: s.messages })
           .from(s.messages)

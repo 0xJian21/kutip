@@ -2,7 +2,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
 import { describe, expect, it } from "vitest";
 import { limitCreateKeyFor, spendingLimitPdaFor } from "./provision";
-import { limitVersionKeyFor, rejectProposalInstructions, spendingLimitChangeInstructions } from "./permissions";
+import { limitChangeActions, limitVersionKeyFor, rejectProposalInstructions, spendingLimitChangeInstructions } from "./permissions";
 
 const usdc = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 const owner = Keypair.generate().publicKey;
@@ -49,6 +49,12 @@ describe("spendingLimitChangeInstructions", () => {
     expect(spendingLimitPda.equals(spendingLimitPdaFor(multisigPda, newKey))).toBe(true);
     // the agent never signs a permissions change
     for (const ix of ixs) expect(signers(ix)).not.toContain(agent.toBase58());
+  });
+
+  it("adds the new limit before removing the old one (the other order fails on mainnet: UnbalancedInstruction when the rent collector is the rent payer)", () => {
+    const add = { __kind: "AddSpendingLimit" } as multisig.types.ConfigAction;
+    expect(limitChangeActions(add, current).map((x) => x.__kind)).toEqual(["AddSpendingLimit", "RemoveSpendingLimit"]);
+    expect(limitChangeActions(add, undefined).map((x) => x.__kind)).toEqual(["AddSpendingLimit"]);
   });
 
   it("only adds when there is no current limit", () => {

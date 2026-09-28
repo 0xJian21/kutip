@@ -30,4 +30,4 @@ export {
   type ProposalView,
   type UsdcTransfer,
 } from "./proposals";
-export { limitVersionKeyFor, readMultisig, readSpendingLimit, rejectProposalInstructions, spendingLimitChangeInstructions, type NewLimit, type SpendingLimitView } from "./permissions";
+export { limitChangeActions, limitVersionKeyFor, readMultisig, readSpendingLimit, rejectProposalInstructions, spendingLimitChangeInstructions, type NewLimit, type SpendingLimitView } from "./permissions";

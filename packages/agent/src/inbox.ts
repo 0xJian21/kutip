@@ -12,7 +12,7 @@ import type { Mailer } from "./mailer";
 import type { Rulebook } from "./rulebook";
 import type { InvoiceStatus, RuleId } from "./rules/decision";
 import { decideReply, type ReplyDecision } from "./rules/replies";
-import { replyPermission, type ReplyPermission } from "./rules/reply-permission";
+import { autoSendProblem, replyPermission, type ReplyPermission } from "./rules/reply-permission";
 import { writeReply } from "./writer";
 
 export type PortMessage = {
@@ -139,7 +139,9 @@ export async function handleInbound(deps: InboxDeps, req: { exporterId: string; 
   }
 
   const { draft, topic } = await draftFor(deps, loaded, exporterId, inbound);
-  const permission: ReplyPermission = replyPermission({ settings, classification: c, decision, topic, invoiceStatus: thread.invoice.status });
+  const allowed: ReplyPermission = replyPermission({ settings, classification: c, decision, topic, invoiceStatus: thread.invoice.status });
+  const unsafe = allowed.mode === "auto" ? autoSendProblem(`${draft.subject}\n${draft.body}`, { invoiceNumber: thread.invoice.number, payUrl: thread.invoice.payUrl }) : null;
+  const permission: ReplyPermission = unsafe ? { mode: "draft", allowed: false, ruleId: "C7", reason: `The draft needs your eyes before it goes out: ${unsafe}` } : allowed;
   if (permission.mode !== "auto") {
     await logReading("drafted a reply for you to approve", decision.allowed);
     return { classification: c, decision, permission, draftId: draft.id, sent: false };

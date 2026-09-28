@@ -143,15 +143,21 @@ export function createPaymentTracker(deps: {
       for (const ref of [...refs.keys()].filter(isPubkey)) {
         for (const s of await rpc.getSignaturesForAddress(ref)) {
           if (s.err || !s.confirmationStatus || tracked.has(s.signature) || final.has(s.signature)) continue;
-          const raw = await rpc.getTransaction(s.signature);
-          if (!raw) continue;
-          const at = s.blockTime ? new Date(s.blockTime * 1000) : now;
-          const started = await start(fromRpc(raw), at);
-          if (!started) continue;
-          const [sig, t] = started;
-          tracked.set(sig, t);
-          log(`Catch-up ${t.invoiceId} ${sig.slice(0, 8)}… found over RPC (${s.confirmationStatus})`);
-          await record(sig, t, s.confirmationStatus, at);
+          // One bad signature (RPC error, a tx carrying two watched references) must not stop the others.
+          try {
+            const raw = await rpc.getTransaction(s.signature);
+            if (!raw) continue;
+            const at = s.blockTime ? new Date(s.blockTime * 1000) : now;
+            const started = await start(fromRpc(raw), at);
+            if (!started) continue;
+            const [sig, t] = started;
+            tracked.set(sig, t);
+            log(`Catch-up ${t.invoiceId} ${sig.slice(0, 8)}… found over RPC (${s.confirmationStatus})`);
+            await record(sig, t, s.confirmationStatus, at);
+          } catch (e) {
+            tracked.delete(s.signature);
+            log(`Catch-up skipped ${s.signature.slice(0, 8)}…: ${(e as Error).message}`);
+          }
         }
       }
     },

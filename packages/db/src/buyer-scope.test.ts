@@ -71,6 +71,13 @@ describe("getPayInvoice", () => {
 });
 
 describe("getBuyerContext", () => {
+  test("leaves out the buyer's draft invoices (unsent; the agent must not quote them to anyone)", async () => {
+    const draft = await store.createInvoice({ exporterId, buyerId: a.id, issuedAt: "2026-09-10", dueDate: "2026-10-10", referencePubkey: ref(), status: "draft",
+      lineItems: [{ description: "Unannounced walnut range", quantity: 1, unitPriceUsdc: 1_000_000n }] });
+    const ctx = await store.getBuyerContext(exporterId, a.id);
+    expect(ctx?.invoices.map((i) => i.id)).toEqual([invA.id]);
+    expect(json(ctx)).not.toContain(draft.id);
+  });
   test("holds buyer A's invoices, messages and actions and nothing of buyer B", async () => {
     const ctx = await store.getBuyerContext(exporterId, a.id);
     expect(ctx?.buyer).toEqual(a);

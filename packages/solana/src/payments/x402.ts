@@ -19,7 +19,7 @@ import {
   type TransactionInstruction,
 } from "@solana/web3.js";
 import { assertFeePayerAbsent, decodeComputeBudget } from "../shared/audit";
-import { MAX_CU_LIMIT, MAX_CU_PRICE_MICROLAMPORTS, MEMO_PROGRAM_ID, USDC_DECIMALS, USDC_MINT } from "../shared/constants";
+import { MEMO_PROGRAM_ID, USDC_DECIMALS, USDC_MINT, X402_MAX_CU_LIMIT, X402_MAX_CU_PRICE_MICROLAMPORTS } from "../shared/constants";
 import { memoInstruction, memoText } from "../shared/memo";
 import { confirmByPolling } from "../shared/rpc";
 
@@ -134,7 +134,8 @@ export async function verifyX402(p: {
     return await verify(p);
   } catch (e) {
     if (e instanceof Reject) return { ok: false, reason: e.reason, message: e.message };
-    return { ok: false, reason: "invalid_exact_svm_payload", message: (e as Error).message };
+    console.error(`[x402] verify error: ${(e as Error).message}`); // RPC errors can carry the RPC URL: log, don't return
+    return { ok: false, reason: "invalid_exact_svm_payload", message: "payment could not be verified; please retry" };
   }
 }
 
@@ -182,8 +183,8 @@ async function verify(p: Parameters<typeof verifyX402>[0]): Promise<Verified> {
   if (!isBudget(ixs[0]!, 2)) reject("compute_limit_instruction", "instruction 0 must be SetComputeUnitLimit");
   if (!isBudget(ixs[1]!, 3)) reject("compute_price_instruction", "instruction 1 must be SetComputeUnitPrice");
   const budget = decodeComputeBudget(budgetIxs);
-  if (budget.unitLimit === undefined || budget.unitLimit > MAX_CU_LIMIT) reject("compute_limit_too_high", `compute unit limit above cap ${MAX_CU_LIMIT}`);
-  if (budget.unitPrice === undefined || budget.unitPrice > BigInt(MAX_CU_PRICE_MICROLAMPORTS)) reject("compute_price_too_high", `compute unit price above cap ${MAX_CU_PRICE_MICROLAMPORTS}`);
+  if (budget.unitLimit === undefined || budget.unitLimit > X402_MAX_CU_LIMIT) reject("compute_limit_too_high", `compute unit limit above cap ${X402_MAX_CU_LIMIT}`);
+  if (budget.unitPrice === undefined || budget.unitPrice > BigInt(X402_MAX_CU_PRICE_MICROLAMPORTS)) reject("compute_price_too_high", `compute unit price above cap ${X402_MAX_CU_PRICE_MICROLAMPORTS}`);
 
   const t = ixs[2]!;
   const tokenProgram = [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID].find((pid) => pid.equals(t.programId));
@@ -224,13 +225,15 @@ export async function settleX402(p: { verified: Verified; feePayer: Keypair; rpc
   try {
     signature = await p.rpc.sendRawTransaction(tx.serialize());
   } catch (e) {
-    return { success: false, errorReason: `send failed: ${(e as Error).message}`, transaction: "", network, payer };
+    console.error(`[x402] send failed: ${(e as Error).message}`);
+    return { success: false, errorReason: "send_failed", transaction: "", network, payer };
   }
   try {
     const { err } = await p.rpc.confirmTransaction(signature);
     if (err) return { success: false, errorReason: `transaction failed on-chain: ${JSON.stringify(err)}`, transaction: signature, network, payer };
   } catch (e) {
-    return { success: false, errorReason: `settlement_pending: ${(e as Error).message}`, transaction: signature, network, payer };
+    console.error(`[x402] confirm ${signature}: ${(e as Error).message}`);
+    return { success: false, errorReason: "settlement_pending", transaction: signature, network, payer };
   }
   return { success: true, transaction: signature, network, payer };
 }

@@ -1,9 +1,9 @@
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { Keypair, PublicKey, TransactionMessage } from "@solana/web3.js";
+import { Keypair, PublicKey, SystemProgram, TransactionMessage, type Connection } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
 import { describe, expect, it } from "vitest";
 import { deriveAccounts } from "./provision";
-import { decodeUsdcTransfer, proposalInstructions, transferMessage } from "./proposals";
+import { assertApprovableTransfer, buildOwnerTx, decodeUsdcTransfer, proposalInstructions, transferMessage } from "./proposals";
 
 const usdc = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 const agent = Keypair.generate().publicKey;
@@ -72,5 +72,58 @@ describe("decodeUsdcTransfer", () => {
   it("returns null for a message that is not a single token transfer", () => {
     const msg = { numSigners: 1, numWritableSigners: 1, numWritableNonSigners: 0, accountKeys: [treasury.vaultPda], instructions: [], addressTableLookups: [] };
     expect(decodeUsdcTransfer(msg)).toBeNull();
+  });
+});
+
+/** The VaultTransactionMessage layout the program stores for a compiled inner message. */
+function stored(msg: TransactionMessage): multisig.generated.VaultTransactionMessage {
+  const legacy = msg.compileToLegacyMessage();
+  return {
+    numSigners: legacy.header.numRequiredSignatures,
+    numWritableSigners: legacy.header.numRequiredSignatures - legacy.header.numReadonlySignedAccounts,
+    numWritableNonSigners: legacy.accountKeys.length - legacy.header.numRequiredSignatures - legacy.header.numReadonlyUnsignedAccounts,
+    accountKeys: legacy.accountKeys,
+    instructions: legacy.compiledInstructions.map((ix) => ({ programIdIndex: ix.programIdIndex, accountIndexes: Uint8Array.from(ix.accountKeyIndexes), data: Uint8Array.from(ix.data) })),
+    addressTableLookups: [],
+  };
+}
+
+describe("assertApprovableTransfer (the owner route never executes a vault tx Kutip did not build)", () => {
+  const good = stored(transferMessage({ vault: treasury, destinationOwner: cashOut, usdcMint: usdc, amountUsdc: 250_000n, blockhash }));
+  it("accepts an agent-created single USDC transfer out of the treasury vault ATA", () => {
+    expect(() => assertApprovableTransfer({ creator: agent, message: good }, { agent, feePayer, vaultAta: treasury.vaultAta })).not.toThrow();
+  });
+  it("refuses a vault tx created by anyone but the agent (e.g. the owner calling Squads directly)", () => {
+    expect(() => assertApprovableTransfer({ creator: Keypair.generate().publicKey, message: good }, { agent, feePayer, vaultAta: treasury.vaultAta })).toThrow(/agent/);
+  });
+  it("refuses a message that is not one USDC transfer", () => {
+    const drain = stored(new TransactionMessage({ payerKey: treasury.vaultPda, recentBlockhash: blockhash, instructions: [SystemProgram.transfer({ fromPubkey: treasury.vaultPda, toPubkey: cashOut, lamports: 1_000_000 })] }));
+    expect(() => assertApprovableTransfer({ creator: agent, message: drain }, { agent, feePayer, vaultAta: treasury.vaultAta })).toThrow(/transfer/);
+  });
+  it("refuses any inner account that is the fee payer", () => {
+    const withPayer = { ...good, accountKeys: [...good.accountKeys, feePayer] };
+    expect(() => assertApprovableTransfer({ creator: agent, message: withPayer }, { agent, feePayer, vaultAta: treasury.vaultAta })).toThrow(/fee payer/);
+  });
+  it("refuses a transfer out of some other token account", () => {
+    const other = deriveAccounts(Keypair.generate().publicKey, usdc);
+    const msg = stored(transferMessage({ vault: other, destinationOwner: cashOut, usdcMint: usdc, amountUsdc: 250_000n, blockhash }));
+    expect(() => assertApprovableTransfer({ creator: agent, message: msg }, { agent, feePayer, vaultAta: treasury.vaultAta })).toThrow(/treasury/);
+  });
+});
+
+describe("buildOwnerTx (D4: the fee payer co-signs, so it must not be an instruction account)", () => {
+  const connection = { getLatestBlockhash: async () => ({ blockhash, lastValidBlockHeight: 1 }) } as unknown as Connection;
+  const payer = Keypair.generate();
+  it("refuses instructions that reference the fee payer", async () => {
+    const ix = SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: cashOut, lamports: 1 });
+    await expect(buildOwnerTx({ connection, feePayer: payer, ixs: [ix] })).rejects.toThrow(/fee payer/);
+  });
+  it("lets Squads config instructions name it as rent payer only when the caller says so", async () => {
+    const msg = transferMessage({ vault: treasury, destinationOwner: cashOut, usdcMint: usdc, amountUsdc: 1n, blockhash });
+    const ixs = proposalInstructions({ multisigPda: treasury.multisigPda, transactionIndex: 3n, creator: agent, rentPayer: payer.publicKey, message: msg });
+    await expect(buildOwnerTx({ connection, feePayer: payer, ixs })).rejects.toThrow(/fee payer/);
+    await expect(buildOwnerTx({ connection, feePayer: payer, ixs, feePayerPaysSquadsRent: true })).resolves.toHaveProperty("base64");
+    const drain = SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: cashOut, lamports: 1 });
+    await expect(buildOwnerTx({ connection, feePayer: payer, ixs: [...ixs, drain], feePayerPaysSquadsRent: true })).rejects.toThrow(/fee payer/);
   });
 });

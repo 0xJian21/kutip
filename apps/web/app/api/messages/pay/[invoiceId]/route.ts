@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 export async function POST(req: NextRequest, { params }: Ctx) {
   const { invoiceId } = await params;
   if (MOCK) return json(503, { message: "Messages need the real database." });
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ?? "unknown"; // Vercel sets x-real-ip; the first XFF entry is client-controlled
   if (tooMany(ip, Date.now())) return json(429, { message: ERRORS.rate_limited[1] });
 
   let body: unknown;

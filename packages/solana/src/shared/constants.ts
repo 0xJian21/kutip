@@ -20,4 +20,11 @@ export const MAX_CU_LIMIT = 1_400_000;
 export const MAX_CU_PRICE_MICROLAMPORTS = 100_000;
 /** What we set on the transactions we build ourselves. */
 export const DEFAULT_CU_PRICE_MICROLAMPORTS = 10_000;
+/**
+ * x402 payers pick their own budget, and a payload that passes simulation can still fail on-chain
+ * (funds moved in between), which the fee payer pays for. A transfer + memo (+ Lighthouse) needs far
+ * less than 200k CU, so a failed settle costs at most 2 × 5k + 2k lamports.
+ */
+export const X402_MAX_CU_LIMIT = 200_000;
+export const X402_MAX_CU_PRICE_MICROLAMPORTS = DEFAULT_CU_PRICE_MICROLAMPORTS;
 export const USDC_TRANSFER_CU_LIMIT = 30_000;
