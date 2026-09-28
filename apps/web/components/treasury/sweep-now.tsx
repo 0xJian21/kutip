@@ -30,14 +30,12 @@ export function SweepNowDialog({ open, onClose, rate, onDone }: { open: boolean;
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [pending, start] = useTransition();
 
-  // Load the preview each time the dialog opens; reset when it closes.
+  // Load a fresh preview each time the dialog opens (inside a transition, never during render).
   useEffect(() => {
-    if (!open) {
-      setPhase({ kind: "loading" });
-      return;
-    }
+    if (!open) return;
     let cancelled = false;
     start(async () => {
+      setPhase({ kind: "loading" });
       const r = await sweepPreview();
       if (cancelled) return;
       setPhase(r.ok ? { kind: "preview", preview: r.value } : { kind: "error", error: r.error });
