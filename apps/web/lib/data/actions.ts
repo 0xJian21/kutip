@@ -57,7 +57,7 @@ export async function saveRulebook(rulebook: Rulebook) {
   return (await ownerDataOrThrow()).saveRulebook(validateRulebook(rulebook));
 }
 
-export const PDF_MAX_BYTES = 4 * 1024 * 1024;
+const PDF_MAX_BYTES = 4 * 1024 * 1024;
 
 export type ExtractedDraft = {
   buyerId: string | null;
