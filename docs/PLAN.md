@@ -116,8 +116,16 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - [x] T4: "Cash out to ringgit": whitelist the owner's HATA USDC (Solana) deposit address with Touch ID → indicative quote (USDC × BNM − `CASHOUT_FEE_BPS`, default 25) → agent proposal (`createTransferProposal`, `proposal_index` on the action) → approve + execute with Touch ID; MYRC shown disabled "when BNM approves"; every "Luno" in seed, scripts and copy → HATA
 - [x] Demo data: `exporters.demo_funds` (seed + demo-reset set it; hero shows "Live on Solana mainnet · demo funds"); 20 settled invoices Apr–Aug with payments in the fixtures (charts); `demo-reset` keeps its read-only phase + skip-if-done
 - [x] FOLLOWUPS: submit route settles an action only if `proposed` and `proposal_index` = #index; `UserError` masks every other error; MOCK ignored in production; `/treasury-test` removed; on-chain `proposalReject` (Reject button in Agent activity); PDF cap 4 MB; build warns when Supabase env is missing; reused screenings get a per-invoice row; Privy origins note in `.env.example`
-- [ ] Migration 0005 applied to the shared Supabase — **waiting for the owner's yes**
-- [ ] Mainnet proofs (sweep-now, cash-out proposal approved with Touch ID) — **waiting for the owner's yes**; `AGENT_SECRET` must be present where the web app runs
+- [x] Migration 0005 applied to the shared Supabase (2026-09-28); `exporters.demo_funds` set and the whitelist label renamed to HATA on `exp_teratai`
+- [x] Mainnet proofs 2026-09-28 on localhost:3100, signed in with the localhost passkey (wallet `23FK…`) into `scripts/proof-exporter.ts`'s throw-away exporter `exp_2muLHULeUpmy8UtVhWiJ` ("ZZ TEST 8b proofs", legacy treasury `GD5F…`, deleted by demo-reset):
+  | Step | Signature | Notes |
+  |---|---|---|
+  | **Sweep now** from the dashboard hero: Meridian legacy vault → legacy treasury, 0.50 USDC, agent-signed `spendingLimitUse` | `4NqSH8JC8XJxbndHCHfwnoJjxnjZUynYgTs8osqwEZPa5euMECWkZKmDvdKCRzFzGerT3yi16uWcAgAuiE2vt9Uf` | preview → stepper → recorded as `sweep` action T2 |
+  | Whitelist the owner's own deposit address with Touch ID (statement transaction, never sent) | — | `GSKNT5Pw…k32e` (owner's Solflare wallet, standing in for HATA) |
+  | Cash-out proposal #4, 0.25 USDC, created by the agent | (creation tx on-chain; the action keeps the execution signature) | `cash_out_alert` action with `proposal_index 4` |
+  | Owner approve + execute with Touch ID (fee payer + owner signers, 4 ixs) | `2gketWqpVp5YLSfVuW5f4pR4XBDs3zhLFk1fi67J6H4jTF75wjN4oWMoi5ZWEFE4X3rxXWJ3971dUvUYyUZBs9jy` | treasury 1.75 → 1.50 USDC, destination +0.25; action settled `executed` via `settleProposal` |
+- [x] Security review (three findings, all fixed): sessions carry `role` and only the registered owner wallet; permissions statement binds a digest of the approved values; logos are PNG/JPEG/WebP sniffed from bytes and onboarding keeps only a logo from its own upload path
+- [x] Found while proving: Privy's Solana `signMessage` signatures did **not** verify as Ed25519 over the raw message bytes (or any encoding tried), so "Approve with Touch ID" statements are now **unsendable memo transactions** signed with `signTransaction` (`lib/server/owner-signature.ts`); and a tab can be signed into Privy as a different account than Kutip's session cookie, so the rail has **Sign out**, an unlinked sign-in clears a leftover cookie, and statement actions name the mismatched wallet
 
 ## Session 8 — Hardening (Oct 1) · Opus
 - [ ] code-review, security-review, fixes

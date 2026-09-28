@@ -28,6 +28,8 @@ Known gaps left open on purpose (2026-09-27). Each has where, what goes wrong, a
 
 ## Money and accounts
 
+- [ ] **Stray Privy users from the proof session.** Two unlinked Privy users were created on localhost on 2026-09-28 (`did:privy:cmulidrlp01we0djmuhh8eg7l`, wallet `9369…`, and `did:privy:cmulivi9n00re0cjtrxyfuv1w`) by "Create account" clicks. Harmless (no Kutip account, no treasury); delete them in the Privy dashboard or leave them.
+- [ ] **Privy message signatures.** `useSignMessage` (react-auth 3.45, Solana embedded wallet) produced 64-byte signatures that verified against none of raw / base64 / base58 / hex / offchain-v0 / sha256 encodings of the message for the wallet that Privy's API says signed. Statements now use `signTransaction` instead (proven). If message signing is wanted later (cheaper UX), ask Privy what bytes the TEE signs.
 - [ ] **Web host needs the agent key.** "Sweep now", cash-out proposals and permissions re-issue read `AGENT_SECRET` (or `AGENT_PUBKEY` for onboarding only) on the web app; add it to Vercel before the demo. Without it those buttons return a clear error.
 - [ ] **On-chain cap re-issue and self-serve treasury provisioning are unexercised on mainnet.** `spendingLimitChangeInstructions` (Settings → change the daily cap) and `completeOnboarding` (new user → new treasury) are unit-tested only. One run of each costs ≈ 0.003–0.004 SOL; do it once before judging, or keep the cap at 5,000 and sign in as the linked owner.
 - [ ] **Over-limit sweep remainder.** `previewSweep` reports what stays behind when today's cap is used up; it does not create a Squads proposal for the remainder (the buyer-vault proposal path is not built). The seeded `act_02` sweep proposal is data only.
