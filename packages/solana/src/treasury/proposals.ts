@@ -7,6 +7,7 @@ import type { createStore } from "@kutip/db";
 import { TOKEN_PROGRAM_ID, createTransferCheckedInstruction, getAssociatedTokenAddressSync, transferCheckedInstructionData } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, TransactionMessage, VersionedTransaction, type AddressLookupTableAccount, type TransactionInstruction } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
+import { assertFeePayerAbsent } from "../shared/audit";
 import { USDC_DECIMALS, VAULT_INDEX, toSdkAmount } from "./config";
 import type { MultisigAccounts } from "./provision";
 import { buildV0, sendV0 } from "./rpc";
@@ -94,8 +95,31 @@ export async function listProposals(connection: Connection, multisigPda: PublicK
   return out;
 }
 
+/**
+ * The owner is a full member of their multisig and can create vault transactions directly on-chain.
+ * Execute passes every inner account through, and a key's signer flag is per transaction, so an inner
+ * instruction naming the fee payer would spend with its signature. Only execute what Kutip's agent
+ * built: one USDC transferChecked out of the treasury vault ATA, with no fee-payer account.
+ */
+export function assertApprovableTransfer(tx: { creator: PublicKey; message: multisig.generated.VaultTransactionMessage }, expect: { agent: PublicKey; feePayer: PublicKey; vaultAta: PublicKey }): void {
+  if (!tx.creator.equals(expect.agent)) throw new Error("only proposals created by Kutip's agent can be approved here");
+  if (tx.message.accountKeys.some((k) => k.equals(expect.feePayer))) throw new Error("proposal references the fee payer; refusing to sign");
+  if (tx.message.addressTableLookups.length > 0 || !decodeUsdcTransfer(tx.message)) throw new Error("proposal is not a single USDC transfer");
+  const ix = tx.message.instructions[0]!;
+  const source = tx.message.accountKeys[ix.accountIndexes[0]!];
+  if (!source?.equals(expect.vaultAta)) throw new Error("proposal does not move USDC out of the treasury vault");
+}
+
 /** proposalApprove + vaultTransactionExecute for the owner, in one transaction (threshold 1, no time lock). */
-export async function approveExecuteInstructions(p: { connection: Connection; multisigPda: PublicKey; transactionIndex: bigint; member: PublicKey }): Promise<{ ixs: TransactionInstruction[]; lookupTables: AddressLookupTableAccount[] }> {
+export async function approveExecuteInstructions(p: {
+  connection: Connection;
+  multisigPda: PublicKey;
+  transactionIndex: bigint;
+  member: PublicKey;
+  expect: { agent: PublicKey; feePayer: PublicKey; vaultAta: PublicKey };
+}): Promise<{ ixs: TransactionInstruction[]; lookupTables: AddressLookupTableAccount[] }> {
+  const [transactionPda] = multisig.getTransactionPda({ multisigPda: p.multisigPda, index: p.transactionIndex });
+  assertApprovableTransfer(await multisig.accounts.VaultTransaction.fromAccountAddress(p.connection, transactionPda), p.expect);
   const approve = multisig.instructions.proposalApprove({ multisigPda: p.multisigPda, transactionIndex: p.transactionIndex, member: p.member });
   const { instruction, lookupTableAccounts } = await multisig.instructions.vaultTransactionExecute({ connection: p.connection, multisigPda: p.multisigPda, transactionIndex: p.transactionIndex, member: p.member });
   return { ixs: [approve, instruction], lookupTables: lookupTableAccounts };
@@ -107,7 +131,16 @@ export async function approveExecuteInstructions(p: { connection: Connection; mu
  * the fully-signed bytes back to be sent. The fee-payer signature covers the
  * message, so the client cannot alter it.
  */
-export async function buildOwnerTx(p: { connection: Connection; feePayer: Keypair; ixs: TransactionInstruction[]; lookupTables?: AddressLookupTableAccount[] }): Promise<{ base64: string; lastValidBlockHeight: number }> {
+export async function buildOwnerTx(p: {
+  connection: Connection;
+  feePayer: Keypair;
+  ixs: TransactionInstruction[];
+  lookupTables?: AddressLookupTableAccount[];
+  /** Squads config transactions (spending-limit re-issue) name the fee payer as rent payer; nothing else may. */
+  feePayerPaysSquadsRent?: boolean;
+}): Promise<{ base64: string; lastValidBlockHeight: number }> {
+  // D4: the fee payer signs first, so any instruction that names it could spend with its signature.
+  assertFeePayerAbsent(p.feePayerPaysSquadsRent ? p.ixs.filter((ix) => !ix.programId.equals(multisig.PROGRAM_ID)) : p.ixs, p.feePayer.publicKey);
   const { tx, lastValidBlockHeight } = await buildV0(p.connection, p.feePayer.publicKey, p.ixs, p.lookupTables ?? []);
   tx.sign([p.feePayer]);
   return { base64: Buffer.from(tx.serialize()).toString("base64"), lastValidBlockHeight };

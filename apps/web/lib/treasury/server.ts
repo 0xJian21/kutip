@@ -1,7 +1,7 @@
 import "server-only";
 import { connectionFor, keypairFromEnv } from "@kutip/solana";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { UserError } from "@/lib/data/result";
+import { GENERIC_ERROR, UserError } from "@/lib/data/result";
 import { MOCK, sessionOrThrow } from "@/lib/server/auth";
 import { store } from "@/lib/server/store";
 
@@ -39,11 +39,17 @@ export function agentPubkey(): PublicKey {
   return agentKeypair().publicKey;
 }
 
-export async function treasuryMultisig(): Promise<{ exporterId: string; multisig: PublicKey; wallet?: string }> {
+export async function treasuryMultisig(): Promise<{ exporterId: string; multisig: PublicKey; vaultAta: PublicKey; wallet?: string }> {
   const { exporterId, wallet } = await sessionOrThrow();
   const exporter = await store().getExporter(exporterId);
   if (!exporter) throw new Error(`exporter not found: ${exporterId}`);
-  return { exporterId, wallet, multisig: new PublicKey(exporter.treasuryMultisig) };
+  return { exporterId, wallet, multisig: new PublicKey(exporter.treasuryMultisig), vaultAta: new PublicKey(exporter.treasuryUsdcAta) };
+}
+
+/** Route catch-all: only a UserError's message reaches the browser (RPC errors carry the Solami URL, env names, program logs). */
+export function routeError(e: unknown, status: number): Response {
+  console.error(e);
+  return json({ error: e instanceof UserError ? e.message : GENERIC_ERROR }, status);
 }
 
 /** Route helper: JSON with a status, bigints as strings. */

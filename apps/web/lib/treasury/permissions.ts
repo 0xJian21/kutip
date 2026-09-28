@@ -95,7 +95,7 @@ export async function buildLimitChangeTxs(exporterId: string, dailyCapUsdc: bigi
       currentLimitPda: current ? currentPda : undefined,
       newLimit: { createKey, agent: agentPubkey(), usdcMint, amountUsdc: dailyCapUsdc, treasuryVaultPda, treasuryVaultAta },
     });
-    const built = await buildOwnerTx({ connection, feePayer, ixs });
+    const built = await buildOwnerTx({ connection, feePayer, ixs, feePayerPaysSquadsRent: true });
     out.push({ buyerId: a.id, buyerName: buyers.find((b) => b.id === a.id)?.name ?? a.id, multisig: a.multisig, transactionIndex: transactionIndex.toString(), spendingLimitPda: spendingLimitPda.toBase58(), transaction: built.base64 });
   }
   return out;
