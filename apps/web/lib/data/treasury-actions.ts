@@ -50,10 +50,18 @@ export async function cashOutPropose(input: { amountUsdc: bigint; destination: s
 }
 
 /** Statement (+ unsendable transaction) the wallet signs before whitelisting; the server checks it against the session wallet. */
-export async function whitelistStatementFor(address: string) {
+/** The browser's Privy wallet must be the session's owner wallet, or the signature can never verify: say so up front. */
+function assertSameWallet(session: { wallet: string }, browserWallet: string | undefined): void {
+  if (browserWallet && browserWallet !== session.wallet) {
+    throw new UserError(`This tab is signed into Privy as a different account (wallet ${browserWallet.slice(0, 4)}…${browserWallet.slice(-4)}). Sign out and sign in again with the passkey that owns this treasury (wallet ${session.wallet.slice(0, 4)}…${session.wallet.slice(-4)}).`);
+  }
+}
+
+export async function whitelistStatementFor(address: string, browserWallet?: string) {
   return toResult(async () => {
-    const { exporterId, wallet } = await ownerSessionOrThrow();
-    return whitelistStatement(exporterId, wallet, WHITELIST_PURPOSE(address));
+    const s = await ownerSessionOrThrow();
+    assertSameWallet(s, browserWallet);
+    return whitelistStatement(s.exporterId, s.wallet, WHITELIST_PURPOSE(address));
   });
 }
 
@@ -66,10 +74,11 @@ export async function whitelistAdd(input: { label: string; address: string; sign
   });
 }
 
-export async function whitelistRemoveStatementFor(address: string) {
+export async function whitelistRemoveStatementFor(address: string, browserWallet?: string) {
   return toResult(async () => {
-    const { exporterId, wallet } = await ownerSessionOrThrow();
-    return whitelistStatement(exporterId, wallet, REMOVE_PURPOSE(address));
+    const s = await ownerSessionOrThrow();
+    assertSameWallet(s, browserWallet);
+    return whitelistStatement(s.exporterId, s.wallet, REMOVE_PURPOSE(address));
   });
 }
 
@@ -89,10 +98,11 @@ export async function agentPermissions() {
 }
 
 /** The statement binds the exact permissions being approved (a digest is in the purpose line). */
-export async function permissionsStatementNow(permissions: AgentPermissions) {
+export async function permissionsStatementNow(permissions: AgentPermissions, browserWallet?: string) {
   return toResult(async () => {
-    const { exporterId, wallet } = await ownerSessionOrThrow();
-    return permissionsStatement(exporterId, wallet, permissions);
+    const s = await ownerSessionOrThrow();
+    assertSameWallet(s, browserWallet);
+    return permissionsStatement(s.exporterId, s.wallet, permissions);
   });
 }
 

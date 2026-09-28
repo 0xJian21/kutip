@@ -159,7 +159,7 @@ export function WhitelistAdd({ onAdded }: { onAdded: (list: Array<{ label: strin
     if (!owner.wallet) return setError(owner.ready ? "Your Privy wallet is not connected in this tab. Reload the page and sign in again." : "Still connecting to your wallet, try again in a moment.");
     start(async () => {
       try {
-        const st = await whitelistStatementFor(address.trim());
+        const st = await whitelistStatementFor(address.trim(), owner.address);
         if (!st.ok) throw new Error(st.error);
         const signed = await sign(st.value);
         const r = await whitelistAdd({ label, address: address.trim(), signedTransaction: signed.signedTransaction });

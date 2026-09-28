@@ -39,7 +39,7 @@ export function AgentPermissionsForm({ initial, embedded = false, onSaved }: { i
     setNotice(null);
     start(async () => {
       try {
-        const st = await permissionsStatementNow(next);
+        const st = await permissionsStatementNow(next, owner.address);
         if (!st.ok) throw new Error(st.error);
         // One Touch ID prompt signs the statement; with a cap change it also signs the config transactions (same MFA window).
         const signed = await sign(st.value);
