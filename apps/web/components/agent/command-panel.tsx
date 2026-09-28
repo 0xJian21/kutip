@@ -44,7 +44,8 @@ export function CommandPanel({ className = "", autoFocus = false, onNavigate }: 
     <div className={className}>
       <CommandBar suggestions={asked ? [] : SUGGESTIONS} onSubmit={ask} autoFocus={autoFocus} />
       {asked ? (
-        <Card className="mt-3" aria-live="polite">
+        <div aria-live="polite" data-agent-answer>
+        <Card className="mt-3">
           <div className="mb-3 flex items-start justify-between gap-3">
             <p className="flex min-w-0 items-center gap-2 text-sm text-ink-2">
               <Sparkles size={14} aria-hidden="true" className="shrink-0 text-accent" />
@@ -67,6 +68,7 @@ export function CommandPanel({ className = "", autoFocus = false, onNavigate }: 
             <PreviewCard key={asked} preview={preview} onAsk={ask} onDone={close} />
           ) : null}
         </Card>
+        </div>
       ) : null}
     </div>
   );

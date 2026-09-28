@@ -290,6 +290,7 @@ export async function planCommand(deps: { store: CommandPort; client: Anthropic;
   const inv = target!;
   if (PAID.includes(inv.status)) return { kind: "clarify", message: `${inv.number} is already paid, so there's nothing to remind about.`, options: [] };
   if (!OPEN.includes(inv.status)) return { kind: "clarify", message: `${inv.number} hasn't been sent yet.`, options: [] };
+  if (inv.status === "disputed") return { kind: "clarify", message: `${inv.number} is disputed, so the agent won't chase it. Answer the buyer in the Inbox.`, options: [] };
   const buyer = buyers.find((b) => b.id === inv.buyerId);
   const raw = buyer ? await store.getBuyerContext(exporterId, buyer.id) : null;
   if (!buyer || !raw) return { kind: "clarify", message: "I couldn't load that buyer.", options: [] };
@@ -307,7 +308,7 @@ export async function planCommand(deps: { store: CommandPort; client: Anthropic;
   const ruleNote = due
     ? "The rulebook would send this reminder now too."
     : plan.sendAt
-      ? `The rulebook would wait until ${plan.sendAt.toISOString().slice(0, 10)} (${plan.reason.toLowerCase()}). Sending now is your call.`
+      ? `The rulebook would wait until ${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Kuala_Lumpur" }).format(plan.sendAt)} (${plan.reason.toLowerCase()}). Sending now is your call.`
       : `${plan.reason}. Sending now is your call.`;
   return { kind: "reminder", line: line(inv), to: buyer.email, email, ruleId: plan.ruleId, ruleNote, rate };
 }
@@ -334,6 +335,7 @@ export async function confirmReminder(
   const inv = invoices.find((i) => i.id === req.invoiceId);
   if (!inv) throw new Error("Invoice not found");
   if (!OPEN.includes(inv.status)) throw new Error(`${inv.number} is ${PAID.includes(inv.status) ? "already paid" : "not open"}; nothing to remind about`);
+  if (inv.status === "disputed") throw new Error(`${inv.number} is disputed; answer the buyer in the Inbox instead of sending a reminder`);
   const buyer = buyers.find((b) => b.id === inv.buyerId);
   if (!buyer) throw new Error("Buyer not found");
   const subject = req.subject.trim();

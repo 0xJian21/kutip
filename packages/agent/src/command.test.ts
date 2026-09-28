@@ -124,6 +124,11 @@ describe("planCommand: previews only, numbers from code", () => {
     expect(two.kind === "clarify" && two.options.length).toBe(2);
   });
 
+  it("a reminder for a disputed invoice is refused: the dispute is answered in the inbox", async () => {
+    const port = fakePort({ async listInvoices() { return [{ ...invoices[0]!, status: "disputed" as const }]; } }).port;
+    expect(await plan({ tool: "draft_reminder", invoice: "0142" }, port)).toMatchObject({ kind: "clarify", message: expect.stringMatching(/disputed/i) });
+  });
+
   it("a reminder for a paid invoice is refused in code", async () => {
     expect(await plan({ tool: "draft_reminder", invoice: "INV-2026-0151" })).toMatchObject({ kind: "clarify", message: expect.stringMatching(/paid/i) });
   });

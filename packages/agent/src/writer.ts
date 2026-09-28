@@ -30,7 +30,7 @@ const emailSchema = z.object({ subject: z.string(), body: z.string() });
 const STYLE = `Style for every email:
 - Plain, polite business English. Short: under 120 words in the body. No markdown.
 - Address the contact by first name and sign off as the seller company.
-- Use only the facts given. State amounts exactly as written in the facts. Write dates in words.
+- Use only the facts given. State amounts exactly as written in the facts. Write dates like "25 September 2026" (never in digits only, never spelled out).
 - Do not include payment instructions or links; they are added after your text.
 - Never mention cryptocurrency, blockchain, wallets, tokens or networks.
 - Never offer discounts, extensions or anything the facts do not state. Never threaten legal action.
@@ -97,7 +97,10 @@ export async function writeReply(
     `Amount: ${formatUsdc(inv.amountUsdc)}`,
     `Due date: ${longDate(inv.dueDate)}`,
     paid ? "Status: paid in full; the payment has arrived" : inv.status === "partially_paid" ? "Status: part paid; the rest is still due" : days > 0 ? `Status: unpaid, ${days} day${days === 1 ? "" : "s"} overdue` : "Status: unpaid, not yet due",
-    req.channel === "pay_page" ? "The buyer wrote from the invoice's payment page, which shows the invoice and the pay button." : "The pay link is added below your text automatically.",
+    req.channel === "pay_page"
+      ? "The buyer wrote from the invoice's payment page. That page shows the full invoice (they can save or print it) and the pay button; point them there. You cannot attach files."
+      : "The pay link, which opens the full invoice, is added below your text automatically. You cannot attach files.",
+    "The only way to pay is the pay button on the invoice's payment page. Do not confirm any other method (bank transfer, cheque, card); if the buyer wants one, say the team will reply personally.",
   ];
   const out = await askHaiku(client, {
     system:

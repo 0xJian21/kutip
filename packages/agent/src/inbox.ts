@@ -12,7 +12,7 @@ import type { Rulebook } from "./rulebook";
 import type { InvoiceStatus, RuleId } from "./rules/decision";
 import { decideReply, type ReplyDecision } from "./rules/replies";
 import { parseReplySettings, replyPermission, type ReplyPermission } from "./rules/reply-permission";
-import { explainAction, writeReply } from "./writer";
+import { writeReply } from "./writer";
 
 export type PortMessage = {
   id: string;
@@ -48,7 +48,7 @@ export type InboxPort = {
   getContactEmail(exporterId: string): Promise<string | null>;
 };
 
-export type InboxDeps = { store: InboxPort; classifier: ReplyClassifier; client: Anthropic; mailer: Mailer; now: () => Date };
+export type InboxDeps = { store: InboxPort; classifier: ReplyClassifier; client: Anthropic; mailer: Mailer; now: () => Date; log?: (msg: string) => void };
 
 const LABEL: Record<ReplyLabel, string> = {
   will_pay_on_date: "a promise to pay",
@@ -79,12 +79,15 @@ async function draftFor(deps: InboxDeps, loaded: Awaited<ReturnType<typeof load>
     message: { body: inbound?.body ?? "(no message; the seller is writing first)", receivedAt: inbound?.createdAt ?? now.toISOString() },
     channel,
     now,
-  }).catch(() => ({
+  }).catch((e: Error) => {
+    deps.log?.(`reply draft for ${thread.invoice.number} fell back to the holding text: ${e.message}`);
     // Holding reply: no facts, no promises. Never routine (topic "other").
-    subject: `Re: ${thread.invoice.number}`,
-    body: `Hi ${thread.buyer.contactName.split(/\s+/)[0]},\n\nThank you for your message about ${thread.invoice.number}. We'll get back to you shortly.\n\n${ctx.exporterName}`,
-    topic: "other" as const,
-  }));
+    return {
+      subject: `Re: ${thread.invoice.number}`,
+      body: `Hi ${thread.buyer.contactName.split(/\s+/)[0]},\n\nThank you for your message about ${thread.invoice.number}. We'll get back to you shortly.\n\n${ctx.exporterName}`,
+      topic: "other" as const,
+    };
+  });
   const draft = await deps.store.saveDraft(exporterId, { invoiceId: thread.invoice.id, channel, subject: written.subject, body: written.body, inReplyTo: inbound?.id, at: now });
   return { draft, topic: written.topic };
 }
@@ -117,13 +120,13 @@ export async function handleInbound(deps: InboxDeps, req: { exporterId: string; 
   if (decision.action === "pause" && decision.promisedDate) await deps.store.setPromisedDate(exporterId, invoiceId, decision.promisedDate);
   if (decision.markDisputed) await deps.store.setInvoiceStatus(exporterId, invoiceId, "disputed", now);
 
-  const facts = [`Invoice ${thread.invoice.number}`, `Message read as ${LABEL[c.label]} (confidence ${c.confidence.toFixed(2)})`];
-  if (c.extracted?.promisedDate) facts.push(`Date in the message: ${c.extracted.promisedDate}`);
-  if (c.extracted?.discountText) facts.push(`Discount asked: ${c.extracted.discountText}`);
-  const text = await explainAction(deps.client, ctx, { kind: "classify_reply", decision, facts }).catch(() => ({
-    decision: `Read the message on ${thread.invoice.number} as ${LABEL[c.label]}${decision.allowed ? "" : " and handed it to you"}`,
+  // The log line is written in code, not by a model: it must say exactly what happened (nothing is sent here).
+  const settings = parseReplySettings(rulebook.replies);
+  const willDraft = settings.buyerMessages !== "off";
+  const text = {
+    decision: `Read the message on ${thread.invoice.number} as ${LABEL[c.label]}${decision.allowed ? "" : " and flagged it for you"}${willDraft ? "; drafting a reply" : ""}`,
     reason: decision.reason,
-  }));
+  };
   await deps.store.recordAgentAction({
     exporterId, buyerId: thread.invoice.buyerId, invoiceId, kind: "classify_reply",
     inputSummary: `Message on ${thread.invoice.number}: ${c.label} (${c.confidence.toFixed(2)})`,
@@ -131,7 +134,6 @@ export async function handleInbound(deps: InboxDeps, req: { exporterId: string; 
     status: decision.allowed ? "executed" : "escalated", at: now,
   });
 
-  const settings = parseReplySettings(rulebook.replies);
   const off = replyPermission({ settings, classification: c, decision, topic: "other", invoiceStatus: thread.invoice.status });
   if (off.mode === "none") return { classification: c, decision, permission: off, sent: false };
 

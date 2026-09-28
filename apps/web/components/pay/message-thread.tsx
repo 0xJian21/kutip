@@ -66,7 +66,7 @@ export function MessageThread({ invoiceId, exporterName }: { invoiceId: string; 
         <MessageSquare size={18} aria-hidden="true" className="text-accent" />
         Questions about this invoice?
       </h2>
-      <p className="mt-1 text-sm text-ink-2">Message {exporterName}. Only you and they can see this conversation.</p>
+      <p className="mt-1 text-sm text-ink-2">Message {exporterName.replace(/\.$/, "")}. Only you and they can see this conversation.</p>
 
       {messages.length ? (
         <ol className="mt-4 grid gap-3" aria-live="polite">

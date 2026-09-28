@@ -79,6 +79,7 @@ export function inboxDeps(): InboxDeps {
     client,
     mailer: mailer(),
     now: () => new Date(),
+    log: (m) => console.warn(`[inbox] ${m}`),
   };
 }
 

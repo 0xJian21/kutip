@@ -44,7 +44,7 @@ export function PreviewCard({ preview, onAsk, onDone }: { preview: Preview; onAs
           <InvoiceRows lines={[preview.line]} rate={preview.rate} onNavigate={onDone} />
           <div className="mt-3 flex flex-wrap gap-2">
             <ButtonLink href={`/invoices/${preview.line.id}`} size="sm" variant="secondary" onClick={onDone}>Open invoice</ButtonLink>
-            {preview.line.status !== "paid" && preview.line.status !== "settled" ? (
+            {!["paid", "settled", "disputed"].includes(preview.line.status) ? (
               <Button size="sm" variant="ghost" onClick={() => onAsk(`Remind about ${preview.line.number}`)}>Draft a reminder</Button>
             ) : null}
           </div>
