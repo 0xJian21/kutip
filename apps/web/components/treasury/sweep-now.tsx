@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Address } from "@/components/ui/address";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -29,19 +29,23 @@ type Phase = { kind: "loading" } | { kind: "preview"; preview: SweepPreview } | 
 export function SweepNowDialog({ open, onClose, rate, onDone }: { open: boolean; onClose: () => void; rate: BnmRate; onDone?: () => void }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [pending, start] = useTransition();
-  const [loadedFor, setLoadedFor] = useState(false);
 
-  if (open && !loadedFor) {
-    setLoadedFor(true);
+  // Load the preview each time the dialog opens; reset when it closes.
+  useEffect(() => {
+    if (!open) {
+      setPhase({ kind: "loading" });
+      return;
+    }
+    let cancelled = false;
     start(async () => {
       const r = await sweepPreview();
+      if (cancelled) return;
       setPhase(r.ok ? { kind: "preview", preview: r.value } : { kind: "error", error: r.error });
     });
-  }
-  if (!open && loadedFor) {
-    setLoadedFor(false);
-    setPhase({ kind: "loading" });
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   function run(preview: SweepPreview) {
     setPhase({ kind: "running", preview, step: 1 });
