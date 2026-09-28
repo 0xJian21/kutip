@@ -101,27 +101,31 @@ export function createInboxStore(db: Db, opts: { appUrl?: string } = {}) {
     async postPayMessage(invoiceId: string, raw: string, o: { now?: Date } = {}): Promise<PostResult> {
       const now = o.now ?? new Date();
       const body = raw.trim();
-      const [inv] = await db
-        .select({ id: s.invoices.id, status: s.invoices.status, exporterId: s.invoices.exporterId, buyerId: s.invoices.buyerId, contactName: s.buyers.contactName })
-        .from(s.invoices)
-        .innerJoin(s.buyers, eq(s.buyers.id, s.invoices.buyerId))
-        .where(eq(s.invoices.id, invoiceId));
-      if (!inv || inv.status === "draft") return { ok: false, error: "not_found" };
       if (!body) return { ok: false, error: "empty" };
       if (body.length > PAY_MESSAGE_MAX_CHARS) return { ok: false, error: "too_long" };
+      // Count and insert under a row lock on the invoice, so parallel posts can't all read "under the limit".
+      return db.transaction(async (tx): Promise<PostResult> => {
+        const [inv] = await tx
+          .select({ id: s.invoices.id, status: s.invoices.status, exporterId: s.invoices.exporterId, buyerId: s.invoices.buyerId })
+          .from(s.invoices)
+          .where(eq(s.invoices.id, invoiceId))
+          .for("update");
+        if (!inv || inv.status === "draft") return { ok: false, error: "not_found" };
+        const [buyer] = await tx.select({ contactName: s.buyers.contactName }).from(s.buyers).where(eq(s.buyers.id, inv.buyerId));
 
-      const recent = await db
-        .select({ createdAt: s.messages.createdAt })
-        .from(s.messages)
-        .where(and(eq(s.messages.invoiceId, invoiceId), eq(s.messages.channel, "pay_page"), eq(s.messages.direction, "in"), gte(s.messages.createdAt, new Date(now.getTime() - 86_400_000))));
-      const lastHour = recent.filter((r) => r.createdAt.getTime() > now.getTime() - 3_600_000 && r.createdAt.getTime() <= now.getTime()).length;
-      if (lastHour >= PAY_MESSAGES_PER_HOUR || recent.length >= PAY_MESSAGES_PER_DAY) return { ok: false, error: "rate_limited" };
+        const recent = await tx
+          .select({ createdAt: s.messages.createdAt })
+          .from(s.messages)
+          .where(and(eq(s.messages.invoiceId, invoiceId), eq(s.messages.channel, "pay_page"), eq(s.messages.direction, "in"), gte(s.messages.createdAt, new Date(now.getTime() - 86_400_000))));
+        const lastHour = recent.filter((r) => r.createdAt.getTime() > now.getTime() - 3_600_000 && r.createdAt.getTime() <= now.getTime()).length;
+        if (lastHour >= PAY_MESSAGES_PER_HOUR || recent.length >= PAY_MESSAGES_PER_DAY) return { ok: false, error: "rate_limited" };
 
-      const id = newId("msg");
-      await db.insert(s.messages).values({
-        id, invoiceId, direction: "in", channel: "pay_page", status: "sent", from: inv.contactName, subject: "Message from the pay page", body, createdAt: now,
+        const id = newId("msg");
+        await tx.insert(s.messages).values({
+          id, invoiceId, direction: "in", channel: "pay_page", status: "sent", from: buyer?.contactName ?? "", subject: "Message from the pay page", body, createdAt: now,
+        });
+        return { ok: true, messageId: id, invoiceId, exporterId: inv.exporterId, buyerId: inv.buyerId };
       });
-      return { ok: true, messageId: id, invoiceId, exporterId: inv.exporterId, buyerId: inv.buyerId };
     },
 
     /** The pay page's thread: this invoice's pay-page messages that were actually sent. Null = no such payable invoice. */
