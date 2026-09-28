@@ -41,12 +41,14 @@ export function PayCard({ initial, solHref }: { initial: PayInvoice; solHref?: s
   const document = (
     <InvoiceDocument
       compact
-      from={{ name: pay.exporterName }}
+      from={{ name: pay.exporterName, logo: pay.exporterLogoUrl, lines: pay.exporterAddress ? [pay.exporterAddress] : [] }}
+      to={{ name: pay.buyerName, lines: pay.buyerAddress ? [pay.buyerAddress] : [] }}
       number={pay.invoiceNumber}
+      issuedAt={pay.issuedAt}
       dueDate={pay.dueDate}
       status={paid || overdue || seen ? pay.status : undefined}
+      lineItems={pay.lineItems}
       totalUsdc={pay.amountUsdc}
-      showItems={false}
       note={paid ? null : "Pay with USDC, or SOL converted on the spot. No gas fee: the amount shown is the amount that arrives."}
     />
   );

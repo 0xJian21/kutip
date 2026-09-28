@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bot, BookOpen, FileText, LayoutGrid, Landmark, Menu, Plus, X } from "lucide-react";
+import { Bot, BookOpen, FileText, LayoutGrid, Landmark, Menu, Plus, Settings, X } from "lucide-react";
 import { Avatar, KutipMark } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { buttonClass } from "@/components/ui/button";
@@ -14,6 +14,7 @@ const ITEMS = [
   { href: "/agent", label: "Agent activity", icon: Bot },
   { href: "/rulebook", label: "Rulebook", icon: BookOpen },
   { href: "/treasury", label: "Treasury", icon: Landmark },
+  { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function Wordmark() {
@@ -51,10 +52,10 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function ExporterRow({ name }: { name: string }) {
+function ExporterRow({ name, logoUrl }: { name: string; logoUrl?: string }) {
   return (
     <div className="flex items-center gap-3 px-1">
-      <Avatar name={name} size="md" shape="square" />
+      <Avatar name={name} src={logoUrl} size="md" shape="square" />
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-ink" title={name}>{name}</p>
         <p className="text-xs text-ink-3">Exporter</p>
@@ -81,12 +82,12 @@ function OwnerRow({ name }: { name: string }) {
  * stops short); the inner column is sticky and viewport-high. Bottom padding
  * keeps the owner row clear of the dev-tools badge.
  */
-export function SideNav({ exporterName, ownerName }: { exporterName: string; ownerName: string }) {
+export function SideNav({ exporterName, ownerName, logoUrl }: { exporterName: string; ownerName: string; logoUrl?: string }) {
   return (
     <aside className="hidden w-[248px] shrink-0 self-stretch border-r border-line bg-paper lg:block">
       <div className="sticky top-0 flex h-screen flex-col px-4 pb-16 pt-5">
         <div className="px-1"><Wordmark /></div>
-        <div className="mt-6"><ExporterRow name={exporterName} /></div>
+        <div className="mt-6"><ExporterRow name={exporterName} logoUrl={logoUrl} /></div>
         <nav aria-label="Main" className="mt-6">
           <NavList />
         </nav>
@@ -102,7 +103,7 @@ export function SideNav({ exporterName, ownerName }: { exporterName: string; own
   );
 }
 
-export function TopBar({ exporterName, ownerName }: { exporterName: string; ownerName: string }) {
+export function TopBar({ exporterName, ownerName, logoUrl }: { exporterName: string; ownerName: string; logoUrl?: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const current = ITEMS.find((i) => pathname === i.href || pathname.startsWith(`${i.href}/`));
@@ -139,7 +140,7 @@ export function TopBar({ exporterName, ownerName }: { exporterName: string; owne
           <button type="button" aria-label="Close menu" onClick={() => setOpen(false)} className="absolute inset-0 bg-ink/30" />
           <div className="absolute inset-y-0 right-0 flex w-[300px] max-w-[88vw] flex-col rounded-l-lg bg-paper px-4 pb-6 pt-5 shadow-float">
             <div className="flex items-center justify-between gap-3">
-              <ExporterRow name={exporterName} />
+              <ExporterRow name={exporterName} logoUrl={logoUrl} />
               <button type="button" onClick={() => setOpen(false)} aria-label="Close menu" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface">
                 <X size={16} aria-hidden="true" />
               </button>

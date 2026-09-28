@@ -20,24 +20,28 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   return data;
 }
 
+type State = { status: "idle" } | { status: "signing" | "sending"; index: string } | { status: "done"; index: string; signature: string } | { status: "error"; index: string; error: string };
+
 /**
- * Owner approval of a Squads proposal with the Privy passkey wallet:
- *   1. server builds approve+execute (fee payer signed),
- *   2. Privy signs it here (one passkey prompt),
+ * Owner decision on a Squads proposal with the Privy passkey wallet:
+ *   1. server builds approve+execute (or reject), fee payer signed,
+ *   2. Privy signs it here (one passkey prompt: Touch ID / Face ID with MFA enrolled),
  *   3. server sends it and confirms.
- * With `actionId`, the submit route marks that agent action executed with the signature.
+ * With `actionId`, the submit route settles that agent action (executed / rejected) with the signature,
+ * but only if it is still proposed and belongs to this proposal index.
  */
 export function useApproveProposal() {
   const owner = useOwnerWallet();
   const { signTransaction } = useSignTransaction();
-  const [state, setState] = useState<{ status: "idle" } | { status: "signing" | "sending"; index: string } | { status: "done"; index: string; signature: string } | { status: "error"; index: string; error: string }>({ status: "idle" });
+  const [state, setState] = useState<State>({ status: "idle" });
 
-  const approve = useCallback(
-    async (transactionIndex: string, actionId?: string): Promise<string> => {
+  const decide = useCallback(
+    async (transactionIndex: string, decision: "executed" | "rejected", actionId?: string): Promise<string> => {
       if (!owner.wallet || !owner.address) throw new Error("sign in with your passkey first");
       setState({ status: "signing", index: transactionIndex });
       try {
-        const built = await post<{ transaction: string }>(`/api/treasury/proposals/${transactionIndex}/approve`, { owner: owner.address });
+        const route = decision === "executed" ? "approve" : "reject";
+        const built = await post<{ transaction: string }>(`/api/treasury/proposals/${transactionIndex}/${route}`, { owner: owner.address });
         const { signedTransaction } = await signTransaction({
           transaction: Uint8Array.from(atob(built.transaction), (c) => c.charCodeAt(0)),
           wallet: owner.wallet,
@@ -49,6 +53,7 @@ export function useApproveProposal() {
           owner: owner.address,
           signedTransaction: btoa(String.fromCharCode(...signedTransaction)),
           actionId,
+          decision,
         });
         setState({ status: "done", index: transactionIndex, signature });
         return signature;
@@ -60,7 +65,10 @@ export function useApproveProposal() {
     [owner.wallet, owner.address, signTransaction],
   );
 
-  return { approve, state, owner };
+  const approve = useCallback((transactionIndex: string, actionId?: string) => decide(transactionIndex, "executed", actionId), [decide]);
+  const reject = useCallback((transactionIndex: string, actionId?: string) => decide(transactionIndex, "rejected", actionId), [decide]);
+
+  return { approve, reject, state, owner };
 }
 
 export async function fetchProposals(): Promise<{ multisig: string; proposals: ProposalView[] }> {

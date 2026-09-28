@@ -33,10 +33,10 @@ export function ActionRow({
   }
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const { approve, state } = useApproveProposal();
+  const { approve, reject, state } = useApproveProposal();
   const buyer = buyers.find((b) => b.id === current.buyerId);
-  // Squads proposals record their index in inputSummary ("proposal #N: …", Session 5).
-  const proposalIndex = MOCK ? undefined : /^proposal #(\d+)/.exec(current.inputSummary)?.[1];
+  // Squads proposals carry their index (agent_actions.proposal_index); older rows only say "proposal #N: …" in the summary.
+  const proposalIndex = MOCK ? undefined : current.proposalIndex !== undefined ? String(current.proposalIndex) : /^proposal #(\d+)/.exec(current.inputSummary)?.[1];
   const signing = state.status === "signing" || state.status === "sending";
 
   function update(next: AgentAction) {
@@ -48,10 +48,10 @@ export function ActionRow({
     setError(null);
     startTransition(async () => {
       try {
-        if (decision === "approved" && proposalIndex) {
-          // One passkey prompt (Touch ID): approve + execute in one tx, fee paid by Kutip; the route marks the action executed.
-          const signature = await approve(proposalIndex, current.id);
-          update({ ...current, status: "executed", txSignature: signature });
+        if (proposalIndex) {
+          // One passkey prompt (Touch ID): approve + execute, or reject, on-chain; fee paid by Kutip. The route settles the action.
+          const signature = decision === "approved" ? await approve(proposalIndex, current.id) : await reject(proposalIndex, current.id);
+          update({ ...current, status: decision === "approved" ? "executed" : "rejected", txSignature: signature });
           return;
         }
         const next = await decideAction(current.id, decision);
@@ -95,7 +95,7 @@ export function ActionRow({
         ) : null}
       </div>
       {error ? <p role="alert" className="text-sm text-disputed-fg">{error}</p> : null}
-      {signing ? <p className="text-sm text-ink-2" aria-live="polite">{state.status === "signing" ? "Your device will ask for Touch ID or Face ID to sign the approval." : "Approved. Executing on Solana…"}</p> : null}
+      {signing ? <p className="text-sm text-ink-2" aria-live="polite">{state.status === "signing" ? "Your device will ask for Touch ID or Face ID to sign your decision." : "Signed. Sending to Solana…"}</p> : null}
     </article>
   );
 }

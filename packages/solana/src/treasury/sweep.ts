@@ -92,7 +92,7 @@ export function randomSweepTime(after: Date, rand: () => number = Math.random): 
 // ---------------------------------------------------------------------------
 
 type Store = ReturnType<typeof createStore>;
-export type SweepStore = Pick<Store, "getExporter" | "listBuyers" | "getRulebook" | "recordSweep" | "updateBalances" | "recordAgentAction">;
+export type SweepStore = Pick<Store, "getExporter" | "listBuyerAccounts" | "getRulebook" | "recordSweep" | "updateBalances" | "recordAgentAction">;
 
 export type SweepDeps = {
   connection: Connection;
@@ -111,8 +111,24 @@ export type SweepResult = {
   sweeps: Array<{ id: string; signature: string; buyerIds: string[]; amountUsdc: bigint }>;
 };
 
+/**
+ * The buyer's SpendingLimit PDA: the one stored after a permissions change (Session 8b),
+ * else the provisioning derivation from the multisig address.
+ */
+export function limitPdaForBuyer(p: { multisigPda: PublicKey; spendingLimitPda?: string; secret: Uint8Array }): PublicKey {
+  if (p.spendingLimitPda) {
+    try {
+      const stored = new PublicKey(p.spendingLimitPda);
+      if (!stored.equals(PublicKey.default)) return stored;
+    } catch {
+      /* seeded placeholder */
+    }
+  }
+  return spendingLimitPdaFor(p.multisigPda, limitCreateKeyFor(p.secret, p.multisigPda).publicKey);
+}
+
 /** Reads on-chain vault balances + spending limits for every provisioned buyer. */
-export async function readVaults(p: { connection: Connection; feePayer: Keypair; usdcMint: PublicKey; buyers: Array<{ id: string; multisig: string; usdcAta: string }>; now: Date }): Promise<VaultState[]> {
+export async function readVaults(p: { connection: Connection; feePayer: Keypair; usdcMint: PublicKey; buyers: Array<{ id: string; multisig: string; usdcAta: string; spendingLimitPda?: string }>; now: Date }): Promise<VaultState[]> {
   const out: VaultState[] = [];
   const nowUnix = BigInt(Math.floor(p.now.getTime() / 1000));
   for (const b of p.buyers) {
@@ -122,7 +138,7 @@ export async function readVaults(p: { connection: Connection; feePayer: Keypair;
     } catch {
       continue; // seeded placeholder, not provisioned
     }
-    const spendingLimitPda = spendingLimitPdaFor(multisigPda, limitCreateKeyFor(p.feePayer.secretKey, multisigPda).publicKey);
+    const spendingLimitPda = limitPdaForBuyer({ multisigPda, spendingLimitPda: b.spendingLimitPda, secret: p.feePayer.secretKey });
     const limitInfo = await p.connection.getAccountInfo(spendingLimitPda);
     if (!limitInfo) continue;
     const [limit] = multisig.accounts.SpendingLimit.fromAccountInfo(limitInfo);
@@ -146,7 +162,7 @@ export async function runSweep(d: SweepDeps): Promise<SweepResult> {
   const now = d.now ?? new Date();
   const exporter = await d.store.getExporter(d.exporterId);
   if (!exporter) throw new Error(`exporter not found: ${d.exporterId}`);
-  const [buyers, rulebook] = await Promise.all([d.store.listBuyers(d.exporterId), d.store.getRulebook(d.exporterId)]);
+  const [buyers, rulebook] = await Promise.all([d.store.listBuyerAccounts(d.exporterId), d.store.getRulebook(d.exporterId)]);
   const vaults = await readVaults({ connection: d.connection, feePayer: d.feePayer, usdcMint: d.usdcMint, buyers, now });
   const treasuryVaultPda = new PublicKey(exporter.treasuryVault);
   const plan = planSweep({ vaults, rulebook, treasuryUsdcAta: new PublicKey(exporter.treasuryUsdcAta) });

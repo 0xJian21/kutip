@@ -82,7 +82,8 @@ async function prepare(p: {
   const budgeted = reused ? null : await screenWithBudget(buyer, { rpc: rt.screeningRpc, budgetMs: SCREEN_BUDGET_MS });
   const screening = reused ?? budgeted!.result;
   if (budgeted?.late) after(() => finishScreening(rt, target, wallet, budgeted.late!));
-  else if (!reused) await rt.store.recordScreening({ wallet, invoiceId, result: screening.result, reasons: screening.reasons });
+  // Every invoice gets its own row, even when the screening was reused (FOLLOWUPS: the compliance trail shows which check covered which invoice).
+  else await rt.store.recordScreening({ wallet, invoiceId, result: screening.result, reasons: reused ? [`reused screening ${latest?.id} from ${latest?.createdAt}`, ...screening.reasons] : screening.reasons });
   if (screening.result === "flag") {
     console.warn(`[pay] flagged ${wallet} for ${invoiceId}: ${screening.reasons.join("; ")}`);
     return { status: 403, body: { message: `This wallet can't be used to pay ${target.exporterName}. Please contact them for another payment method.` } };

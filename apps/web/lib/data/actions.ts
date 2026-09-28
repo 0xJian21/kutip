@@ -14,17 +14,18 @@ import { validateRulebook } from "@/lib/server/access";
 import { handleBuyerReply } from "@/lib/server/replies";
 import { store } from "@/lib/server/store";
 import type { LineItem, Rulebook } from "@/lib/ui/types";
-import { toResult } from "./result";
+import { toResult, UserError } from "./result";
 
 function anthropic(): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
+  if (!apiKey) throw new UserError("Reading PDFs is not configured on this server (ANTHROPIC_API_KEY)");
   return new Anthropic({ apiKey });
 }
 
-async function establishSessionImpl(accessToken: string): Promise<{ exporterId: string }> {
-  const { exporterId } = await signIn(accessToken);
-  return { exporterId };
+/** Sign-in (R3): linked users get a session and go straight in; unlinked ones continue through onboarding. */
+async function establishSessionImpl(accessToken: string): Promise<{ linked: true; exporterId: string } | { linked: false }> {
+  const r = await signIn(accessToken);
+  return r.linked ? { linked: true, exporterId: r.session.exporterId } : { linked: false };
 }
 
 export async function endSession(): Promise<void> {
@@ -56,6 +57,8 @@ export async function saveRulebook(rulebook: Rulebook) {
   return (await ownerDataOrThrow()).saveRulebook(validateRulebook(rulebook));
 }
 
+export const PDF_MAX_BYTES = 4 * 1024 * 1024;
+
 export type ExtractedDraft = {
   buyerId: string | null;
   buyerName: string;
@@ -70,8 +73,9 @@ export type ExtractedDraft = {
 async function readInvoicePdfImpl(form: FormData): Promise<ExtractedDraft> {
   const data = await ownerDataOrThrow();
   const file = form.get("pdf");
-  if (!(file instanceof File) || file.size === 0) throw new Error("No PDF received");
-  if (file.size > 8 * 1024 * 1024) throw new Error("That PDF is over 8 MB. Export a smaller one or fill in the form.");
+  if (!(file instanceof File) || file.size === 0) throw new UserError("No PDF received");
+  // Vercel caps request bodies at 4.5 MB, so anything larger would 413 before reaching us (FOLLOWUPS).
+  if (file.size > PDF_MAX_BYTES) throw new UserError("That PDF is over 4 MB. Export a smaller one or fill in the form.");
   const x = await extractInvoice(anthropic(), new Uint8Array(await file.arrayBuffer()));
   const buyers = await data.listBuyers();
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -99,9 +103,9 @@ async function createInvoiceImpl(input: {
   lineItems: LineItem[];
 }): Promise<{ id: string; number: string; payUrl: string; sentTo: string; delivery: "sent" | "recorded" | "skipped" | "failed" }> {
   const { exporterId } = await ownerDataOrThrow();
-  if (MOCK) throw new Error("Creating invoices needs the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) throw new Error("Enter a due date");
-  if (input.lineItems.length === 0 || input.lineItems.some((l) => l.quantity <= 0 || l.unitPriceUsdc < 0n)) throw new Error("Every line needs a quantity and a price");
+  if (MOCK) throw new UserError("Creating invoices needs the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) throw new UserError("Enter a due date");
+  if (input.lineItems.length === 0 || input.lineItems.some((l) => l.quantity <= 0 || l.unitPriceUsdc < 0n)) throw new UserError("Every line needs a quantity and a price");
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur" }).format(new Date());
   const inv = await store().createInvoice({
     exporterId,
@@ -137,9 +141,9 @@ async function createInvoiceImpl(input: {
 /** Demo scene (SPEC F8): a buyer reply goes through Jev (Haiku fallback) → rules engine → agent log. */
 async function simulateBuyerReplyImpl(invoiceId: string, body: string) {
   const { exporterId } = await ownerDataOrThrow();
-  if (MOCK) throw new Error("Buyer replies need the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
-  if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_DEMO_CONTROLS !== "1") throw new Error("Simulated replies are turned off");
-  if (!body.trim()) throw new Error("Write the buyer's reply first");
+  if (MOCK) throw new UserError("Buyer replies need the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
+  if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_DEMO_CONTROLS !== "1") throw new UserError("Simulated replies are turned off");
+  if (!body.trim()) throw new UserError("Write the buyer's reply first");
   const client = anthropic();
   const haiku = haikuClassifier(client);
   const key = process.env.OPENROUTER_API_KEY;

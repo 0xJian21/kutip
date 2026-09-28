@@ -1,7 +1,8 @@
 import "server-only";
 import { connectionFor, keypairFromEnv } from "@kutip/solana";
-import { PublicKey } from "@solana/web3.js";
-import { sessionOrThrow } from "@/lib/server/auth";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { UserError } from "@/lib/data/result";
+import { MOCK, sessionOrThrow } from "@/lib/server/auth";
 import { store } from "@/lib/server/store";
 
 /** Server-side treasury context for the API routes; the exporter comes from the owner's session. */
@@ -20,7 +21,22 @@ function build() {
   };
 }
 export function treasuryContext() {
+  if (MOCK) throw new UserError("The treasury is not available while the app runs on mock data");
   return { store: store(), ...(cached ??= build()) };
+}
+
+/** The agent's key (Squads member with Initiate + spending limits): signs sweeps and creates proposals. */
+let agentCached: Keypair | undefined;
+export function agentKeypair(): Keypair {
+  if (agentCached) return agentCached;
+  if (!process.env.AGENT_SECRET) throw new UserError("Kutip's agent key is not configured on this server (AGENT_SECRET)");
+  return (agentCached = keypairFromEnv("AGENT_SECRET"));
+}
+
+/** The agent's public key, from AGENT_PUBKEY or AGENT_SECRET (onboarding only needs the pubkey). */
+export function agentPubkey(): PublicKey {
+  if (process.env.AGENT_PUBKEY) return pubkey(process.env.AGENT_PUBKEY, "AGENT_PUBKEY");
+  return agentKeypair().publicKey;
 }
 
 export async function treasuryMultisig(): Promise<{ exporterId: string; multisig: PublicKey; wallet?: string }> {
@@ -39,6 +55,6 @@ export function pubkey(value: unknown, what: string): PublicKey {
   try {
     return new PublicKey(String(value));
   } catch {
-    throw new Error(`${what} is not a valid public key`);
+    throw new UserError(`${what} is not a valid public key`);
   }
 }

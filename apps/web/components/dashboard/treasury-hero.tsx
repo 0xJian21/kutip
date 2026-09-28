@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { Button, buttonClass } from "@/components/ui/button";
+import { SweepNowButton } from "@/components/treasury/treasury-buttons";
+import { buttonClass } from "@/components/ui/button";
 import { HeroCard } from "@/components/ui/card";
 import { Meter } from "@/components/ui/charts";
 import { Amount } from "@/components/ui/money";
@@ -10,8 +11,8 @@ import { solscanAccount } from "@/lib/ui/format";
 
 /**
  * The one gradient card. Balance in ringgit, USDC beneath, the agent's daily
- * cap as a meter, and the two money actions. "Sweep now" waits for Session 8b's
- * manual sweep (PLAN.md Requests); "Cash out" goes to the treasury page.
+ * cap as a meter, and the two money actions. "Sweep now" opens the manual sweep
+ * (Session 8b, T2/A2); "Cash out" goes to the treasury page.
  */
 export function TreasuryHero({
   balanceUsdc,
@@ -19,6 +20,7 @@ export function TreasuryHero({
   vault,
   waitingUsdc,
   dailyLimitUsdc,
+  demoFunds = false,
 }: {
   balanceUsdc: bigint;
   rate: BnmRate;
@@ -26,6 +28,8 @@ export function TreasuryHero({
   /** Sitting in buyer accounts, not yet swept. */
   waitingUsdc?: bigint;
   dailyLimitUsdc?: bigint;
+  /** Real mainnet accounts, test-sized balances: say so next to the big seeded business numbers. */
+  demoFunds?: boolean;
 }) {
   return (
     <HeroCard>
@@ -43,6 +47,7 @@ export function TreasuryHero({
       <p className="mt-1.5 text-sm tabular text-on-hero-2">
         {formatUsdc(balanceUsdc)} USDC · BNM rate {formatRate(rate)}
       </p>
+      <p className="mt-1 text-xs text-on-hero-2">{demoFunds ? "Live on Solana mainnet · demo funds. " : ""}All payments arrive as USD (USDC).</p>
       {waitingUsdc !== undefined && dailyLimitUsdc !== undefined ? (
         <Meter
           tone="hero"
@@ -55,9 +60,7 @@ export function TreasuryHero({
         />
       ) : null}
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button variant="hero" disabled title="Manual sweep arrives with the treasury update">
-          Sweep now
-        </Button>
+        <SweepNowButton rate={rate} />
         <Link href="/treasury" className={buttonClass("heroOutline")}>
           Cash out to ringgit
         </Link>

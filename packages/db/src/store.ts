@@ -811,6 +811,26 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       return toBuyer(row);
     },
 
+    /** Sweeper / permissions: every buyer's on-chain accounts, including a re-issued spending-limit PDA. */
+    async listBuyerAccounts(exporterId: string): Promise<Array<{ id: string; multisig: string; usdcAta: string; spendingLimitPda?: string }>> {
+      const rows = await db
+        .select({ id: s.buyers.id, multisig: s.buyers.multisig, usdcAta: s.buyers.usdcAta, spendingLimitPda: s.buyers.spendingLimitPda })
+        .from(s.buyers)
+        .where(eq(s.buyers.exporterId, exporterId))
+        .orderBy(asc(s.buyers.createdAt), asc(s.buyers.id));
+      return rows.map((r) => ({ id: r.id, multisig: r.multisig, usdcAta: r.usdcAta, spendingLimitPda: r.spendingLimitPda ?? undefined }));
+    },
+
+    /** Permissions (R4): the agent's daily cap was re-issued on-chain as a new SpendingLimit account. */
+    async setBuyerSpendingLimit(exporterId: string, buyerId: string, spendingLimitPda: string): Promise<void> {
+      const rows = await db
+        .update(s.buyers)
+        .set({ spendingLimitPda })
+        .where(and(eq(s.buyers.id, buyerId), eq(s.buyers.exporterId, exporterId)))
+        .returning({ id: s.buyers.id });
+      if (rows.length === 0) throw new Error("buyer not found for this exporter");
+    },
+
     /** Provisioning (F1): store the main treasury addresses. */
     async updateTreasuryAccounts(exporterId: string, accounts: { treasuryMultisig: string; treasuryVault: string; treasuryUsdcAta: string }): Promise<void> {
       await db.update(s.exporters).set(accounts).where(eq(s.exporters.id, exporterId));

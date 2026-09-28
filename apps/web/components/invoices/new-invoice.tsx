@@ -123,7 +123,7 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
 
   const document = (
     <InvoiceDocument
-      from={{ name: exporter.name, lines: [exporter.registrationNo ? `SSM ${exporter.registrationNo}` : "", exporter.city].filter(Boolean) }}
+      from={{ name: exporter.name, logo: exporter.logoUrl, lines: [exporter.registrationNo ? `SSM ${exporter.registrationNo}` : "", exporter.address || exporter.city].filter(Boolean) }}
       to={buyer ? { name: buyer.name, lines: [buyer.contactName, `${buyer.city}, ${buyer.countryName}`] } : undefined}
       number={created?.number ?? number}
       issuedAt=""

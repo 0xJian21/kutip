@@ -41,8 +41,8 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
       <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 lg:gap-6">
           <InvoiceDocument
-            from={{ name: exporter.name, lines: [exporter.registrationNo ? `SSM ${exporter.registrationNo}` : "", exporter.city].filter(Boolean) }}
-            to={{ name: buyer.name, lines: [buyer.contactName, `${buyer.city}, ${buyer.countryName}`] }}
+            from={{ name: exporter.name, logo: exporter.logoUrl, lines: [exporter.registrationNo ? `SSM ${exporter.registrationNo}` : "", exporter.address || exporter.city].filter(Boolean) }}
+            to={{ name: buyer.name, lines: [buyer.contactName, buyer.address || `${buyer.city}, ${buyer.countryName}`] }}
             number={invoice.number}
             issuedAt={invoice.issuedAt}
             dueDate={invoice.dueDate}

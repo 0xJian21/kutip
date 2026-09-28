@@ -179,6 +179,7 @@ export async function createTransferProposal(d: {
     ruleId: "T4",
     status: "proposed",
     txSignature: signature,
+    proposalIndex: transactionIndex,
   });
   return { transactionIndex, signature, actionId: action.id };
 }

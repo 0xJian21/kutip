@@ -86,7 +86,14 @@ export function LiveDashboard({
           <RecentPayments payments={recent} buyers={buyers} rate={summary.rate} />
         </div>
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 lg:gap-6">
-          <TreasuryHero balanceUsdc={summary.treasuryBalanceUsdc} rate={summary.rate} vault={exporter.treasuryVault} />
+          <TreasuryHero
+            balanceUsdc={summary.treasuryBalanceUsdc}
+            rate={summary.rate}
+            vault={exporter.treasuryVault}
+            waitingUsdc={summary.waitingInBuyerAccountsUsdc}
+            dailyLimitUsdc={exporter.rulebook.treasury.agentDailyLimitUsdc}
+            demoFunds={exporter.demoFunds}
+          />
           <NeedsYou actions={summary.activity} attention={summary.attention} buyers={buyers} invoices={invoices} rate={summary.rate} />
         </div>
       </div>

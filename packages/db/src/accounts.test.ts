@@ -144,3 +144,14 @@ describe("dashboard and pay page extras", () => {
     expect(pay?.lineItems).toEqual(item);
   });
 });
+
+describe("buyer accounts for the sweeper and permissions", () => {
+  test("listBuyerAccounts exposes the stored spending-limit PDA and setBuyerSpendingLimit replaces it", async () => {
+    const before = await store.listBuyerAccounts(exporterId);
+    expect(before.map((x) => x.id)).toEqual([a.id, expect.any(String)]);
+    expect(before[0]).toMatchObject({ id: a.id, multisig: a.multisig, usdcAta: a.usdcAta, spendingLimitPda: undefined });
+    await store.setBuyerSpendingLimit(exporterId, a.id, "Limit111");
+    expect((await store.listBuyerAccounts(exporterId))[0]?.spendingLimitPda).toBe("Limit111");
+    await expect(store.setBuyerSpendingLimit("exp_other", a.id, "Limit222")).rejects.toThrow(/buyer not found/);
+  });
+});
