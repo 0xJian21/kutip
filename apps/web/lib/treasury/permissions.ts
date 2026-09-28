@@ -3,7 +3,7 @@ import { buildOwnerTx, limitPdaForBuyer, limitVersionKeyFor, parseSignedOwnerTx,
 import { PublicKey } from "@solana/web3.js";
 import { UserError } from "@/lib/data/result";
 import { validateRulebook } from "@/lib/server/access";
-import { ownerStatement, verifyOwnerSignature } from "@/lib/server/owner-signature";
+import { ownerStatement, statementTransaction, verifyOwnerStatement } from "@/lib/server/owner-signature";
 import { applyPermissions, permissionsOf, type AgentPermissions } from "./permissions-model";
 import { PERMISSIONS_PURPOSE, permissionsPurpose } from "./permissions-purpose";
 import { agentPubkey, treasuryContext } from "./server";
@@ -102,8 +102,8 @@ export async function buildLimitChangeTxs(exporterId: string, dailyCapUsdc: bigi
 }
 
 export type PermissionsApproval =
-  | { kind: "statement"; message: string; signature: string }
-  | { kind: "transactions"; signed: Array<{ buyerId: string; spendingLimitPda: string; signedTransaction: string }>; message: string; signature: string };
+  | { kind: "statement"; signedStatement: string }
+  | { kind: "transactions"; signed: Array<{ buyerId: string; spendingLimitPda: string; signedTransaction: string }>; signedStatement: string };
 
 /**
  * Persist the permissions the owner just approved. With signed config transactions,
@@ -112,7 +112,9 @@ export type PermissionsApproval =
  */
 export async function savePermissions(p: { exporterId: string; wallet?: string; permissions: AgentPermissions; approval: PermissionsApproval }): Promise<{ signatures: string[]; approvedAt: string }> {
   // The purpose carries a digest of the permissions, so the signature covers exactly what is applied below.
-  if (!verifyOwnerSignature({ wallet: p.wallet, message: p.approval.message, signature: p.approval.signature, exporterId: p.exporterId, purpose: permissionsPurpose(p.permissions) })) {
+  const v = verifyOwnerStatement({ wallet: p.wallet, signedTransaction: p.approval.signedStatement, exporterId: p.exporterId, purpose: permissionsPurpose(p.permissions) });
+  if (!v.ok) {
+    console.warn(`[permissions] statement rejected: ${v.reason}`);
     throw new UserError("That approval didn't come from your signed-in passkey wallet. Try again.");
   }
   const { connection, feePayer, store } = treasuryContext();
@@ -129,7 +131,7 @@ export async function savePermissions(p: { exporterId: string; wallet?: string; 
   }
   await store.updateRulebook(p.exporterId, rulebook);
   const at = new Date();
-  await store.recordPermissionsApproval(p.exporterId, { wallet: p.wallet!, signature: p.approval.signature, at });
+  await store.recordPermissionsApproval(p.exporterId, { wallet: p.wallet!, signature: v.signature, at });
   await store.recordAgentAction({
     exporterId: p.exporterId,
     kind: "sweep_proposal",
@@ -145,6 +147,7 @@ export async function savePermissions(p: { exporterId: string; wallet?: string; 
   return { signatures, approvedAt: at.toISOString() };
 }
 
-export function permissionsStatement(exporterId: string, permissions: AgentPermissions, at = new Date()): string {
-  return ownerStatement({ exporterId, purpose: permissionsPurpose(permissions), at });
+export function permissionsStatement(exporterId: string, wallet: string, permissions: AgentPermissions, at = new Date()): { message: string; transaction: string } {
+  const message = ownerStatement({ exporterId, purpose: permissionsPurpose(permissions), at });
+  return { message, transaction: statementTransaction({ owner: new PublicKey(wallet), statement: message }) };
 }

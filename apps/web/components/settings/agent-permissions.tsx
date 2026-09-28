@@ -43,7 +43,7 @@ export function AgentPermissionsForm({ initial, embedded = false, onSaved }: { i
         if (!st.ok) throw new Error(st.error);
         // One Touch ID prompt signs the statement; with a cap change it also signs the config transactions (same MFA window).
         const signed = await sign(st.value);
-        let approval: Parameters<typeof permissionsSave>[0]["approval"] = { kind: "statement", ...signed };
+        let approval: Parameters<typeof permissionsSave>[0]["approval"] = { kind: "statement", signedStatement: signed.signedTransaction };
         if (needsChain) {
           const txs = await permissionsLimitTxs(cap);
           if (!txs.ok) throw new Error(txs.error);
@@ -52,7 +52,7 @@ export function AgentPermissionsForm({ initial, embedded = false, onSaved }: { i
             const { signedTransaction } = await owner.signTransaction(t.transaction);
             signedTxs.push({ buyerId: t.buyerId, spendingLimitPda: t.spendingLimitPda, signedTransaction });
           }
-          approval = { kind: "transactions", signed: signedTxs, ...signed };
+          approval = { kind: "transactions", signed: signedTxs, signedStatement: signed.signedTransaction };
         }
         const r = await permissionsSave({ permissions: next, approval });
         if (!r.ok) throw new Error(r.error);

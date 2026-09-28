@@ -162,7 +162,7 @@ export function WhitelistAdd({ onAdded }: { onAdded: (list: Array<{ label: strin
         const st = await whitelistStatementFor(address.trim());
         if (!st.ok) throw new Error(st.error);
         const signed = await sign(st.value);
-        const r = await whitelistAdd({ label, address: address.trim(), ...signed });
+        const r = await whitelistAdd({ label, address: address.trim(), signedTransaction: signed.signedTransaction });
         if (!r.ok) throw new Error(r.error);
         onAdded(r.value);
         setOpenForm(false);

@@ -2,7 +2,7 @@ import "server-only";
 import { cashOutAlert, formatUsdc } from "@kutip/agent";
 import { createTransferProposal, PublicKey } from "@kutip/solana";
 import { UserError } from "@/lib/data/result";
-import { ownerStatement, verifyOwnerSignature } from "@/lib/server/owner-signature";
+import { ownerStatement, statementTransaction, verifyOwnerStatement } from "@/lib/server/owner-signature";
 import { toMyr, type BnmRate } from "@/lib/ui/money";
 import { agentKeypair, pubkey, treasuryContext } from "./server";
 
@@ -103,12 +103,14 @@ export async function proposeCashOut(exporterId: string, input: { amountUsdc: bi
 
 export const WHITELIST_PURPOSE = (address: string) => `Whitelist cash-out address ${address}`;
 
-/** Owner adds their own exchange deposit address, signed with the passkey wallet (a statement, not a transaction). */
-export async function addCashOutAddress(p: { exporterId: string; wallet?: string; label: string; address: string; message: string; signature: string }): Promise<Array<{ label: string; address: string }>> {
+/** Owner adds their own exchange deposit address, approved with the passkey wallet (a signed statement transaction that is never sent). */
+export async function addCashOutAddress(p: { exporterId: string; wallet?: string; label: string; address: string; signedTransaction: string }): Promise<Array<{ label: string; address: string }>> {
   const address = pubkey(p.address, "Deposit address").toBase58();
   const label = p.label.trim().slice(0, 80);
   if (!label) throw new UserError("Give the address a label, e.g. HATA USDC deposit");
-  if (!verifyOwnerSignature({ wallet: p.wallet, message: p.message, signature: p.signature, exporterId: p.exporterId, purpose: WHITELIST_PURPOSE(address) })) {
+  const v = verifyOwnerStatement({ wallet: p.wallet, signedTransaction: p.signedTransaction, exporterId: p.exporterId, purpose: WHITELIST_PURPOSE(address) });
+  if (!v.ok) {
+    console.warn(`[cash-out] whitelist statement rejected: ${v.reason}`);
     throw new UserError("That approval didn't come from your signed-in passkey wallet. Try again.");
   }
   const { store } = treasuryContext();
@@ -119,8 +121,10 @@ export async function addCashOutAddress(p: { exporterId: string; wallet?: string
   return next;
 }
 
-export async function removeCashOutAddress(p: { exporterId: string; wallet?: string; address: string; message: string; signature: string }): Promise<Array<{ label: string; address: string }>> {
-  if (!verifyOwnerSignature({ wallet: p.wallet, message: p.message, signature: p.signature, exporterId: p.exporterId, purpose: `Remove cash-out address ${p.address}` })) {
+export const REMOVE_PURPOSE = (address: string) => `Remove cash-out address ${address}`;
+
+export async function removeCashOutAddress(p: { exporterId: string; wallet?: string; address: string; signedTransaction: string }): Promise<Array<{ label: string; address: string }>> {
+  if (!verifyOwnerStatement({ wallet: p.wallet, signedTransaction: p.signedTransaction, exporterId: p.exporterId, purpose: REMOVE_PURPOSE(p.address) }).ok) {
     throw new UserError("That approval didn't come from your signed-in passkey wallet. Try again.");
   }
   const { store } = treasuryContext();
@@ -130,7 +134,8 @@ export async function removeCashOutAddress(p: { exporterId: string; wallet?: str
   return next;
 }
 
-/** The statement the client asks the wallet to sign for a whitelist change. */
-export function whitelistStatement(exporterId: string, address: string, at = new Date()): string {
-  return ownerStatement({ exporterId, purpose: WHITELIST_PURPOSE(address), at });
+/** The statement (and its unsendable transaction) the client asks the wallet to sign for a whitelist change. */
+export function whitelistStatement(exporterId: string, wallet: string, purpose: string, at = new Date()): { message: string; transaction: string } {
+  const message = ownerStatement({ exporterId, purpose, at });
+  return { message, transaction: statementTransaction({ owner: new PublicKey(wallet), statement: message }) };
 }

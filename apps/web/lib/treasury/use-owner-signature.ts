@@ -1,27 +1,25 @@
 "use client";
 
-import { useSignMessage } from "@privy-io/react-auth/solana";
-import bs58 from "bs58";
 import { useCallback } from "react";
 import { useOwnerWallet } from "./owner-wallet";
 
+export type Statement = { message: string; transaction: string };
+
 /**
- * "Approve with Touch ID" for things that are not transactions: the owner's Privy
- * wallet signs a plain statement (whitelisting a cash-out address, approving the
- * agent's permissions). With passkey MFA enrolled, Privy prompts Touch ID / Face ID
- * before the embedded wallet signs. The server verifies the signature against the
- * session wallet (lib/server/owner-signature.ts).
+ * "Approve with Touch ID" for things that are not on-chain moves (whitelisting a cash-out
+ * address, approving the agent's permissions). The server hands us a small transaction that
+ * can never be sent (payer = the owner, one memo with the dated statement, zero blockhash);
+ * the owner's Privy wallet signs it, and with passkey MFA enrolled that prompts Touch ID /
+ * Face ID. The server verifies the signature against the session's owner wallet.
  */
 export function useOwnerSignature() {
   const owner = useOwnerWallet();
-  const { signMessage } = useSignMessage();
   const sign = useCallback(
-    async (message: string): Promise<{ message: string; signature: string }> => {
-      if (!owner.wallet) throw new Error("sign in with your passkey first");
-      const { signature } = await signMessage({ message: new TextEncoder().encode(message), wallet: owner.wallet, options: { uiOptions: { showWalletUIs: false } } });
-      return { message, signature: bs58.encode(signature) };
+    async (statement: Statement): Promise<{ message: string; signedTransaction: string }> => {
+      const { signedTransaction } = await owner.signTransaction(statement.transaction);
+      return { message: statement.message, signedTransaction };
     },
-    [owner.wallet, signMessage],
+    [owner],
   );
   return { sign, owner };
 }

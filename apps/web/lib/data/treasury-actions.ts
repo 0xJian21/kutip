@@ -12,11 +12,10 @@ import { completeOnboarding as completeOnboardingImpl } from "@/lib/server/onboa
 import { store } from "@/lib/server/store";
 import { uploadLogo } from "@/lib/server/storage";
 import { signupFolder, validateCompany, type CompanyInput } from "@/lib/server/input";
-import { addCashOutAddress, previewCashOut, proposeCashOut, removeCashOutAddress, whitelistStatement, type CashOutPreview, type CashOutProposal } from "@/lib/treasury/cashout";
+import { addCashOutAddress, previewCashOut, proposeCashOut, REMOVE_PURPOSE, removeCashOutAddress, WHITELIST_PURPOSE, whitelistStatement, type CashOutPreview, type CashOutProposal } from "@/lib/treasury/cashout";
 import { buildLimitChangeTxs, permissionsStatement, readAgentPermissions, savePermissions, type LimitChangeTx, type PermissionsApproval, type PermissionsView } from "@/lib/treasury/permissions";
 import type { AgentPermissions } from "@/lib/treasury/permissions-model";
 import { executeSweep, previewSweep, type SweepExecution, type SweepPreview } from "@/lib/treasury/sweep";
-import { ownerStatement } from "@/lib/server/owner-signature";
 import { toResult, UserError } from "./result";
 
 export type { AgentPermissions, CashOutPreview, CashOutProposal, LimitChangeTx, PermissionsView, SweepExecution, SweepPreview };
@@ -50,12 +49,15 @@ export async function cashOutPropose(input: { amountUsdc: bigint; destination: s
   });
 }
 
-/** Statement the wallet signs before whitelisting; the server checks it against the session wallet. */
+/** Statement (+ unsendable transaction) the wallet signs before whitelisting; the server checks it against the session wallet. */
 export async function whitelistStatementFor(address: string) {
-  return toResult(async () => whitelistStatement((await sessionOrThrow()).exporterId, address));
+  return toResult(async () => {
+    const { exporterId, wallet } = await ownerSessionOrThrow();
+    return whitelistStatement(exporterId, wallet, WHITELIST_PURPOSE(address));
+  });
 }
 
-export async function whitelistAdd(input: { label: string; address: string; message: string; signature: string }) {
+export async function whitelistAdd(input: { label: string; address: string; signedTransaction: string }) {
   return toResult(async () => {
     const { exporterId, wallet } = await ownerSessionOrThrow();
     const list = await addCashOutAddress({ exporterId, wallet, ...input });
@@ -65,10 +67,13 @@ export async function whitelistAdd(input: { label: string; address: string; mess
 }
 
 export async function whitelistRemoveStatementFor(address: string) {
-  return toResult(async () => ownerStatement({ exporterId: (await sessionOrThrow()).exporterId, purpose: `Remove cash-out address ${address}`, at: new Date() }));
+  return toResult(async () => {
+    const { exporterId, wallet } = await ownerSessionOrThrow();
+    return whitelistStatement(exporterId, wallet, REMOVE_PURPOSE(address));
+  });
 }
 
-export async function whitelistRemove(input: { address: string; message: string; signature: string }) {
+export async function whitelistRemove(input: { address: string; signedTransaction: string }) {
   return toResult(async () => {
     const { exporterId, wallet } = await ownerSessionOrThrow();
     const list = await removeCashOutAddress({ exporterId, wallet, ...input });
@@ -85,7 +90,10 @@ export async function agentPermissions() {
 
 /** The statement binds the exact permissions being approved (a digest is in the purpose line). */
 export async function permissionsStatementNow(permissions: AgentPermissions) {
-  return toResult(async () => permissionsStatement((await ownerSessionOrThrow()).exporterId, permissions));
+  return toResult(async () => {
+    const { exporterId, wallet } = await ownerSessionOrThrow();
+    return permissionsStatement(exporterId, wallet, permissions);
+  });
 }
 
 /** Owner-signed config transactions that re-issue the on-chain daily cap on every out-of-sync buyer multisig. */
