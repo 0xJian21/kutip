@@ -46,14 +46,14 @@ export function collectionsFunnel(invoices: Invoice[], rate: BnmRate): FunnelSta
   const live = invoices.filter((i) => i.status !== "draft");
   const sum = (pred: (i: Invoice) => boolean) => live.filter(pred).reduce((s, i) => s + i.amountUsdc, 0n);
   const count = (pred: (i: Invoice) => boolean) => live.filter(pred).length;
-  const stage = (key: string, label: string, pred: (i: Invoice) => boolean, hint: string): FunnelStage => {
+  const stage = (key: string, label: string, pred: (i: Invoice) => boolean, hint: string, short?: string): FunnelStage => {
     const usdc = sum(pred);
     const n = count(pred);
-    return { key, label, value: Number(usdc / 1_000_000n), display: formatMyrCompact(toMyr(usdc, rate)), hint: `${n} ${n === 1 ? "invoice" : "invoices"}${hint}` };
+    return { key, label, short, value: Number(usdc / 1_000_000n), display: formatMyrCompact(toMyr(usdc, rate)), hint: `${n} ${n === 1 ? "invoice" : "invoices"}${hint}` };
   };
   return [
     stage("sent", "Sent", () => true, ""),
-    stage("seen", "Payment seen", (i) => SEEN_OR_LATER.has(i.status), ""),
+    stage("seen", "Payment seen", (i) => SEEN_OR_LATER.has(i.status), "", "Seen"),
     stage("paid", "Paid", (i) => PAID_OR_LATER.has(i.status), ""),
     stage("settled", "Settled", (i) => i.status === "settled", " in treasury"),
   ];
@@ -65,9 +65,9 @@ export function funnelEmphasis(stages: FunnelStage[]): string {
   return withMoney.length ? withMoney[withMoney.length - 1]!.key : stages[0]!.key;
 }
 
-/** Per issue month, last six months: paid amount vs still-open amount. */
+/** Per issue month: paid amount vs still-open amount. Six months, or the last three when any of the six is empty. */
 export function invoicedByMonth(invoices: Invoice[], rate: BnmRate, now = new Date()): SeriesPoint[] {
-  return lastMonths(6, now).map(({ key, label }) => {
+  const six = lastMonths(6, now).map(({ key, label }) => {
     const inMonth = invoices.filter((i) => i.status !== "draft" && monthKey(i.issuedAt) === key);
     const received = inMonth.reduce((s, i) => s + (PAID_OR_LATER.has(i.status) ? i.amountUsdc : i.receivedUsdc), 0n);
     const outstanding = inMonth.filter((i) => OPEN.has(i.status)).reduce((s, i) => s + i.amountUsdc - i.receivedUsdc, 0n);
@@ -80,6 +80,7 @@ export function invoicedByMonth(invoices: Invoice[], rate: BnmRate, now = new Da
       outstandingText: formatMyrCompact(toMyr(outstanding, rate)),
     };
   });
+  return six.some((p) => p.received + p.outstanding === 0) ? six.slice(-3) : six;
 }
 
 /** Amount paid in a given month (by paidAt), for the month-on-month delta. */
@@ -87,14 +88,24 @@ export function paidInMonth(invoices: Invoice[], key: string): bigint {
   return invoices.filter((i) => i.paidAt && monthKey(i.paidAt) === key).reduce((s, i) => s + i.amountUsdc, 0n);
 }
 
-/** Signed change in basis points, or null when there is nothing to compare against. */
+/**
+ * Signed change in basis points, or null when there is nothing worth comparing:
+ * no previous figure, or one under a tenth of the current (a "+365%" tells the reader nothing).
+ */
 export function deltaBps(current: bigint, previous: bigint): bigint | null {
-  if (previous <= 0n) return null;
-  return ((current - previous) * 10_000n) / previous;
+  if (previous <= 0n || previous * 10n < current) return null;
+  const bps = ((current - previous) * 10_000n) / previous;
+  // Beyond a doubling either way the percentage stops meaning anything; the figures speak for themselves.
+  return bps > 10_000n || bps < -10_000n ? null : bps;
 }
 
 export function previousMonthKey(now = new Date()): string {
   return lastMonths(2, now)[0]!.key;
+}
+
+/** "vs Aug" */
+export function previousMonthLabel(now = new Date()): string {
+  return `vs ${lastMonths(2, now)[0]!.label}`;
 }
 
 /** Paid invoices, newest first. */

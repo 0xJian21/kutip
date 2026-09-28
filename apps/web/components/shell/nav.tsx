@@ -57,7 +57,7 @@ function ExporterRow({ name, logoUrl }: { name: string; logoUrl?: string }) {
     <div className="flex items-center gap-3 px-1">
       <Avatar name={name} src={logoUrl} size="md" shape="square" />
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-ink" title={name}>{name}</p>
+        <p className="line-clamp-2 text-sm font-medium leading-snug text-ink" title={name}>{name}</p>
         <p className="text-xs text-ink-3">Exporter</p>
       </div>
     </div>

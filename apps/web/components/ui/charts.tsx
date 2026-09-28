@@ -17,7 +17,7 @@ export function TipPill({ children, className = "" }: { children: ReactNode; cla
   );
 }
 
-export type FunnelStage = { key: string; label: string; value: number; display: string; hint?: string };
+export type FunnelStage = { key: string; label: string; short?: string; value: number; display: string; hint?: string };
 
 /**
  * Collections funnel: Sent → Seen → Paid → Settled as a stepped area (ref 01).
@@ -36,7 +36,7 @@ export function Funnel({ stages, emphasis, height = 160, className = "" }: { sta
       <div className="grid" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
         {stages.map((s, i) => (
           <div key={s.key} className={`min-w-0 border-l border-line pl-2 first:border-l-0 first:pl-0 sm:pl-3 ${isOn(i) ? "" : "opacity-70"}`}>
-            <div className="truncate text-xs text-ink-2 sm:text-sm">{s.label}</div>
+            <div className="truncate text-xs text-ink-2 sm:text-sm">{s.short ? <><span className="sm:hidden">{s.short}</span><span className="hidden sm:inline">{s.label}</span></> : s.label}</div>
             <div className={`money truncate text-md leading-6 sm:text-money-md ${isOn(i) ? "text-ink" : "text-ink-3"}`}>{s.display}</div>
           </div>
         ))}

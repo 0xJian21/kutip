@@ -54,10 +54,10 @@ export function NeedsYou({
             <Link key={inv.id} href={`/invoices/${inv.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors duration-(--dur-fast) hover:bg-paper-2/50 sm:px-6">
               <Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-base font-medium text-ink">{buyerName(inv.buyerId)}</span>
-                <span className="block truncate text-sm tabular text-ink-2">
-                  {inv.number}
-                  <span className={inv.status === "overdue" ? " font-medium text-overdue-fg" : " font-medium text-disputed-fg"}> · {inv.status === "overdue" ? dueLabel(inv.dueDate) : "Disputed"}</span>
+                <span className="block truncate text-base font-medium text-ink" title={buyerName(inv.buyerId)}>{buyerName(inv.buyerId)}</span>
+                <span className="flex flex-wrap gap-x-1.5 text-sm tabular text-ink-2">
+                  <span className="whitespace-nowrap">{inv.number}</span>
+                  <span className={`whitespace-nowrap font-medium ${inv.status === "overdue" ? "text-overdue-fg" : "text-disputed-fg"}`}>{inv.status === "overdue" ? dueLabel(inv.dueDate) : "Disputed"}</span>
                 </span>
               </span>
               <MoneyCell usdc={inv.amountUsdc} rate={rate} />

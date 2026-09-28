@@ -61,7 +61,7 @@ export function InvoiceLive({ initial, exporterId }: { initial: InvoiceDetail; e
               <span className="tabular">{invoice.number}</span>
               <StatusPill status={invoice.status} />
             </div>
-            <h1 className="truncate text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{buyer.name}</h1>
+            <h1 className="text-2xl font-semibold leading-tight tracking-tight text-ink sm:text-3xl">{buyer.name}</h1>
             <p className={`mt-1 text-base tabular ${urgent ? "font-medium text-overdue-fg" : "text-ink-2"}`}>
               Due {formatDate(invoice.dueDate)}
               {invoice.status !== "settled" && invoice.status !== "paid" ? <span> · {dueLabel(invoice.dueDate)}</span> : null}

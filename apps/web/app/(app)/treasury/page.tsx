@@ -74,7 +74,7 @@ export default async function TreasuryPage({ searchParams }: PageProps<"/treasur
                       <span className="flex items-center gap-2.5">
                         <Avatar name={buyer.name} size="sm" shape="square" />
                         <span className="min-w-0">
-                          <span className="block truncate text-ink">{buyer.name}</span>
+                          <span className="line-clamp-2 block leading-snug text-ink" title={buyer.name}>{buyer.name}</span>
                           <span className="block text-xs tabular text-ink-3 sm:hidden">{shortAddress(buyer.vault)} · swept {lastSweepAt ? relativeTime(lastSweepAt) : "never"}</span>
                         </span>
                       </span>

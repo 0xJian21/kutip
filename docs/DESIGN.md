@@ -257,7 +257,8 @@ All pairs are ≥ 6:1 in light and ≥ 7.6:1 in dark (computed from the OKLCH va
 - **Ghost:** text only, hover fill. Cancel, Reject, row links.
 - **Hero / Hero outline:** the white pill and the translucent pill that live on the treasury card.
 - **Icon button:** 40px (32px small) round, outline or ghost. Card menus, close, copy. Always labelled.
-- Sizes: sm 32px / md 40px / lg 48px (the pay page's Confirm and pay). Disabled at 50% opacity. Focus: 2px violet outline offset 2px.
+- Sizes: sm 32px / md 40px / lg 48px (the pay page's Confirm and pay). Focus: 2px violet outline offset 2px.
+- **Disabled** is a quiet fill (`paper-2` with `ink-3` text; on the hero, the translucent fill), never a faded accent: an enabled violet button must always read as enabled. A disabled button that waits on something says why in a `title` and, where a phone user needs it, in a caption beneath.
 
 ### Cards
 - **Card:** `surface`, 20px radius, `shadow-card`, 24px padding. `CardHeader` gives a title, an optional caption and an aside slot (link, pill, icon button). One idea per card; lists inside divide by hairline. Tables use `padded={false}`.
@@ -265,7 +266,7 @@ All pairs are ≥ 6:1 in light and ≥ 7.6:1 in dark (computed from the OKLCH va
 - **HeroCard:** the gradient at 24px radius with two blurred discs. Only the treasury.
 
 ### Stat (KPI tile)
-Label (13px, ink-2), money MD in ink with muted decimals, then one line of `USD figure · delta pill`, then an optional footer (a count link, a caption). Four across on desktop, two on tablet, one on a phone. The delta pill is signed, tinted by direction × whether up is good, and carries a title naming the period.
+Label (13px, ink-2), money MD in ink with muted decimals (SM on phones), then one line of `USD figure · delta pill`, then an optional footer (a count link, a caption). Four across on wide screens, 2×2 below, inside one card with hairlines. The delta pill is signed, tinted by direction × whether up is good, and names the period ("+7.9% vs Aug"); it is hidden when the previous period is under a tenth of the current, because "+365%" tells the reader nothing.
 
 ### Status pills and chips
 - **Status pill:** 24px, fully round, a 6px dot then the word, 13px medium. Tinted background with a dark foreground of the same hue; `settled` alone is solid. The `seen` dot pulses. Pills never truncate.
@@ -273,7 +274,7 @@ Label (13px, ink-2), money MD in ink with muted decimals, then one line of `USD 
 - **Delta:** the signed change pill, 24px, with a trend arrow.
 
 ### Tables
-- Header on `paper-2` at 70%, 13px ink-2 medium, left-aligned except amounts. Rows 12px vertical padding, hairline dividers, hover `paper-2` at 50%. First cell has a buyer logo (28px square initials) beside the name; the name column absorbs spare width and truncates. Invoice numbers and dates never wrap. Amounts right-aligned, MYR semibold above USD in ink-3.
+- Header on `paper-2` at 70%, 13px ink-2 medium, left-aligned except amounts. Rows 12px vertical padding, hairline dividers, hover `paper-2` at 50%. First cell has a buyer logo (28px square initials) beside the name; the name column absorbs spare width and wraps to two lines (with a title for the rest). Invoice numbers, dates and status words ("6 days overdue", "Disputed") never wrap or truncate: a cut status is a wrong status. Amounts right-aligned, MYR semibold above USD in ink-3.
 - **Mobile:** under 640px a table becomes stacked rows: logo, buyer and number on the left, amount and pill on the right.
 
 ### Tabs

@@ -26,7 +26,7 @@ export function RecentPayments({ payments, buyers, rate }: { payments: Invoice[]
               <Link href={`/invoices/${inv.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors duration-(--dur-fast) hover:bg-paper-2/50 sm:px-6">
                 <Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-base font-medium text-ink">{buyerName(inv.buyerId)}</span>
+                  <span className="block truncate text-base font-medium text-ink" title={buyerName(inv.buyerId)}>{buyerName(inv.buyerId)}</span>
                   <span className="block truncate text-sm tabular text-ink-2" title={inv.paidAt ? `${formatDateTime(inv.paidAt)} MYT` : undefined}>
                     {inv.number} · {inv.paidAt ? relativeTime(inv.paidAt) : ""}
                   </span>
