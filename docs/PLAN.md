@@ -140,8 +140,23 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 - [x] Verified 2026-09-28 against a local Postgres (all 7 migrations, demo seed; email off): real Haiku/Jev calls for 3 buyer messages (question/question/dispute → drafts, dispute marks invoice disputed), routine auto-reply visible on `/pay/inv_0145` (approved_by `agent`, C7), discount request stays a draft, approve & send from `/inbox` shows on the phone pay page, 6 command-bar queries + ⌘K, command-bar reminder recorded with approver, 404 / 429 paths, 375 px no overflow, dark mode.
 - [x] `0006_inbox` applied to Supabase 2026-09-29 (owner's yes; after `0005_accounts`): drizzle id 7, 14 existing messages → `status = sent` (all channel `email`), `reply` kind, `approved_by`, message broadcast trigger installed. Web/worker can now deploy with this branch.
 
+## Session 8d — Hardening + production rehearsal (Sep 29) · Opus · `feat/hardening` · owns bug fixes (not styling), `scripts/**`, README, FOLLOWUPS, PLAN
+- [x] FOLLOWUPS closed out for demo day: done or won't-fix with a reason for every item. demo-reset runs in one transaction (checked with an injected failure). `after()` needs no move: Fluid compute, 300 s. Receipt dates, Privy origins and the agent key on Vercel were already fine. Missing: `SUPABASE_SERVICE_ROLE_KEY` on Vercel (logo uploads)
+- [x] Security review (3 parallel reviewers + a regression review of the fixes). High/medium fixed, low listed in FOLLOWUPS "Session 8d security review":
+  - Owner approvals execute only agent-built USDC transfers, and the fee payer never appears in an instruction it signs.
+  - x402: rate limits, one settlement per invoice at a time, failed-payer cooldown, CU caps, payer screening, masked RPC errors.
+  - The read-only demo role can't write; LLM budget per exporter (per visitor in demo).
+  - Onboarding cap counted in the DB; one open cash-out proposal.
+  - Atomic pay-page message limit.
+  - Code check before any automatic reply; buyer context leaves out drafts.
+  - Worker catch-up isolates each signature; rate limiters prune.
+- [x] Mainnet: self-serve provisioning and on-chain cap re-issue both proven (signatures in FOLLOWUPS "Money and accounts"). The cap re-issue **was broken on mainnet** (UnbalancedInstruction) and is fixed on this branch.
+- [x] `docs/REHEARSAL.md` (pre-flight, minute-by-minute with fallbacks), walked end-to-end on production with the owner's phone. Results table in REHEARSAL: Paid +153 ms, Settled +7.9 s, x402 4.5 s, draft 4.2 s. Solflare now blocks the domain as a scam site; Phantom works
+- [x] README: Solami usage in detail, onboarding vs demo company, env vars (AGENT_SECRET, EMAIL_ALLOWLIST, SUPABASE_SERVICE_ROLE_KEY, …), migrations 0005/0006, demo-reset, Vercel Fluid / Fly notes
+- [x] `scripts/return-usdc.ts` (moves USDC back from TEST_BUYER after a rehearsal cash-out)
+
 ## Session 8 — Hardening (Oct 1) · Opus
-- [ ] code-review, security-review, fixes
+- [x] code-review, security-review, fixes (Session 8d)
 - [x] README runnable by anyone (Solami prize): setup, env vars, pointing at own key (Session 7)
 - [ ] impeccable polish/audit: empty/loading/error states, mobile, dark mode
 
