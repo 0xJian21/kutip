@@ -29,6 +29,12 @@ describe("LiveTxCache (one live tx per invoice)", () => {
 });
 
 describe("RateLimiter (sliding window)", () => {
+  it("forgets keys whose window has passed, so random wallet keys can't grow it forever", () => {
+    const r = new RateLimiter({ limit: 1, windowMs: 1_000 });
+    for (let i = 0; i < 5_000; i++) r.allow(`wallet:${i}`, 0);
+    for (let i = 0; i < 5_000; i++) r.allow(`later:${i}`, 10_000);
+    expect(r.size()).toBe(5_000); // the first 5,000 expired and were dropped
+  });
   test("allows up to the limit within the window, then refuses", () => {
     const r = new RateLimiter({ limit: 3, windowMs: 60_000 });
     expect(r.allow("k", T0)).toBe(true);
