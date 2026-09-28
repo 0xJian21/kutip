@@ -4,6 +4,7 @@
  * Only a routine answer under "routine" is sent without the owner; everything else waits as a draft.
  * Every LLM call gets ONE buyer's context (SPEC §5 L4). The store is a port so this stays DB-free.
  */
+import { InputError } from "./input-error";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { ReplyClassifier, ReplyLabel } from "./classifier";
 import { buildBuyerContext, type BuyerRecord, type InvoiceRecord, type MessageRecord } from "./context";
@@ -64,9 +65,9 @@ const REPLY_RULE: Partial<Record<ReplyLabel, RuleId>> = { dispute: "C4", discoun
 
 async function load(deps: InboxDeps, exporterId: string, invoiceId: string) {
   const thread = await deps.store.getThread(exporterId, invoiceId);
-  if (!thread) throw new Error("Invoice not found");
+  if (!thread) throw new InputError("Invoice not found");
   const raw = await deps.store.getBuyerContext(exporterId, thread.invoice.buyerId);
-  if (!raw) throw new Error("Buyer not found");
+  if (!raw) throw new InputError("Buyer not found");
   return { thread, ctx: buildBuyerContext(raw) };
 }
 
@@ -94,7 +95,7 @@ async function draftFor(deps: InboxDeps, loaded: Awaited<ReturnType<typeof load>
 
 async function deliver(deps: InboxDeps, exporterId: string, thread: NonNullable<Awaited<ReturnType<InboxPort["getThread"]>>>, draft: PortMessage, send: Send) {
   const sent = await deps.store.sendDraft(exporterId, draft.id, send);
-  if (!sent) throw new Error("This draft is no longer waiting to be sent");
+  if (!sent) throw new InputError("This draft is no longer waiting to be sent");
   // Pay-page replies show on the pay page; everything else is emailed, Reply-To the exporter.
   const delivery =
     draft.channel === "pay_page"
@@ -109,7 +110,7 @@ export async function handleInbound(deps: InboxDeps, req: { exporterId: string; 
   const loaded = await load(deps, exporterId, invoiceId);
   const { thread, ctx } = loaded;
   const inbound = thread.messages.find((m) => m.id === req.messageId && m.direction === "in");
-  if (!inbound) throw new Error("Message not found");
+  if (!inbound) throw new InputError("Message not found");
   const now = deps.now();
 
   const c = await deps.classifier.classifyReply(ctx, { subject: inbound.subject, body: inbound.body, receivedAt: inbound.createdAt });
@@ -162,11 +163,11 @@ export async function draftReplyFor(deps: InboxDeps, req: { exporterId: string; 
 /** M2 "Approve & send": the owner's (possibly edited) text goes out and is logged with rule id + approver (E3). */
 export async function sendReply(deps: InboxDeps, req: { exporterId: string; invoiceId: string; draftId: string; body: string; approvedBy: string }) {
   const body = req.body.trim();
-  if (!body) throw new Error("The reply is empty");
-  if (body.length > 4000) throw new Error("Keep the reply under 4,000 characters");
+  if (!body) throw new InputError("The reply is empty");
+  if (body.length > 4000) throw new InputError("Keep the reply under 4,000 characters");
   const { thread } = await load(deps, req.exporterId, req.invoiceId);
   const draft = thread.messages.find((m) => m.id === req.draftId && m.status === "draft");
-  if (!draft) throw new Error("This draft is no longer waiting to be sent");
+  if (!draft) throw new InputError("This draft is no longer waiting to be sent");
   const answered = thread.messages.find((m) => m.id === draft.inReplyTo);
   const intent = answered?.classification?.intent;
   return deliver(deps, req.exporterId, thread, draft, {

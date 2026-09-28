@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ReplyClassification, ReplyClassifier } from "./classifier";
 import { draftReplyFor, handleInbound, sendReply, type InboxPort, type PortMessage } from "./inbox";
+import { InputError } from "./input-error";
 import type { Mailer } from "./mailer";
 import { DEFAULT_RULEBOOK } from "./rulebook";
 import { fakeAnthropic, promptText } from "./testing/fake-anthropic";
@@ -179,6 +180,8 @@ describe("draftReplyFor + sendReply (M2 owner flow)", () => {
     const { client } = anthropic();
     const deps = { store: port, classifier: classifier({ label: "question", confidence: 0.9 }), client, mailer, now: () => NOW };
     await expect(sendReply(deps, { exporterId: E, invoiceId: INV.id, draftId: "msg_in", body: "  ", approvedBy: "usr_owner" })).rejects.toThrow(/empty/i);
+    // Written for the owner: the web app shows InputError messages instead of masking them.
+    await expect(sendReply(deps, { exporterId: E, invoiceId: INV.id, draftId: "msg_in", body: "  ", approvedBy: "usr_owner" })).rejects.toBeInstanceOf(InputError);
     await expect(sendReply(deps, { exporterId: E, invoiceId: INV.id, draftId: "msg_in", body: "hi", approvedBy: "usr_owner" })).rejects.toThrow(/no longer waiting/i);
   });
 });

@@ -5,6 +5,7 @@
  * reminders through confirmReminder, money through the treasury flows (passkey / Touch ID).
  * L4: the router sees only the owner's words; buyer data reaches a model only as ONE buyer's context.
  */
+import { InputError } from "./input-error";
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { buildAgenda, weekRange, type AgendaEvent, type AgendaInvoice } from "./agenda";
@@ -350,14 +351,14 @@ export async function confirmReminder(
 ) {
   const [invoices, buyers] = await Promise.all([deps.store.listInvoices(exporterId), deps.store.listBuyers(exporterId)]);
   const inv = invoices.find((i) => i.id === req.invoiceId);
-  if (!inv) throw new Error("Invoice not found");
-  if (!OPEN.includes(inv.status)) throw new Error(`${inv.number} is ${PAID.includes(inv.status) ? "already paid" : "not open"}; nothing to remind about`);
-  if (inv.status === "disputed") throw new Error(`${inv.number} is disputed; answer the buyer in the Inbox instead of sending a reminder`);
+  if (!inv) throw new InputError("Invoice not found");
+  if (!OPEN.includes(inv.status)) throw new InputError(`${inv.number} is ${PAID.includes(inv.status) ? "already paid" : "not open"}; nothing to remind about`);
+  if (inv.status === "disputed") throw new InputError(`${inv.number} is disputed; answer the buyer in the Inbox instead of sending a reminder`);
   const buyer = buyers.find((b) => b.id === inv.buyerId);
-  if (!buyer) throw new Error("Buyer not found");
+  if (!buyer) throw new InputError("Buyer not found");
   const subject = req.subject.trim();
   const body = req.body.trim();
-  if (!subject || !body) throw new Error("The reminder is empty");
+  if (!subject || !body) throw new InputError("The reminder is empty");
   const now = deps.now();
 
   await deps.store.recordMessage({ invoiceId: inv.id, direction: "out", from: deps.store.exporterName ?? "You", subject, body, at: now });

@@ -31,3 +31,4 @@ export { draftReplyFor, handleInbound, sendReply, type InboxDeps, type InboxPort
 export { COMMAND_TOOLS, confirmReminder, EXAMPLES, planCommand, routeCommand, type CommandIntent, type CommandPort, type CommandPreview, type InvoiceLine, type ReminderSendPort } from "./command";
 export { buildAgenda, mytDate, weekRange, type AgendaEvent, type AgendaInvoice, type AgendaKind } from "./agenda";
 export { myrSenToUsdc, parseMoneyText, usdcToMyrSen } from "./money";
+export { InputError } from "./input-error";
