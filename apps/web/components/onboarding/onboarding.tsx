@@ -38,7 +38,7 @@ type Company = { name: string; registrationNo: string; city: string; address: st
  */
 export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; rulebook: Rulebook; next?: string }) {
   const router = useRouter();
-  const { getAccessToken } = usePrivy();
+  const { getAccessToken, logout, user } = usePrivy();
   const [step, setStep] = useState(0);
   const [company, setCompany] = useState<Company>({ name: "", registrationNo: "", city: "", address: "", contactEmail: "", ownerName: "" });
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -151,6 +151,10 @@ export function Onboarding({ exporter, rulebook, next }: { exporter: Exporter; r
               <Button type="submit" disabled={!companyValid || uploading}>Continue</Button>
             </div>
           </form>
+          <p className="mt-4 text-center text-sm text-ink-3">
+            This sign-in ({user?.linkedAccounts.some((a) => a.type === "passkey") ? "passkey" : "email"}) has no Kutip account yet. Not you?{" "}
+            <button type="button" onClick={() => { void logout().then(() => setStep(0)); }} className="font-medium text-accent underline-offset-4 hover:underline">Sign out and use another passkey</button>
+          </p>
         </Card>
       ) : null}
 

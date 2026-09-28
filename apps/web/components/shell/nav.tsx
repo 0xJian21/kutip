@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { useEffect, useState } from "react";
-import { Bot, BookOpen, FileText, LayoutGrid, Landmark, Menu, Plus, Settings, X } from "lucide-react";
+import { Bot, BookOpen, FileText, LayoutGrid, Landmark, LogOut, Menu, Plus, Settings, X } from "lucide-react";
 import { Avatar, KutipMark } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { buttonClass } from "@/components/ui/button";
+import { endSession } from "@/lib/data/actions";
 
 const ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutGrid },
@@ -65,12 +67,22 @@ function ExporterRow({ name, logoUrl }: { name: string; logoUrl?: string }) {
 }
 
 function OwnerRow({ name }: { name: string }) {
+  const { logout, authenticated } = usePrivy();
+  const router = useRouter();
+  const signOut = async () => {
+    // Both halves: Privy's client session and Kutip's own cookie, so a re-sign-in starts clean.
+    if (authenticated) await logout().catch(() => undefined);
+    await endSession();
+    router.replace("/onboarding");
+  };
   return (
     <div className="flex items-center gap-3">
       <Avatar name={name} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{name}</p>
-        <p className="text-xs text-ink-3">Owner · passkey</p>
+        <button type="button" onClick={() => void signOut()} className="inline-flex items-center gap-1 text-xs text-ink-3 hover:text-ink">
+          <LogOut size={11} aria-hidden="true" /> Sign out
+        </button>
       </div>
       <ThemeToggle />
     </div>

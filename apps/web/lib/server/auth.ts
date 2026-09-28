@@ -111,6 +111,7 @@ export async function signIn(accessToken: string): Promise<SignInResult> {
   const demoExporterId = process.env.DEMO_FALLBACK === "1" ? DEMO_EXPORTER_ID : undefined;
   if (!user && !demoExporterId) {
     console.warn(`[auth] ${privyUserId} has no Kutip user; onboarding`);
+    (await cookies()).delete(COOKIE); // never keep another account's session under this Privy user
     return { linked: false, privyUserId, ...(wallets[0] ? { wallet: wallets[0] } : {}) };
   }
   if (!user) console.warn(`[auth] ${privyUserId} has no Kutip user; DEMO_FALLBACK → ${DEMO_EXPORTER_ID} (read-only)`);
