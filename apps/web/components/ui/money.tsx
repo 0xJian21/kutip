@@ -5,7 +5,7 @@ type Size = "sm" | "md" | "lg" | "xl" | "2xl";
 // The two display sizes step down one notch under 640px so a 13-digit ringgit figure fits a phone.
 const SIZE_CLASS: Record<Size, string> = {
   sm: "text-money-sm",
-  md: "text-money-md",
+  md: "text-money-sm sm:text-money-md",
   lg: "text-money-lg",
   xl: "text-money-lg sm:text-money-xl",
   "2xl": "text-money-xl sm:text-money-2xl",

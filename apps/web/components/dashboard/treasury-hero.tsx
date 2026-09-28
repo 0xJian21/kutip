@@ -62,6 +62,7 @@ export function TreasuryHero({
           Cash out to ringgit
         </Link>
       </div>
+      <p className="mt-3 text-xs text-on-hero-2">Sweep now arrives with the next treasury update. Until then the agent sweeps once a day.</p>
     </HeroCard>
   );
 }

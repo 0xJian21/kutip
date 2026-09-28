@@ -30,6 +30,8 @@ export function InvoiceDocument({
   note = "Pay with USDC. No gas fee, no bank charges: the amount you see is the amount that arrives.",
   compact = false,
   showItems = true,
+  showTotal = true,
+  tone = "paper",
   className = "",
 }: {
   from: DocumentParty;
@@ -48,25 +50,29 @@ export function InvoiceDocument({
   compact?: boolean;
   /** false when the caller has no line items to show (the public pay page). */
   showItems?: boolean;
+  /** false when the amount is stated prominently elsewhere on the screen. */
+  showTotal?: boolean;
+  /** "paper": a sheet inside a well (owner screens). "flat": a plain outlined card (pay page). */
+  tone?: "paper" | "flat";
   className?: string;
 }) {
   const pad = compact ? "p-5" : "p-5 sm:p-8";
   const items = lineItems ?? [];
   const balance = receivedUsdc !== undefined ? totalUsdc - receivedUsdc : undefined;
-  return (
-    <Inset className={`p-3 sm:p-4 ${className}`}>
-      <article className={`rounded-md bg-surface shadow-card ${pad}`} aria-label={`Invoice ${number}`}>
-        <header className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
+  const article = (
+      <article className={`${tone === "flat" ? "rounded-xl bg-surface ring-1 ring-inset ring-line" : "rounded-md bg-surface shadow-card"} ${pad}`} aria-label={`Invoice ${number}`}>
+        {/* The number block drops under the name on narrow screens, so the exporter's name is never cut. */}
+        <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 flex-1 basis-[160px] items-center gap-3">
             <Avatar name={from.name} src={from.logo} size={compact ? "md" : "lg"} shape="square" />
             <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-ink">{from.name}</p>
+              <p className="line-clamp-2 text-base font-semibold leading-snug text-ink">{from.name}</p>
               {from.lines?.map((l) => (
-                <p key={l} className="truncate text-xs text-ink-3">{l}</p>
+                <p key={l} className="text-xs text-ink-3">{l}</p>
               ))}
             </div>
           </div>
-          <div className="shrink-0 text-right">
+          <div className="ml-auto shrink-0 text-right">
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-3">Invoice</p>
             <p className="whitespace-nowrap tabular text-base font-medium text-ink">{number || "Next number"}</p>
             {status ? <div className="mt-1.5 flex justify-end"><StatusPill status={status} /></div> : null}
@@ -99,10 +105,10 @@ export function InvoiceDocument({
         <table className="mt-6 w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-ink-3">
-              <th scope="col" className="pb-2 font-medium">Item</th>
-              <th scope="col" className="whitespace-nowrap pb-2 pl-3 text-right font-medium">Qty</th>
-              <th scope="col" className="hidden whitespace-nowrap pb-2 pl-3 text-right font-medium sm:table-cell">Unit, USD</th>
-              <th scope="col" className="whitespace-nowrap pb-2 pl-3 text-right font-medium">Amount, USD</th>
+              <th scope="col" className="w-full pb-2 font-medium">Item</th>
+              <th scope="col" className="w-[1%] whitespace-nowrap pb-2 pl-4 text-right font-medium">Qty</th>
+              <th scope="col" className="hidden w-[1%] whitespace-nowrap pb-2 pl-4 text-right font-medium sm:table-cell">Unit, USD</th>
+              <th scope="col" className="w-[1%] whitespace-nowrap pb-2 pl-4 text-right font-medium">Amount, USD</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -114,9 +120,9 @@ export function InvoiceDocument({
               items.map((li, i) => (
                 <tr key={i}>
                   <td className="py-2.5 pr-3 text-ink">{li.description || <span className="text-ink-3">Item {i + 1}</span>}</td>
-                  <td className="py-2.5 pl-3 text-right tabular text-ink-2">{li.quantity}</td>
-                  <td className="hidden py-2.5 pl-3 text-right tabular text-ink-2 sm:table-cell">{formatUsdc(li.unitPriceUsdc)}</td>
-                  <td className="py-2.5 pl-3 text-right tabular font-medium text-ink">{formatUsdc(li.unitPriceUsdc * BigInt(li.quantity))}</td>
+                  <td className="whitespace-nowrap py-2.5 pl-4 text-right tabular text-ink-2">{li.quantity}</td>
+                  <td className="hidden whitespace-nowrap py-2.5 pl-4 text-right tabular text-ink-2 sm:table-cell">{formatUsdc(li.unitPriceUsdc)}</td>
+                  <td className="whitespace-nowrap py-2.5 pl-4 text-right tabular font-medium text-ink">{formatUsdc(li.unitPriceUsdc * BigInt(li.quantity))}</td>
                 </tr>
               ))
             )}
@@ -124,13 +130,16 @@ export function InvoiceDocument({
         </table>
         ) : null}
 
+        {showTotal || aside || note ? (
         <div className={`mt-5 grid gap-5 border-t border-line pt-5 ${aside ? "sm:grid-cols-[1fr_auto] sm:items-end" : ""}`}>
           <div className="grid gap-1.5 text-sm">
+            {showTotal ? (
             <div className="flex items-baseline justify-between gap-4">
               <span className="text-ink-2">Total</span>
               <span className="tabular text-lg font-semibold text-ink">{formatUsdc(totalUsdc)} USD</span>
             </div>
-            {rate ? (
+            ) : null}
+            {rate && showTotal ? (
               <div className="flex items-baseline justify-between gap-4 text-ink-2">
                 <span>In ringgit</span>
                 <span className="tabular">{formatMyr(toMyr(totalUsdc, rate))} <span className="text-ink-3">at {formatRate(rate)}</span></span>
@@ -142,11 +151,17 @@ export function InvoiceDocument({
                 <span className="tabular">{formatUsdc(balance)} USD</span>
               </div>
             ) : null}
-            {note ? <p className="mt-2 max-w-[40ch] text-xs text-ink-3">{note}</p> : null}
+            {note ? <p className={`${showTotal ? "mt-2" : ""} max-w-[40ch] text-xs text-ink-3`}>{note}</p> : null}
           </div>
           {aside}
         </div>
+        ) : null}
       </article>
+  );
+  if (tone === "flat") return <div className={`min-w-0 ${className}`}>{article}{footer ? <div className="px-2 pt-3">{footer}</div> : null}</div>;
+  return (
+    <Inset className={`p-3 sm:p-4 ${className}`}>
+      {article}
       {footer ? <div className="px-2 pt-3">{footer}</div> : null}
     </Inset>
   );

@@ -53,6 +53,7 @@ export default async function TreasuryPage({ searchParams }: PageProps<"/treasur
               <Button variant="hero" disabled title="Manual sweep arrives with the treasury update">Sweep now</Button>
               <a href="#cash-out" className={buttonClass("heroOutline")}>Cash out to ringgit</a>
             </div>
+            <p className="mt-3 text-xs text-on-hero-2">Sweep now arrives with the next treasury update. Until then the agent sweeps once a day.</p>
           </HeroCard>
 
           <Card padded={false} className="overflow-hidden">
@@ -73,7 +74,7 @@ export default async function TreasuryPage({ searchParams }: PageProps<"/treasur
                       <span className="flex items-center gap-2.5">
                         <Avatar name={buyer.name} size="sm" shape="square" />
                         <span className="min-w-0">
-                          <span className="block truncate text-ink">{buyer.name}</span>
+                          <span className="line-clamp-2 block leading-snug text-ink" title={buyer.name}>{buyer.name}</span>
                           <span className="block text-xs tabular text-ink-3 sm:hidden">{shortAddress(buyer.vault)} · swept {lastSweepAt ? relativeTime(lastSweepAt) : "never"}</span>
                         </span>
                       </span>
@@ -127,6 +128,7 @@ export default async function TreasuryPage({ searchParams }: PageProps<"/treasur
               ]}
             />
             <Button variant="secondary" className="mt-5 w-full" disabled title="Cash-out proposals arrive with the treasury update">Cash out</Button>
+            <p className="mt-2 text-center text-xs text-ink-3">Cash-out proposals arrive with the next treasury update.</p>
             <Inset className="mt-5 p-4">
               <p className="text-base font-medium text-ink">How cash-out works</p>
               <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-ink-2">

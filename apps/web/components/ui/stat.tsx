@@ -19,7 +19,7 @@ export function Delta({ bps, good = true, label, className = "" }: { bps: bigint
     <span className={`inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2 text-xs font-semibold tabular ${tone} ${className}`} title={label}>
       {flat ? null : <Icon size={12} strokeWidth={2.5} aria-hidden="true" />}
       {flat ? "0.0%" : `${up ? "+" : "−"}${pct}`}
-      {label ? <span className="sr-only"> {label}</span> : null}
+      {label ? <span className="font-medium opacity-80">{label}</span> : null}
     </span>
   );
 }

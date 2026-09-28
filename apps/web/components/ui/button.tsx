@@ -11,15 +11,16 @@ import type { ComponentProps } from "react";
 type Variant = "primary" | "secondary" | "outline" | "ghost" | "hero" | "heroOutline";
 type Size = "sm" | "md" | "lg";
 
+// Disabled is a quiet fill, never a faded accent: an enabled violet button must always read as enabled.
 const BASE =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-colors duration-(--dur-fast) disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-colors duration-(--dur-fast) disabled:cursor-not-allowed";
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-accent text-on-accent hover:bg-accent-hover",
-  secondary: "bg-ink text-paper hover:bg-ink/85",
-  outline: "border border-line-strong bg-surface text-ink hover:bg-paper-2 shadow-pill",
-  ghost: "text-ink-2 hover:bg-paper-2 hover:text-ink",
-  hero: "bg-on-hero text-hero-button-fg hover:opacity-90",
-  heroOutline: "border border-hero-line bg-hero-fill text-on-hero hover:bg-on-hero/20",
+  primary: "bg-accent text-on-accent hover:bg-accent-hover disabled:bg-paper-2 disabled:text-ink-3 disabled:hover:bg-paper-2",
+  secondary: "bg-ink text-paper hover:bg-ink/85 disabled:bg-paper-2 disabled:text-ink-3 disabled:hover:bg-paper-2",
+  outline: "border border-line-strong bg-surface text-ink hover:bg-paper-2 shadow-pill disabled:border-line disabled:bg-paper-2 disabled:text-ink-3 disabled:shadow-none disabled:hover:bg-paper-2",
+  ghost: "text-ink-2 hover:bg-paper-2 hover:text-ink disabled:text-ink-3 disabled:hover:bg-transparent",
+  hero: "bg-on-hero text-hero-button-fg hover:opacity-90 disabled:border disabled:border-hero-line disabled:bg-hero-fill disabled:text-on-hero-2 disabled:hover:opacity-100",
+  heroOutline: "border border-hero-line bg-hero-fill text-on-hero hover:bg-on-hero/20 disabled:text-on-hero-2/70 disabled:hover:bg-hero-fill",
 };
 const SIZE: Record<Size, string> = {
   sm: "h-8 px-3.5 text-sm",
@@ -68,7 +69,7 @@ export function IconButton({
   return (
     <button
       type={type}
-      className={`inline-flex shrink-0 items-center justify-center rounded-full transition-colors duration-(--dur-fast) disabled:pointer-events-none disabled:opacity-50 ${dims} ${look} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full transition-colors duration-(--dur-fast) disabled:cursor-not-allowed disabled:text-ink-3 ${dims} ${look} ${className}`}
       {...props}
     />
   );
