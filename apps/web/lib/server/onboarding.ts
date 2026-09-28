@@ -3,7 +3,7 @@ import { DEFAULT_RULEBOOK } from "@kutip/agent";
 import { createKeyFor, provisionMultisig } from "@kutip/solana";
 import { PublicKey } from "@solana/web3.js";
 import { UserError } from "@/lib/data/result";
-import { startSession, verifyPrivyToken } from "./auth";
+import { DEMO_EXPORTER_ID, startSession, verifyPrivyToken } from "./auth";
 import { signupLogoPrefix, validateCompany, type CompanyInput } from "./input";
 import { store } from "./store";
 import { agentPubkey, treasuryContext } from "@/lib/treasury/server";
@@ -37,7 +37,20 @@ export async function completeOnboarding(accessToken: string, input: CompanyInpu
   const busy = new UserError("Too many new accounts right now. Try again in an hour.");
   if (signups.length >= SIGNUPS_PER_HOUR) throw busy;
   signups.push(now); // reserved before any await, so parallel requests on this instance can't all pass
-  if ((await store().countExportersCreatedSince(new Date(now - 3_600_000))) >= SIGNUPS_PER_HOUR) throw busy;
+  try {
+    return await provision({ privyUserId, owner, company, now, busy });
+  } catch (e) {
+    signups.splice(signups.indexOf(now), 1); // a refused or failed attempt gives its slot back
+    throw e;
+  }
+}
+
+async function provision(
+  p: { privyUserId: string; owner: string; company: ReturnType<typeof validateCompany>; now: number; busy: UserError },
+): Promise<{ exporterId: string; treasuryVault: string; signature?: string }> {
+  const { privyUserId, owner, company, now, busy } = p;
+  // The demo exporter is re-created by every demo-reset; it isn't a sign-up.
+  if ((await store().countExportersCreatedSince(new Date(now - 3_600_000), { except: DEMO_EXPORTER_ID })) >= SIGNUPS_PER_HOUR) throw busy;
 
   const { connection, feePayer, usdcMint } = treasuryContext();
   const balance = await connection.getBalance(feePayer.publicKey);

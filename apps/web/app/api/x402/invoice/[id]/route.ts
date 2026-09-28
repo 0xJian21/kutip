@@ -106,7 +106,7 @@ async function settle(
   const settled = await settleX402({ verified, feePayer: rt.config.feePayer, rpc: rt.x402Rpc });
   if (!settled.success) {
     console.error(`[x402] settle failed ${id}: ${settled.errorReason}`);
-    if (settled.transaction) cooldown.set(verified.payer, Date.now() + COOLDOWN_MS); // landed and failed: the fee payer paid
+    if (settled.errorReason?.startsWith("transaction failed on-chain")) cooldown.set(verified.payer, Date.now() + COOLDOWN_MS); // landed and failed: the fee payer paid
     return respond402(settled.errorReason ?? "settlement failed", { [X402_HEADERS.response]: encodeHeader(settled) });
   }
   rt.receipts.set(id, settled);

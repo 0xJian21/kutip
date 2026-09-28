@@ -20,5 +20,8 @@ export class LlmBudget {
   }
 }
 
+/** Budget key: an owner/admin spends their exporter's budget; each DEMO_FALLBACK visitor gets their own, so the public can't use up the presenter's. */
+export const budgetKey = (s: { exporterId: string; role?: string; privyUserId: string }): string => (s.role === "demo" ? `demo:${s.privyUserId}` : s.exporterId);
+
 /** 60 agent calls per exporter per hour: far above a demo or a working day, far below a runaway loop. */
 export const llmBudget = new LlmBudget({ limit: 60, windowMs: 3_600_000 });

@@ -8,7 +8,7 @@
 import { confirmReminder, InputError, planCommand, routeCommand } from "@kutip/agent";
 import { anthropic, commandPort, jevConfig, mailer, reminderPort } from "@/app/api/agent/_lib/deps";
 import { MOCK, sessionOrThrow, writeSessionOrThrow } from "@/lib/server/auth";
-import { llmBudget } from "@/lib/server/llm-budget";
+import { budgetKey, llmBudget } from "@/lib/server/llm-budget";
 import { toResult, UserError } from "@/lib/data/result";
 
 /** Messages written for the owner (InputError from @kutip/agent, UserError here) reach the browser; the rest is masked. */
@@ -27,10 +27,11 @@ async function owner(opts: { write?: boolean } = {}) {
 
 export async function runCommand(text: string) {
   return run(async () => {
-    const { exporterId } = await owner();
+    const session = await owner();
+    const { exporterId } = session;
     const trimmed = text.trim();
     if (!trimmed) throw new UserError("Ask the agent something first");
-    llmBudget.spend(exporterId);
+    llmBudget.spend(budgetKey(session));
     const client = anthropic();
     const intent = await routeCommand({ client, jev: jevConfig() }, trimmed);
     const preview = await planCommand({ store: commandPort(), client, now: () => new Date() }, exporterId, intent);

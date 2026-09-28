@@ -63,8 +63,8 @@ export async function discardDraft(draftId: string) {
 export async function logBuyerMessage(input: { invoiceId: string; body: string }) {
   return run(async () => {
     const { exporterId } = await owner({ write: true });
-    llmBudget.spend(exporterId);
     if (!input.body.trim()) throw new UserError("Paste the buyer's message first");
+    llmBudget.spend(exporterId);
     const m = await inbox().logBuyerMessage(exporterId, { invoiceId: input.invoiceId, body: input.body });
     after(() => handleInbound(inboxDeps(), { exporterId, invoiceId: input.invoiceId, messageId: m.id }).catch((e) => console.error(`[inbox] ${m.id}: ${(e as Error).message}`)));
     return m;

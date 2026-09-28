@@ -74,6 +74,7 @@ describe("E3 reply permission matrix", () => {
 describe("autoSendProblem: what an automatic reply may never contain, checked in code", () => {
   const ctx = { invoiceNumber: "INV-2026-0154", payUrl: "https://kutip-app.vercel.app/pay/inv_abc" };
   it("passes a plain routine answer, including this invoice's own number and pay link", () => {
+    expect(autoSendProblem("Thanks, we'll confirm as soon as your transfer arrives.", ctx)).toBeNull();
     expect(autoSendProblem("Hi Amir,\n\nYou can pay INV-2026-0154 with the pay button on this page: https://kutip-app.vercel.app/pay/inv_abc\n\nTeratai", ctx)).toBeNull();
   });
   it.each([

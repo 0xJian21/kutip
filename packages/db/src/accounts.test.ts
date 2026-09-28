@@ -59,8 +59,10 @@ describe("company profile", () => {
 describe("sign-up cap", () => {
   test("countExportersCreatedSince counts every exporter created after the instant (onboarding's cross-instance cap)", async () => {
     const before = await store.countExportersCreatedSince(new Date(Date.now() - 3_600_000));
-    await store.createExporter({ name: "New Co", treasuryMultisig: "", treasuryVault: "", treasuryUsdcAta: "", rulebook: RULEBOOK });
+    await store.createExporter({ name: "Failed Co", treasuryMultisig: "", treasuryVault: "", treasuryUsdcAta: "", rulebook: RULEBOOK }); // provision failed: free
+    const e = await store.createExporter({ name: "New Co", treasuryMultisig: "M1", treasuryVault: "V1", treasuryUsdcAta: "A1", rulebook: RULEBOOK });
     expect(await store.countExportersCreatedSince(new Date(Date.now() - 3_600_000))).toBe(before + 1);
+    expect(await store.countExportersCreatedSince(new Date(Date.now() - 3_600_000), { except: e.id })).toBe(before);
     expect(await store.countExportersCreatedSince(new Date(Date.now() + 60_000))).toBe(0);
   });
 });

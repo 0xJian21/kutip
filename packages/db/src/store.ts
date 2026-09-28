@@ -278,8 +278,10 @@ export function createStore(db: Db, opts: { appUrl: string }) {
     },
 
     /** Onboarding's sign-up cap across serverless instances (each sign-up provisions a treasury on mainnet). */
-    async countExportersCreatedSince(since: Date): Promise<number> {
-      const [r] = await db.select({ n: count() }).from(s.exporters).where(gte(s.exporters.createdAt, since));
+    async countExportersCreatedSince(since: Date, o: { except?: string } = {}): Promise<number> {
+      // Only exporters that got a treasury count: an empty row from a failed provision cost nothing on-chain.
+      const where = and(gte(s.exporters.createdAt, since), ne(s.exporters.treasuryMultisig, ""), o.except ? ne(s.exporters.id, o.except) : undefined);
+      const [r] = await db.select({ n: count() }).from(s.exporters).where(where);
       return Number(r?.n ?? 0);
     },
 

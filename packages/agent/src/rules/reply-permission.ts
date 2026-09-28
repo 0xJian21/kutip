@@ -61,11 +61,12 @@ export function replyPermission(input: {
  * invoices. Returns the problem, or null. A problem turns the reply into a draft for the owner.
  */
 export function autoSendProblem(text: string, own: { invoiceNumber: string; payUrl: string }): string | null {
-  const t = text.split(own.payUrl).join(" ").split(own.invoiceNumber).join(" ");
+  let t = text;
+  for (const own_ of [own.payUrl, own.invoiceNumber]) if (own_) t = t.split(own_).join(" "); // "" would split every character
   if (/https?:\/\/|www\./i.test(t) || /\b[a-z0-9-]+\.(?:com|net|org|io|co|my|app|xyz|info|biz|link|site|online|pay)\b/i.test(t)) return "it contains a link other than the invoice's pay page";
   if (/[^\s@]+@[^\s@]+\.[a-z]{2,}/i.test(t)) return "it contains an email address";
   if (/\d(?:[\s-]?\d){5,}/.test(t)) return "it contains a long number (account or phone)";
-  if (/\b(bank|transfer|iban|swift|account (?:no|number)|wire|remit\w*|whatsapp|telegram|cheque|check payable)\b/i.test(t)) return "it mentions another way to pay or contact";
+  if (/\b(bank|(?:wire|telegraphic) transfer|iban|swift|account (?:no|number)|wire|remit\w*|whatsapp|telegram|cheque|check payable)\b/i.test(t)) return "it mentions another way to pay or contact";
   const others = [...t.matchAll(/\bINV-\d{4}-\d{3,}\b/gi)].filter((m) => m[0].toUpperCase() !== own.invoiceNumber.toUpperCase());
   if (others.length) return `it mentions another invoice (${others[0]![0]})`;
   return null;
