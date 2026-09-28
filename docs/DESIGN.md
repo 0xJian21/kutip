@@ -8,7 +8,7 @@ colors:
   well: "oklch(97.6% 0.004 290)"
   ink: "oklch(21% 0.025 290)"
   ink-2: "oklch(44% 0.02 290)"
-  ink-3: "oklch(55% 0.018 290)"
+  ink-3: "oklch(53% 0.018 290)"
   line: "oklch(90.5% 0.008 290)"
   line-strong: "oklch(82% 0.012 290)"
   accent: "oklch(52% 0.21 292)"
@@ -17,9 +17,9 @@ colors:
   accent-soft-2: "oklch(90% 0.07 292)"
   accent-2: "oklch(34% 0.17 278)"
   on-accent: "oklch(99% 0.005 292)"
-  hero: "linear-gradient(135deg, oklch(60% 0.22 302) 0%, oklch(48% 0.22 290) 42%, oklch(31% 0.16 276) 100%)"
+  hero: "linear-gradient(135deg, oklch(54% 0.22 300) 0%, oklch(46% 0.22 290) 42%, oklch(31% 0.16 276) 100%)"
   on-hero: "oklch(99% 0.005 292)"
-  on-hero-2: "oklch(88% 0.04 292)"
+  on-hero-2: "oklch(93% 0.025 292)"
   seen-fg: "oklch(44% 0.13 255)"
   seen-bg: "oklch(93% 0.035 255)"
   paid-fg: "oklch(42% 0.12 150)"
@@ -180,7 +180,7 @@ Cool neutrals tinted toward violet, one violet accent, indigo only inside the he
 Token names are unchanged from Session 2 so screens built in parallel restyle themselves on merge: `paper` is the canvas, `paper-2` the quiet fill, `surface` a card, `well` (new) an inset inside a card.
 
 ### Primary
-- **Violet** (`accent`, oklch(52% 0.21 292), ≈ #6d43f2): primary buttons, links, focus rings, the active state, the solid chart fill, the stepper's completed nodes. 5.6:1 on white, 5.1:1 on the canvas. Dark mode lifts it to oklch(77% 0.14 292) with near-black text on it (8:1 on the dark card).
+- **Violet** (`accent`, oklch(52% 0.21 292), ≈ #6d43f2): primary buttons, links, focus rings, the active state, the solid chart fill, the stepper's completed nodes. 6.0:1 on white, 5.4:1 on the canvas. Dark mode lifts it to oklch(77% 0.14 292) with near-black text on it (8.1:1 on the dark card, 9.0:1 for text on the button).
 - **Violet wash** (`accent-soft`, `accent-soft-2`): selected rows, hover on suggestion chips, the "Verified on Solana" chip, spacing swatches. Never a page background.
 - **Indigo** (`accent-2`, oklch(34% 0.17 278)): the far end of the hero gradient. Nowhere else.
 
@@ -190,12 +190,12 @@ Token names are unchanged from Session 2 so screens built in parallel restyle th
 - **Card** (`surface`, oklch(99.4% 0.002 290)): cards, inputs, the white pill. Dark: oklch(21.5%).
 - **Well** (`well`, oklch(97.6% 0.004 290)): QR frame, invoice paper preview, code and link fields. Dark: oklch(17.5%).
 - **Ink** (`ink`, oklch(21% 0.025 290)): text, the black button. Dark: oklch(94%).
-- **Ink 2** (`ink-2`, oklch(44% 0.02 290)): labels, secondary text, USD lines. 7:1 on white.
-- **Ink 3** (`ink-3`, oklch(55% 0.018 290)): captions, decimals, placeholders. 4.6:1 on white; never body copy.
+- **Ink 2** (`ink-2`, oklch(44% 0.02 290)): labels, secondary text, USD lines. 7.7:1 on white.
+- **Ink 3** (`ink-3`, oklch(53% 0.018 290)): captions, decimals, placeholders. 5.2:1 on white, 4.7:1 on the canvas; never body copy.
 - **Line / Line strong**: hairline dividers; input borders.
 
 ### The hero
-`hero` is a 135° gradient from bright violet (oklch 60% 0.22 302) through violet (48% 0.22 290) to indigo (31% 0.16 276), with `shadow-hero`, a violet glow. Text on it is `on-hero` (near-white) and `on-hero-2` (lavender, for labels and USD lines). Chips and the outline button on it use `hero-line` / `hero-fill` (white at 18% / 12%). The white button on it uses `hero-button-fg`, deep indigo in both themes. Two decorative blurred discs of `hero-fill` give the card depth; they are the one piece of decoration in the system.
+`hero` is a 135° gradient from violet (oklch 54% 0.22 300) through deeper violet (46% 0.22 290) to indigo (31% 0.16 276), with `shadow-hero`, a violet glow. Text on it is `on-hero` (near-white, 5.5:1 at the bright corner) and `on-hero-2` (pale lavender, 4.6:1, for labels and USD lines). Chips and the outline button on it use `hero-line` / `hero-fill` (white at 18% / 12%). The white button on it uses `hero-button-fg`, deep indigo in both themes. Two decorative blurred discs of `hero-fill` give the card depth; they are the one piece of decoration in the system.
 
 ### Semantic (status only)
 | Status | Pair | Meaning shown to the user |
@@ -211,7 +211,7 @@ Token names are unchanged from Session 2 so screens built in parallel restyle th
 
 Agent actions reuse the pairs: proposed = amber, approved = blue, executed = green tint, escalated = red-orange, rejected = neutral. Deltas reuse paid/overdue by direction × whether up is good.
 
-All pairs are ≥ 6:1 in both themes. Verified values live in `apps/web/app/globals.css`.
+All pairs are ≥ 6:1 in light and ≥ 7.6:1 in dark (computed from the OKLCH values, WCAG 2.x). Verified values live in `apps/web/app/globals.css`.
 
 ### Named Rules
 **The Stamp Rule.** Violet marks the one thing to press and the one thing that is live. If a screen has two violet buttons, one of them is wrong. The strong alternative is the black pill.
