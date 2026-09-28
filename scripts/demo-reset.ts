@@ -92,7 +92,7 @@ async function main() {
       await raw.update(schema.buyers).set({ email: inbox }).where(eq(schema.buyers.id, b.id));
     }
     await raw.update(schema.users).set({ walletPubkey: owner.toBase58() }).where(eq(schema.users.id, "usr_owner"));
-    await raw.update(schema.exporters).set({ cashOutWhitelist: [{ label: "Luno MYR account (Teratai Woodworks)", address: cashOut.toBase58() }] }).where(eq(schema.exporters.id, EXPORTER_ID));
+    await raw.update(schema.exporters).set({ cashOutWhitelist: [{ label: "HATA USDC deposit (Solana) · Teratai Woodworks", address: cashOut.toBase58() }] }).where(eq(schema.exporters.id, EXPORTER_ID));
     console.log(`  3. treasury, buyers, owner wallet and cash-out whitelist attached; buyer emails → ${inbox}`);
 
     const today = new Date().toISOString().slice(0, 10);

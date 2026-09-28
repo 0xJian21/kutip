@@ -47,6 +47,7 @@ export const RULEBOOK: Rulebook = {
     otherMovementsNeedApproval: true,
     cashOutAlertMarginBps: 50n,
   },
+  replies: { remindersAndReceipts: "automatic", buyerReplies: "draft" },
 };
 
 export const EXPORTER: Exporter = {
@@ -54,6 +55,10 @@ export const EXPORTER: Exporter = {
   name: "Teratai Woodworks Sdn. Bhd.",
   registrationNo: "202001034567 (1391234-K)",
   city: "Muar, Johor",
+  address: "Lot 2188, Jalan Bakri, 84000 Muar, Johor, Malaysia",
+  contactEmail: "accounts@teratai.example",
+  // The demo exporter's Squads accounts are real mainnet accounts holding test-sized balances.
+  demoFunds: true,
   ownerName: "Farid Zulkifli",
   adminName: "Tan Mei Ling",
   treasuryMultisig: fakeKey("treasury-multisig"),
@@ -74,6 +79,7 @@ export const BUYERS: Buyer[] = [
     country: "AU",
     countryName: "Australia",
     city: "Sydney",
+    address: "Level 3, 48 Pirrama Road, Pyrmont NSW 2009, Australia",
     timezone: "Australia/Sydney",
   }),
   buyer("b_meridian", {
@@ -83,6 +89,7 @@ export const BUYERS: Buyer[] = [
     country: "US",
     countryName: "United States",
     city: "Austin, Texas",
+    address: "2100 S Lamar Blvd, Austin, TX 78704, United States",
     timezone: "America/Chicago",
   }),
   buyer("b_alrashid", {
@@ -92,6 +99,7 @@ export const BUYERS: Buyer[] = [
     country: "AE",
     countryName: "United Arab Emirates",
     city: "Dubai",
+    address: "Warehouse 14, Al Quoz Industrial Area 3, Dubai, UAE",
     timezone: "Asia/Dubai",
   }),
   buyer("b_najd", {
@@ -101,6 +109,7 @@ export const BUYERS: Buyer[] = [
     country: "SA",
     countryName: "Saudi Arabia",
     city: "Riyadh",
+    address: "King Fahd Road, Al Olaya, Riyadh 12211, Saudi Arabia",
     timezone: "Asia/Riyadh",
   }),
   buyer("b_kobayashi", {
@@ -110,6 +119,7 @@ export const BUYERS: Buyer[] = [
     country: "JP",
     countryName: "Japan",
     city: "Osaka",
+    address: "1-2-3 Umeda, Kita-ku, Osaka 530-0001, Japan",
     timezone: "Asia/Tokyo",
   }),
 ];
@@ -157,7 +167,47 @@ function inv(s: InvoiceSeed): Invoice {
 
 const U = (n: number) => BigInt(Math.round(n * 100)) * 10_000n; // USD (2dp) → base units, integer arithmetic on cents
 
+/**
+ * Paid history for the charts (IMPROVEMENTS "demo data"): four settled invoices a month,
+ * April to August, numbered before the September story (INV-0128 onwards).
+ */
+const HISTORY_PRODUCTS: Array<Array<[string, number, bigint]>> = [
+  [["Teak dining table 240cm", 6, U(1450)], ["Teak dining chair", 36, U(140)]],
+  [["Rubberwood bed frame, queen", 15, U(392.5)]],
+  [["Oak sideboard 180cm", 8, U(980)], ["Oak coffee table", 12, U(220)]],
+  [["Hotel guest room desk", 40, U(310)]],
+  [["Majlis seating set, walnut", 4, U(2600)]],
+  [["Outdoor teak lounger", 24, U(210)]],
+  [["Executive desk, walnut veneer", 10, U(1900)]],
+  [["Lobby armchair", 20, U(370)]],
+  [["Conference table 4.8m", 2, U(3300)]],
+  [["Teak bench", 30, U(366)]],
+  [["Oak dining chair", 48, U(146)]],
+  [["Reception counter, custom", 1, U(9750)]],
+  [["Bookshelf 220cm, walnut", 18, U(510)]],
+  [["Bar stool", 40, U(140)]],
+  [["Teak console table", 16, U(330)]],
+  [["Oak wardrobe, 3-door", 12, U(1345)]],
+  [["Side table, marble top", 20, U(275)]],
+  [["Boardroom chair, leather", 24, U(750)]],
+  [["Oak TV console", 15, U(298)]],
+  [["Teak serving tray", 120, U(48)]],
+];
+const HISTORY_BUYERS = ["b_alrashid", "b_harbourline", "b_kobayashi", "b_meridian", "b_najd"];
+const HISTORY: InvoiceSeed[] = Array.from({ length: 20 }, (_, i) => {
+  const month = 4 + Math.floor(i / 4); // April..August
+  const day = 3 + (i % 4) * 7; // 3, 10, 17, 24
+  const issued = `2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const dueDate = new Date(Date.UTC(2026, month - 1, day + 30));
+  const paidDate = new Date(Date.UTC(2026, month - 1, day + 26 + (i % 3)));
+  const due = dueDate.toISOString().slice(0, 10);
+  const paid = `${paidDate.toISOString().slice(0, 10)}T0${(i % 8) + 1}:${String(10 + (i * 7) % 50).padStart(2, "0")}:0${i % 10}Z`;
+  const later = (secs: number) => new Date(Date.parse(paid) + secs * 1000).toISOString().replace(".000Z", "Z");
+  return { id: `inv_h${101 + i}`, n: 101 + i, buyerId: HISTORY_BUYERS[i % 5]!, items: HISTORY_PRODUCTS[i]!, issued, due, status: "settled", seenAt: paid, paidAt: later(1), settledAt: later(13) };
+});
+
 export const INVOICES: Invoice[] = [
+  ...HISTORY.map(inv),
   inv({ id: "inv_0128", n: 128, buyerId: "b_alrashid", issued: "2026-07-30", due: "2026-08-29", status: "settled",
     items: [["Teak dining table 240cm", 8, U(1450)], ["Teak dining chair", 48, U(140)]],
     seenAt: "2026-08-27T06:41:02Z", paidAt: "2026-08-27T06:41:03Z", settledAt: "2026-08-27T06:41:15Z" }),
@@ -222,6 +272,11 @@ function pay(p: Omit<Payment, "mint" | "feePaidByKutip" | "signature" | "payer">
 }
 
 export const PAYMENTS: Payment[] = [
+  ...HISTORY.map((h, i) => {
+    const total = INVOICES.find((x) => x.id === h.id)!.amountUsdc;
+    return pay({ id: `pay_h${101 + i}`, invoiceId: h.id, amount: total, commitment: "finalized", slot: 340_000_000 + i * 1_920_000, verified: true, issues: [],
+      observedAt: h.seenAt!, confirmedAt: h.paidAt!, finalizedAt: h.settledAt!, via: i % 5 === 0 ? "x402" : "solana_pay" });
+  }),
   pay({ id: "pay_0128", invoiceId: "inv_0128", amount: U(18320), commitment: "finalized", slot: 371_204_118, verified: true, issues: [],
     observedAt: "2026-08-27T06:41:02Z", confirmedAt: "2026-08-27T06:41:03Z", finalizedAt: "2026-08-27T06:41:15Z", via: "solana_pay" }),
   pay({ id: "pay_0131", invoiceId: "inv_0131", amount: U(9850), commitment: "finalized", slot: 372_611_905, verified: true, issues: [],
@@ -353,7 +408,8 @@ export const BUYER_VAULT_BALANCES: Record<string, bigint> = {
   b_najd: 0n,
   b_kobayashi: 0n,
 };
+/** The owner's own deposit addresses at SC-registered exchanges (HATA lists USDC on Solana; Luno Malaysia does not offer USDC). */
 export const WHITELISTED_CASH_OUT = [
-  { label: "Luno MYR account (Teratai Woodworks)", address: fakeKey("luno-deposit") },
-  { label: "Tokenize Xchange (Teratai Woodworks)", address: fakeKey("tokenize-deposit") },
+  { label: "HATA USDC deposit (Solana) · Teratai Woodworks", address: fakeKey("hata-deposit") },
+  { label: "Tokenize Xchange · Teratai Woodworks", address: fakeKey("tokenize-deposit") },
 ];

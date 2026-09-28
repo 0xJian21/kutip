@@ -37,8 +37,14 @@ describe("getPayInvoice", () => {
     expect(pay).toEqual({
       invoiceId: invA.id,
       exporterName: "Teratai Woodworks Sdn. Bhd.",
+      exporterAddress: "",
+      buyerName: a.name,
+      buyerAddress: "",
       invoiceNumber: invA.number,
+      // The invoice document (IMPROVEMENTS P1): the buyer sees its own line items on the pay page.
+      lineItems: [{ description: "Teak console table", quantity: 25, unitPriceUsdc: 330_000_000n }],
       amountUsdc: 8_250_000_000n,
+      issuedAt: "2026-09-08",
       dueDate: "2026-10-08",
       status: "sent",
       solanaPayUrl: `solana:${encodeURIComponent(`${APP_URL}/api/pay/${invA.id}`)}`,
@@ -46,8 +52,8 @@ describe("getPayInvoice", () => {
     });
     const out = json(pay);
     for (const secret of bSecrets()) expect(out).not.toContain(secret);
-    // no internals of A either: line items, memo, reference key, vault, buyer contact
-    for (const internal of ["Teak console table", invA.memoCode, invA.referencePubkey, a.email, a.vault]) expect(out).not.toContain(internal);
+    // no internals of A either: memo, reference key, vault, buyer contact
+    for (const internal of [invA.memoCode, invA.referencePubkey, a.email, a.vault]) expect(out).not.toContain(internal);
   });
 
   test("includes the latest payment once paid", async () => {

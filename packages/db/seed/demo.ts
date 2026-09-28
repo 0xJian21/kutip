@@ -40,6 +40,10 @@ export async function seedDemo(db: Db): Promise<"seeded" | "skipped"> {
       name: EXPORTER.name,
       registrationNo: EXPORTER.registrationNo,
       city: EXPORTER.city,
+      address: EXPORTER.address,
+      contactEmail: EXPORTER.contactEmail,
+      logoUrl: EXPORTER.logoUrl ?? null,
+      demoFunds: EXPORTER.demoFunds,
       treasuryMultisig: EXPORTER.treasuryMultisig,
       treasuryVault: EXPORTER.treasuryVault,
       treasuryUsdcAta: EXPORTER.treasuryUsdcAta,
@@ -120,6 +124,7 @@ export async function seedDemo(db: Db): Promise<"seeded" | "skipped"> {
         buyerId: a.buyerId ?? null,
         invoiceId: a.invoiceId ?? null,
         txSignature: a.txSignature ?? null,
+        proposalIndex: a.proposalIndex === undefined ? null : BigInt(a.proposalIndex),
         createdAt: new Date(a.createdAt),
       })),
     );

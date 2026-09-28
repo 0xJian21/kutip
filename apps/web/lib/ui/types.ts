@@ -27,6 +27,11 @@ export type Rulebook = {
     otherMovementsNeedApproval: boolean;
     cashOutAlertMarginBps: bigint; // vs 30-day average
   };
+  /** Session 8b (E3): what the agent may send on its own. Types are exported by @kutip/agent. */
+  replies: {
+    remindersAndReceipts: "automatic" | "draft";
+    buyerReplies: "draft" | "routine" | "off";
+  };
 };
 
 export type Exporter = {
@@ -34,6 +39,13 @@ export type Exporter = {
   name: string;
   registrationNo: string;
   city: string;
+  address: string;
+  contactEmail: string;
+  logoUrl?: string;
+  /** Real mainnet accounts holding test-sized balances (the demo exporter). */
+  demoFunds: boolean;
+  /** When the owner last approved the agent's permissions with the passkey. */
+  permissionsApprovedAt?: string;
   ownerName: string;
   adminName: string;
   treasuryMultisig: string;
@@ -50,6 +62,7 @@ export type Buyer = {
   country: string; // ISO 3166-1 alpha-2
   countryName: string;
   city: string;
+  address: string;
   timezone: string; // IANA
   multisig: string;
   vault: string;
@@ -117,6 +130,8 @@ export type AgentAction = {
   ruleId: string; // e.g. C1, T2
   status: AgentActionStatus;
   txSignature?: string;
+  /** Squads proposal index on the treasury multisig, for actions the owner approves on-chain. */
+  proposalIndex?: number;
   createdAt: string;
 };
 
@@ -151,6 +166,9 @@ export type DashboardSummary = {
   overdueUsdc: bigint;
   overdueCount: number;
   treasuryBalanceUsdc: bigint;
+  /** Sum of buyer vault balances, not yet swept (the hero meter). */
+  waitingInBuyerAccountsUsdc: bigint;
+  nextSweepAt?: string;
   attention: Invoice[]; // overdue, disputed, seen, partially paid
   activity: AgentAction[]; // newest first
 };
@@ -175,8 +193,15 @@ export type TreasurySummary = {
 export type PayInvoice = {
   invoiceId: string;
   exporterName: string;
+  exporterLogoUrl?: string;
+  exporterAddress: string;
+  /** The buyer's own details, for the invoice document (the pay link is the credential). */
+  buyerName: string;
+  buyerAddress: string;
   invoiceNumber: string;
+  lineItems: LineItem[];
   amountUsdc: bigint;
+  issuedAt: string;
   dueDate: string;
   status: InvoiceStatus;
   /** solana: URL for the wallet (Solana Pay transaction request) */

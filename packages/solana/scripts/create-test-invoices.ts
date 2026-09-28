@@ -45,6 +45,7 @@ try {
     rulebook: {
       collections: { firstReminderDaysBeforeDue: 3, maxMessagesPer48h: 1, quietHoursStart: 18, quietHoursEnd: 9, maxDiscountPctWithoutApproval: 2, escalateAfterOverdueReminders: 2, escalateOnDispute: true },
       treasury: { acceptedTokens: ["USDC", "SOL", "USDT"], sweepDaily: true, sweepRandomised: true, agentDailyLimitUsdc: 5_000_000_000n, otherMovementsNeedApproval: true, cashOutAlertMarginBps: 50n },
+      replies: { remindersAndReceipts: "automatic", buyerReplies: "draft" },
     },
   });
   const buyer = await store.createBuyer({

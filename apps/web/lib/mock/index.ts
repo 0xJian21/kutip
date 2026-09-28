@@ -122,13 +122,19 @@ function detail(id: string): InvoiceDetail | null {
 function payInvoice(id: string): PayInvoice | null {
   const d = detail(id);
   if (!d) return null;
-  const { invoice } = d;
+  const { invoice, buyer } = d;
   const payment = d.payments.at(-1);
   return {
     invoiceId: invoice.id,
     exporterName: EXPORTER.name,
+    exporterLogoUrl: EXPORTER.logoUrl,
+    exporterAddress: EXPORTER.address,
+    buyerName: buyer.name,
+    buyerAddress: buyer.address,
     invoiceNumber: invoice.number,
+    lineItems: invoice.lineItems,
     amountUsdc: invoice.amountUsdc,
+    issuedAt: invoice.issuedAt,
     dueDate: invoice.dueDate,
     status: invoice.status,
     solanaPayUrl: `solana:${encodeURIComponent(invoice.x402Url.replace("/api/x402/invoice/", "/api/pay/"))}`,
@@ -166,6 +172,8 @@ export const mockData: KutipData & MockControls = {
       overdueUsdc: overdue,
       overdueCount: overdueList.length,
       treasuryBalanceUsdc: TREASURY_MAIN_BALANCE + vaults,
+      waitingInBuyerAccountsUsdc: vaults,
+      nextSweepAt: SWEEPS.find((s) => s.status === "scheduled")?.scheduledFor,
       attention: open
         .filter((i) => ATTENTION.includes(i.status))
         .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1)),

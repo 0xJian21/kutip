@@ -99,7 +99,7 @@ async function main() {
       await store.updateBuyerAccounts(EXPORTER_ID, p.buyer.id, { multisig: p.multisigPda.toBase58(), vault: p.vaultPda.toBase58(), usdcAta: p.vaultAta.toBase58(), spendingLimitPda: p.spendingLimitPda.toBase58() });
     }
     await raw.update(schema.users).set({ walletPubkey: owner.toBase58() }).where(eq(schema.users.id, "usr_owner"));
-    await raw.update(schema.exporters).set({ cashOutWhitelist: [{ label: "Luno MYR account (Teratai Woodworks)", address: cashOut.toBase58() }] }).where(eq(schema.exporters.id, EXPORTER_ID));
+    await raw.update(schema.exporters).set({ cashOutWhitelist: [{ label: "HATA USDC deposit (Solana) · Teratai Woodworks", address: cashOut.toBase58() }] }).where(eq(schema.exporters.id, EXPORTER_ID));
     console.log("  DB: treasury, buyers, owner wallet and cash-out whitelist written");
 
     // Live demo invoices (skip if their numbers exist)

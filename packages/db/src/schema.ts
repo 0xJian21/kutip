@@ -70,6 +70,11 @@ export type RulebookJson = {
     otherMovementsNeedApproval: boolean;
     cashOutAlertMarginBps: string;
   };
+  /** Session 8b (E3). Absent on rows stored before it existed; read back with the defaults. */
+  replies?: {
+    remindersAndReceipts: "automatic" | "draft";
+    buyerReplies: "draft" | "routine" | "off";
+  };
 };
 
 export type LineItemJson = { description: string; quantity: number; unitPriceUsdc: string };
@@ -79,6 +84,16 @@ export const exporters = pgTable("exporters", {
   name: text("name").notNull(),
   registrationNo: text("registration_no").notNull().default(""),
   city: text("city").notNull().default(""),
+  /** Company profile (R1): shown on invoices, the pay page and receipts. */
+  address: text("address").notNull().default(""),
+  contactEmail: text("contact_email").notNull().default(""),
+  /** Public Supabase Storage URL of the uploaded logo. */
+  logoUrl: text("logo_url"),
+  /** Demo exporters run on real mainnet accounts with test-sized balances; the UI says so. */
+  demoFunds: boolean("demo_funds").notNull().default(false),
+  /** Last time the owner approved the agent's permissions with the passkey (R4); the signature is the proof. */
+  agentPermissionsApprovedAt: ts("agent_permissions_approved_at"),
+  agentPermissionsSignature: text("agent_permissions_signature"),
   treasuryMultisig: text("treasury_multisig").notNull(),
   treasuryVault: text("treasury_vault").notNull(),
   treasuryUsdcAta: text("treasury_usdc_ata").notNull(),
@@ -115,6 +130,8 @@ export const buyers = pgTable(
     country: text("country").notNull(), // ISO 3166-1 alpha-2
     countryName: text("country_name").notNull(),
     city: text("city").notNull(),
+    /** Billing address for the invoice document ("Billed to"). */
+    address: text("address").notNull().default(""),
     timezone: text("timezone").notNull(), // IANA
     multisig: text("multisig").notNull(),
     vault: text("vault").notNull(),
@@ -229,6 +246,8 @@ export const agentActions = pgTable(
     ruleId: text("rule_id").notNull(),
     status: agentActionStatus("status").notNull(),
     txSignature: text("tx_signature"),
+    /** Squads proposal (transaction index on the treasury multisig) behind a proposed action. */
+    proposalIndex: bigint("proposal_index", { mode: "bigint" }),
     createdAt: createdAt(),
   },
   (t) => [index("agent_actions_exporter_created_idx").on(t.exporterId, t.createdAt), index("agent_actions_buyer_idx").on(t.buyerId)],
