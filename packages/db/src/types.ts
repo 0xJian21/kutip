@@ -40,6 +40,11 @@ export type Rulebook = {
     otherMovementsNeedApproval: boolean;
     cashOutAlertMarginBps: bigint;
   };
+  /** Session 8b (E3): what the agent may send on its own. Types are exported by @kutip/agent. */
+  replies: {
+    remindersAndReceipts: "automatic" | "draft";
+    buyerReplies: "draft" | "routine" | "off";
+  };
 };
 
 export type Exporter = {
@@ -47,6 +52,13 @@ export type Exporter = {
   name: string;
   registrationNo: string;
   city: string;
+  address: string;
+  contactEmail: string;
+  logoUrl?: string;
+  /** Real mainnet accounts holding test-sized balances (the demo exporter). */
+  demoFunds: boolean;
+  /** When the owner last approved the agent's permissions with the passkey. */
+  permissionsApprovedAt?: string;
   ownerName: string;
   adminName: string;
   treasuryMultisig: string;
@@ -63,6 +75,7 @@ export type Buyer = {
   country: string;
   countryName: string;
   city: string;
+  address: string;
   timezone: string;
   multisig: string;
   vault: string;
@@ -126,6 +139,8 @@ export type AgentAction = {
   ruleId: string;
   status: AgentActionStatus;
   txSignature?: string;
+  /** Squads proposal index on the treasury multisig, for actions the owner approves on-chain. */
+  proposalIndex?: number;
   createdAt: string;
 };
 
@@ -160,6 +175,9 @@ export type DashboardSummary = {
   overdueUsdc: bigint;
   overdueCount: number;
   treasuryBalanceUsdc: bigint;
+  /** Sum of buyer vault balances, not yet swept (the hero meter). */
+  waitingInBuyerAccountsUsdc: bigint;
+  nextSweepAt?: string;
   attention: Invoice[];
   activity: AgentAction[];
 };
@@ -184,8 +202,15 @@ export type TreasurySummary = {
 export type PayInvoice = {
   invoiceId: string;
   exporterName: string;
+  exporterLogoUrl?: string;
+  exporterAddress: string;
+  /** The buyer's own details, for the invoice document (the pay link is the credential). */
+  buyerName: string;
+  buyerAddress: string;
   invoiceNumber: string;
+  lineItems: LineItem[];
   amountUsdc: bigint;
+  issuedAt: string;
   dueDate: string;
   status: InvoiceStatus;
   solanaPayUrl: string;

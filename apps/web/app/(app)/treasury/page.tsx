@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { Address } from "@/components/ui/address";
 import { Avatar } from "@/components/ui/avatar";
-import { Button, buttonClass } from "@/components/ui/button";
+import { CashOutButton, SweepNowButton } from "@/components/treasury/treasury-buttons";
 import { Card, CardHeader, HeroCard, Inset } from "@/components/ui/card";
 import { Meter } from "@/components/ui/charts";
 import { Amount, MoneyCell } from "@/components/ui/money";
@@ -40,6 +40,7 @@ export default async function TreasuryPage({ searchParams }: PageProps<"/treasur
             </div>
             <Amount sen={toMyr(t.mainBalanceUsdc, t.rate)} size="2xl" tone="hero" className="mt-2" />
             <p className="mt-1.5 text-sm tabular text-on-hero-2">{formatUsdc(t.mainBalanceUsdc)} USDC · BNM rate {formatRate(t.rate)} · {shortAddress(t.mainVault)}</p>
+            <p className="mt-1 text-xs text-on-hero-2">{exporter.demoFunds ? "Live on Solana mainnet · demo funds. " : ""}All payments arrive as USD (USDC): SOL and USDT are converted inside the buyer&apos;s own payment.</p>
             <Meter
               tone="hero"
               className="mt-6 max-w-md"
@@ -50,8 +51,8 @@ export default async function TreasuryPage({ searchParams }: PageProps<"/treasur
               maxText={`${formatUsdc(t.agentDailyLimitUsdc, 0)} a day`}
             />
             <div className="mt-6 flex flex-wrap gap-2">
-              <Button variant="hero" disabled title="Manual sweep arrives with the treasury update">Sweep now</Button>
-              <a href="#cash-out" className={buttonClass("heroOutline")}>Cash out to ringgit</a>
+              <SweepNowButton rate={t.rate} />
+              <CashOutButton whitelist={t.cashOut.whitelisted} />
             </div>
           </HeroCard>
 
@@ -73,7 +74,7 @@ export default async function TreasuryPage({ searchParams }: PageProps<"/treasur
                       <span className="flex items-center gap-2.5">
                         <Avatar name={buyer.name} size="sm" shape="square" />
                         <span className="min-w-0">
-                          <span className="block truncate text-ink">{buyer.name}</span>
+                          <span className="line-clamp-2 block leading-snug text-ink" title={buyer.name}>{buyer.name}</span>
                           <span className="block text-xs tabular text-ink-3 sm:hidden">{shortAddress(buyer.vault)} · swept {lastSweepAt ? relativeTime(lastSweepAt) : "never"}</span>
                         </span>
                       </span>
@@ -126,13 +127,13 @@ export default async function TreasuryPage({ searchParams }: PageProps<"/treasur
                 { label: "You asked to be told at", value: `+${formatBps(t.cashOut.alertMarginBps).slice(1)}`, muted: true },
               ]}
             />
-            <Button variant="secondary" className="mt-5 w-full" disabled title="Cash-out proposals arrive with the treasury update">Cash out</Button>
+            <CashOutButton whitelist={t.cashOut.whitelisted} variant="secondary" className="mt-5 w-full" label="Cash out" />
             <Inset className="mt-5 p-4">
               <p className="text-base font-medium text-ink">How cash-out works</p>
               <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-ink-2">
-                <li>You send USDC from the treasury to your own account at a licensed Malaysian exchange.</li>
-                <li>The exchange converts to ringgit and pays your bank account, usually the same day.</li>
-                <li>Kutip never touches ringgit and never holds your money.</li>
+                <li>You send USDC from the treasury to your own account at an SC-registered exchange (HATA lists USDC on Solana).</li>
+                <li>You sell there and withdraw ringgit to your bank account, usually the same day.</li>
+                <li>Kutip never touches ringgit and never holds your money. MYRC, the ringgit stablecoin, joins when BNM approves it.</li>
               </ol>
               <p className="mt-3 text-sm font-medium text-ink">Your whitelisted addresses</p>
               <ul className="mt-1 divide-y divide-line">
@@ -143,7 +144,8 @@ export default async function TreasuryPage({ searchParams }: PageProps<"/treasur
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-ink-3">Sending to any other address needs a new proposal signed with your passkey.</p>
+              {t.cashOut.whitelisted.length === 0 ? <p className="mt-1 text-sm text-ink-3">None yet. Add one from the Cash out button; it needs Touch ID.</p> : null}
+              <p className="mt-3 text-xs text-ink-3">Only addresses you whitelisted with Touch ID can receive a cash-out, and every cash-out is a proposal you approve with Touch ID.</p>
             </Inset>
           </Card>
 

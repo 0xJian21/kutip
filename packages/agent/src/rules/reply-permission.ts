@@ -1,29 +1,17 @@
 /**
- * Agent reply permission (IMPROVEMENTS E3, rule C7). The owner picks how replies to buyer messages go:
- * "draft" (default: the agent drafts, the owner approves), "automatic_routine" (routine answers only), or "off".
+ * Agent reply permission (IMPROVEMENTS E3, rule C7). The owner's rulebook `replies.buyerReplies` (Session 8b):
+ * "draft" (default: the agent drafts, the owner approves), "routine" (routine answers only), or "off".
  * Never automatic whatever the setting: disputes (C4), discounts (C3), promised dates (C5), anything about
  * money that hasn't arrived, low-confidence readings. The model only proposes the topic; this decides.
- *
- * The settings shape is Session 8b's rulebook "Replies" section (IMPROVEMENTS E3). Until it lands in
- * rulebook.ts, callers pass `rulebook.replies` through parseReplySettings, which falls back to the default.
+ * Stricter than rulebook.ts `replyAutonomy` (intent only): routine also needs a routine topic, and
+ * "we received your payment" needs the money to have arrived. The inbox enforces this one.
  */
-import { z } from "zod";
 import type { ReplyClassification } from "../classifier";
+import type { Rulebook } from "../rulebook";
 import type { Decision, InvoiceStatus } from "./decision";
 import type { ReplyDecision } from "./replies";
 
-export const replySettingsSchema = z.object({
-  remindersAndReceipts: z.enum(["automatic", "draft"]).default("automatic"),
-  buyerMessages: z.enum(["draft", "automatic_routine", "off"]).default("draft"),
-});
-export type ReplySettings = z.infer<typeof replySettingsSchema>;
-
-export const DEFAULT_REPLY_SETTINGS: ReplySettings = { remindersAndReceipts: "automatic", buyerMessages: "draft" };
-
-export function parseReplySettings(input: unknown): ReplySettings {
-  const r = replySettingsSchema.safeParse(input ?? {});
-  return r.success ? r.data : DEFAULT_REPLY_SETTINGS;
-}
+export type ReplySettings = Rulebook["replies"];
 
 /** What a reply answers, as proposed by the drafting model. Only the first three can ever be routine. */
 export const REPLY_TOPICS = ["resend_invoice", "payment_instructions", "payment_received", "other"] as const;
@@ -44,7 +32,7 @@ export function replyPermission(input: {
   invoiceStatus: InvoiceStatus;
 }): ReplyPermission {
   const { settings, classification: c, decision, topic } = input;
-  if (settings.buyerMessages === "off") {
+  if (settings.buyerReplies === "off") {
     return { mode: "none", allowed: false, ruleId: "C7", reason: "Replies to buyer messages are off, so you answer this one yourself" };
   }
   const draft = (ruleId: Decision["ruleId"], reason: string): ReplyPermission => ({ mode: "draft", allowed: false, ruleId, reason });
@@ -62,6 +50,6 @@ export function replyPermission(input: {
     (c.label === "question" && (topic === "resend_invoice" || topic === "payment_instructions")) ||
     (c.label === "claims_paid" && topic === "payment_received" && MONEY_IN.includes(input.invoiceStatus));
   if (!routine) return draft("C7", "Only routine answers (resend invoice, how to pay, payment received) can go out automatically");
-  if (settings.buyerMessages !== "automatic_routine") return draft("C7", "Your setting is Draft — I approve, so this waits for you");
+  if (settings.buyerReplies !== "routine") return draft("C7", "Your setting is Draft, I approve, so this waits for you");
   return { mode: "auto", allowed: true, ruleId: "C7", reason: "A routine answer, and you let the agent send those automatically" };
 }

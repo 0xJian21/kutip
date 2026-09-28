@@ -123,7 +123,7 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
 
   const document = (
     <InvoiceDocument
-      from={{ name: exporter.name, lines: [exporter.registrationNo ? `SSM ${exporter.registrationNo}` : "", exporter.city].filter(Boolean) }}
+      from={{ name: exporter.name, logo: exporter.logoUrl, lines: [exporter.registrationNo ? `SSM ${exporter.registrationNo}` : "", exporter.address || exporter.city].filter(Boolean) }}
       to={buyer ? { name: buyer.name, lines: [buyer.contactName, `${buyer.city}, ${buyer.countryName}`] } : undefined}
       number={created?.number ?? number}
       issuedAt=""
@@ -166,7 +166,7 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
   }
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-6">
       {/* The whole form accepts a dropped PDF. */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -231,24 +231,21 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
                 const unit = parseUsdc(l.unitPrice);
                 const qty = Number.parseInt(l.quantity, 10) || 0;
                 return (
-                  <div key={i} className="grid gap-2 rounded-md bg-well p-2.5">
-                    <div className="flex gap-2">
-                      <Input aria-label="Item" placeholder="Teak dining table, 200 cm" value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
-                      <button
-                        type="button"
-                        aria-label="Remove line"
-                        disabled={lines.length === 1}
-                        onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-(--dur-fast) hover:bg-paper-2 hover:text-ink disabled:opacity-30"
-                      >
-                        <Trash2 size={15} aria-hidden="true" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2">
-                      <Input aria-label="Quantity" inputMode="numeric" className="text-right" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} />
-                      <PrefixedInput prefix="USD" aria-label="Unit price" inputMode="decimal" placeholder="0.00" className="text-right" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} />
-                      <span className="text-right tabular text-base text-ink">{unit === null ? <span className="text-ink-3">—</span> : `${formatUsdc(unit * BigInt(qty))} USD`}</span>
-                    </div>
+                  // Phone: item + remove, then qty · price · amount. Desktop: one row.
+                  <div key={i} className="grid grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)_32px] items-center gap-2 rounded-md bg-well p-2.5 lg:grid-cols-[minmax(0,1fr)_52px_108px_84px_32px]">
+                    <Input aria-label="Item" placeholder="Teak dining table, 200 cm" value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} className="col-span-3 lg:col-span-1" />
+                    <button
+                      type="button"
+                      aria-label="Remove line"
+                      disabled={lines.length === 1}
+                      onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}
+                      className="inline-flex h-10 w-9 items-center justify-center rounded-full text-ink-3 transition-colors duration-(--dur-fast) hover:bg-paper-2 hover:text-ink disabled:opacity-30 lg:order-last"
+                    >
+                      <Trash2 size={15} aria-hidden="true" />
+                    </button>
+                    <Input aria-label="Quantity" inputMode="numeric" className="text-right" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} />
+                    <PrefixedInput prefix="USD" aria-label="Unit price" inputMode="decimal" placeholder="0.00" className="pl-11 text-right" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} />
+                    <span className="truncate text-right tabular text-base text-ink">{unit === null ? "" : formatUsdc(unit * BigInt(qty))}</span>
                   </div>
                 );
               })}

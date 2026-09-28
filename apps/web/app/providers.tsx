@@ -5,7 +5,9 @@ import type { ReactNode } from "react";
 
 /**
  * Privy (DECISIONS D2): passkey login unlocks a TEE-held Solana key; that key is
- * the owner member of the Squads treasury. No external wallets, no Ethereum.
+ * the owner member of the Squads treasury. Email OTP is the second way in (R2);
+ * money still needs the passkey: transaction MFA prompts Touch ID / Face ID before
+ * the embedded wallet signs. No external wallets, no Ethereum.
  * Passkeys are bound to the domain: enable "Passkey" under Login methods and add
  * the production domain in the Privy dashboard before deploying.
  */
@@ -16,7 +18,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <PrivyProvider
       appId={appId}
       config={{
-        loginMethods: ["passkey"],
+        loginMethods: ["passkey", "email"],
         appearance: { walletChainType: "solana-only" },
         embeddedWallets: {
           solana: { createOnLogin: "all-users" },

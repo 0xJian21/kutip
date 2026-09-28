@@ -1,7 +1,7 @@
 /**
  * Buyer messages end to end (IMPROVEMENTS E2, M2, E3): classify (Jev → Haiku) → the rules engine decides
  * (decideReply) → Haiku drafts a reply from code facts → replyPermission says auto / draft / none.
- * Only a routine answer under "automatic_routine" is sent without the owner; everything else waits as a draft.
+ * Only a routine answer under "routine" is sent without the owner; everything else waits as a draft.
  * Every LLM call gets ONE buyer's context (SPEC §5 L4). The store is a port so this stays DB-free.
  */
 import type Anthropic from "@anthropic-ai/sdk";
@@ -11,7 +11,7 @@ import type { Mailer } from "./mailer";
 import type { Rulebook } from "./rulebook";
 import type { InvoiceStatus, RuleId } from "./rules/decision";
 import { decideReply, type ReplyDecision } from "./rules/replies";
-import { parseReplySettings, replyPermission, type ReplyPermission } from "./rules/reply-permission";
+import { replyPermission, type ReplyPermission } from "./rules/reply-permission";
 import { writeReply } from "./writer";
 
 export type PortMessage = {
@@ -35,7 +35,7 @@ type Send = { body: string; approvedBy: string; ruleId: string; decision: string
 export type InboxPort = {
   getThread(exporterId: string, invoiceId: string): Promise<{ invoice: InvoiceRecord & { status: InvoiceStatus }; buyer: BuyerRecord & { email: string }; messages: PortMessage[] } | null>;
   getBuyerContext(exporterId: string, buyerId: string): Promise<{ exporterName: string; buyer: BuyerRecord; invoices: InvoiceRecord[]; messages: MessageRecord[] } | null>;
-  getRulebook(exporterId: string): Promise<Rulebook & { replies?: unknown }>;
+  getRulebook(exporterId: string): Promise<Rulebook>;
   setClassification(messageId: string, c: { intent: ReplyLabel; confidence: number }): Promise<void>;
   setPromisedDate(exporterId: string, invoiceId: string, date: string | null): Promise<void>;
   setInvoiceStatus(exporterId: string, invoiceId: string, status: "disputed", at: Date): Promise<unknown>;
@@ -120,7 +120,7 @@ export async function handleInbound(deps: InboxDeps, req: { exporterId: string; 
   if (decision.action === "pause" && decision.promisedDate) await deps.store.setPromisedDate(exporterId, invoiceId, decision.promisedDate);
   if (decision.markDisputed) await deps.store.setInvoiceStatus(exporterId, invoiceId, "disputed", now);
 
-  const settings = parseReplySettings(rulebook.replies);
+  const settings = rulebook.replies;
   // The log line is written in code, not by a model, and after the outcome is known: it says exactly what happened.
   const logReading = (outcome: string, handled: boolean) =>
     deps.store.recordAgentAction({

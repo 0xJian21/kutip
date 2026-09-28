@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { ArrowRight, CalendarDays, CheckCircle2, Fingerprint, Mail, ShieldCheck } from "lucide-react";
+import { CalendarDays, CheckCircle2, Fingerprint, Mail, ShieldCheck } from "lucide-react";
 import type { AgendaEvent, CommandPreview, InvoiceLine } from "@kutip/agent";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Chip, StatusPill } from "@/components/ui/status-pill";
 import { EmptyState } from "@/components/ui/states";
 import { formatDate, formatTime, dueLabel } from "@/lib/ui/format";
 import { formatRate, formatUsdc, type BnmRate } from "@/lib/ui/money";
+import { CashOutButton, SweepNowButton } from "@/components/treasury/treasury-buttons";
 import { sendCommandReminder } from "./actions";
 
 export type Preview = CommandPreview & { via?: "jev" | "haiku" };
@@ -77,11 +78,8 @@ export function PreviewCard({ preview, onAsk, onDone }: { preview: Preview; onAs
                 <span className="text-sm text-ink-2">Total to the treasury</span>
                 <MoneyCell usdc={preview.totalUsdc} rate={preview.rate} />
               </div>
-              <Confirm note="Network fee paid by Kutip (about 0.00002 SOL). The spending limit on Solana is the final check.">
-                <ButtonLink href="/treasury?action=sweep" size="sm" onClick={onDone}>
-                  Review & sweep
-                  <ArrowRight size={14} aria-hidden="true" />
-                </ButtonLink>
+              <Confirm note="Opens the sweep flow: a fresh on-chain check, then you confirm. Network fee paid by Kutip; the spending limit on Solana is the final check.">
+                <SweepNowButton rate={preview.rate} variant="primary" />
               </Confirm>
             </>
           )}
@@ -106,10 +104,7 @@ export function PreviewCard({ preview, onAsk, onDone }: { preview: Preview; onAs
           <p className="mt-3 text-sm text-ink-2">The exchange’s own rate and fee apply when you sell for ringgit there.</p>
           {preview.allowed ? (
             <Confirm note={preview.reason} icon="passkey">
-              <ButtonLink href={`/treasury?action=cashout&usdc=${preview.amountUsdc}`} size="sm" onClick={onDone}>
-                Review cash-out
-                <ArrowRight size={14} aria-hidden="true" />
-              </ButtonLink>
+              <CashOutButton whitelist={preview.whitelist} variant="primary" label="Review cash-out" />
             </Confirm>
           ) : (
             <p role="alert" className="mt-3 text-sm text-disputed-fg">{preview.reason}.</p>

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { UserError } from "@/lib/data/result";
 import { exporterForSignIn } from "./access";
 import { SESSION_TTL_MS, signSession, verifySession, type Session } from "./session-token";
 import { store } from "./store";
@@ -12,10 +13,13 @@ import { store } from "./store";
  * then POSTs its Privy access token to /api/session. We verify it here against
  * Privy's JWKS, map the Privy user to a Kutip user (linked id, else its embedded
  * Solana wallet = the Squads owner), and set our own signed httpOnly cookie.
- * A verified Privy user with no Kutip user is refused; DEMO_FALLBACK=1 lets them into DEMO_EXPORTER_ID instead.
+ * A verified Privy user with no Kutip user gets no cookie and is sent through onboarding
+ * (R3), where completeOnboarding creates their exporter; DEMO_FALLBACK=1 lets them into
+ * DEMO_EXPORTER_ID instead.
  */
 
-export const MOCK = process.env.NEXT_PUBLIC_KUTIP_MOCK === "1";
+/** Offline UI on mock data. Never in production: it would bypass auth on the treasury routes (FOLLOWUPS). */
+export const MOCK = process.env.NEXT_PUBLIC_KUTIP_MOCK === "1" && process.env.NODE_ENV !== "production";
 export const DEMO_EXPORTER_ID = process.env.DEMO_EXPORTER_ID ?? "exp_teratai";
 const COOKIE = "kutip_session";
 
@@ -44,7 +48,7 @@ export async function requireSession(next = "/dashboard"): Promise<Session> {
 /** Server actions / routes: the session, or throw. */
 export async function sessionOrThrow(): Promise<Session> {
   const s = await getSession();
-  if (!s) throw new Error("Your session has ended. Sign in again with your passkey.");
+  if (!s) throw new UserError("Your session has ended. Sign in again.");
   return s;
 }
 
@@ -59,20 +63,17 @@ async function privySolanaWallets(privyUserId: string): Promise<string[]> {
   return (user.linked_accounts ?? []).filter((a) => a.type === "wallet" && a.chain_type === "solana" && a.address).map((a) => a.address!);
 }
 
-export async function signIn(accessToken: string): Promise<Session> {
+/** The verified Privy identity behind an access token, with its embedded Solana wallets. */
+export async function verifyPrivyToken(accessToken: string): Promise<{ privyUserId: string; wallets: string[] }> {
   const appId = env("NEXT_PUBLIC_PRIVY_APP_ID");
   jwks ??= createRemoteJWKSet(new URL(`https://auth.privy.io/api/v1/apps/${appId}/jwks.json`));
   const { payload } = await jwtVerify(accessToken, jwks, { issuer: "privy.io", audience: appId });
   const privyUserId = payload.sub;
   if (!privyUserId) throw new Error("Privy token has no subject");
+  return { privyUserId, wallets: await privySolanaWallets(privyUserId) };
+}
 
-  const wallets = await privySolanaWallets(privyUserId);
-  const user = await store().findUser({ privyUserId, wallets });
-  if (user) await store().linkPrivyUser(user.userId, privyUserId);
-  else console.warn(`[auth] ${privyUserId} has no Kutip user${process.env.DEMO_FALLBACK === "1" ? `; DEMO_FALLBACK → ${DEMO_EXPORTER_ID}` : "; refused"}`);
-  const exporterId = exporterForSignIn(user, { demoFallback: process.env.DEMO_FALLBACK === "1" ? DEMO_EXPORTER_ID : undefined });
-  const session: Session = { exporterId, privyUserId, ...(wallets[0] ? { wallet: wallets[0] } : {}) };
-
+async function setSessionCookie(session: Session): Promise<void> {
   (await cookies()).set(COOKIE, signSession(session, cookieKey()), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -80,7 +81,33 @@ export async function signIn(accessToken: string): Promise<Session> {
     path: "/",
     maxAge: SESSION_TTL_MS / 1000,
   });
-  return session;
+}
+
+export type SignInResult = { linked: true; session: Session } | { linked: false; privyUserId: string; wallet?: string };
+
+/**
+ * Sign-in (passkey or email OTP). Linked users get the session cookie and go straight
+ * to the app; an unlinked user gets nothing yet and continues through onboarding.
+ */
+export async function signIn(accessToken: string): Promise<SignInResult> {
+  const { privyUserId, wallets } = await verifyPrivyToken(accessToken);
+  const user = await store().findUser({ privyUserId, wallets });
+  if (user) await store().linkPrivyUser(user.userId, privyUserId);
+  const demoFallback = process.env.DEMO_FALLBACK === "1" ? DEMO_EXPORTER_ID : undefined;
+  if (!user && !demoFallback) {
+    console.warn(`[auth] ${privyUserId} has no Kutip user; onboarding`);
+    return { linked: false, privyUserId, ...(wallets[0] ? { wallet: wallets[0] } : {}) };
+  }
+  if (!user) console.warn(`[auth] ${privyUserId} has no Kutip user; DEMO_FALLBACK → ${DEMO_EXPORTER_ID}`);
+  const exporterId = exporterForSignIn(user, { demoFallback });
+  const session: Session = { exporterId, privyUserId, ...(wallets[0] ? { wallet: wallets[0] } : {}) };
+  await setSessionCookie(session);
+  return { linked: true, session };
+}
+
+/** Onboarding created the exporter for a verified Privy user: start their session. */
+export async function startSession(session: Session): Promise<void> {
+  await setSessionCookie(session);
 }
 
 export async function signOut(): Promise<void> {

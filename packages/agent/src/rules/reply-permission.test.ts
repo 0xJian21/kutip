@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { ReplyClassification, ReplyLabel } from "../classifier";
 import { DEFAULT_RULEBOOK } from "../rulebook";
 import { decideReply } from "./replies";
-import { DEFAULT_REPLY_SETTINGS, parseReplySettings, replyPermission, ROUTINE_CONFIDENCE, type ReplySettings, type ReplyTopic } from "./reply-permission";
+import { replyPermission, ROUTINE_CONFIDENCE, type ReplySettings, type ReplyTopic } from "./reply-permission";
 
 const NOW = new Date("2026-09-28T02:00:00Z");
-const AUTO: ReplySettings = { remindersAndReceipts: "automatic", buyerMessages: "automatic_routine" };
+const AUTO: ReplySettings = { remindersAndReceipts: "automatic", buyerReplies: "routine" };
+const DEFAULT_REPLY_SETTINGS = DEFAULT_RULEBOOK.replies;
 
 function permit(o: { label: ReplyLabel; confidence?: number; topic?: ReplyTopic; status?: string; settings?: ReplySettings; promisedDate?: string; discountText?: string }) {
   const classification: ReplyClassification = {
@@ -18,11 +19,8 @@ function permit(o: { label: ReplyLabel; confidence?: number; topic?: ReplyTopic;
 }
 
 describe("E3 reply permission matrix", () => {
-  it("defaults to Draft — I approve", () => {
-    expect(DEFAULT_REPLY_SETTINGS).toEqual({ remindersAndReceipts: "automatic", buyerMessages: "draft" });
-    expect(parseReplySettings(undefined)).toEqual(DEFAULT_REPLY_SETTINGS);
-    expect(parseReplySettings({ buyerMessages: "automatic_routine" })).toEqual({ remindersAndReceipts: "automatic", buyerMessages: "automatic_routine" });
-    expect(parseReplySettings({ buyerMessages: "yolo" })).toEqual(DEFAULT_REPLY_SETTINGS);
+  it("defaults to Draft, I approve", () => {
+    expect(DEFAULT_REPLY_SETTINGS).toEqual({ remindersAndReceipts: "automatic", buyerReplies: "draft" });
   });
 
   it("with the default setting every reply is a draft, even routine ones", () => {
@@ -31,7 +29,7 @@ describe("E3 reply permission matrix", () => {
   });
 
   it("Off: the agent drafts nothing on its own", () => {
-    expect(permit({ label: "question", topic: "payment_instructions", settings: { remindersAndReceipts: "automatic", buyerMessages: "off" } })).toMatchObject({ mode: "none", allowed: false });
+    expect(permit({ label: "question", topic: "payment_instructions", settings: { remindersAndReceipts: "automatic", buyerReplies: "off" } })).toMatchObject({ mode: "none", allowed: false });
   });
 
   it.each<[string, ReplyTopic, string]>([

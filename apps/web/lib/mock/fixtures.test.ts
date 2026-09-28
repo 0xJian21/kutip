@@ -52,7 +52,7 @@ describe("mockData", () => {
     expect(overdue.map((i) => i.status)).toEqual(["overdue", "overdue", "overdue"]);
     const harbourline = await mockData.listInvoices({ buyerId: "b_harbourline" });
     expect(harbourline.every((i) => i.buyerId === "b_harbourline")).toBe(true);
-    expect((await mockData.listInvoices({ query: "kobayashi" })).length).toBe(4);
+    expect((await mockData.listInvoices({ query: "kobayashi" })).length).toBe(8);
   });
   it("pay page exposes nothing about other buyers", async () => {
     const p = await mockData.getPayInvoice(DEMO_INVOICE_ID);

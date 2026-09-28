@@ -1,6 +1,5 @@
 ALTER TYPE "public"."agent_action_kind" ADD VALUE 'reply';--> statement-breakpoint
 ALTER TABLE "agent_actions" ADD COLUMN "approved_by" text;--> statement-breakpoint
-ALTER TABLE "exporters" ADD COLUMN "contact_email" text;--> statement-breakpoint
 ALTER TABLE "messages" ADD COLUMN "status" text DEFAULT 'sent' NOT NULL;--> statement-breakpoint
 ALTER TABLE "messages" ADD COLUMN "in_reply_to" text;--> statement-breakpoint
 ALTER TABLE "messages" ADD CONSTRAINT "messages_status_valid" CHECK ("messages"."status" in ('draft', 'sent', 'discarded'));--> statement-breakpoint

@@ -1,6 +1,6 @@
 {
-  "id": "ddd02c44-c679-4aa1-9847-38a650984bcc",
-  "prevId": "18a9df2b-8f51-4860-a653-13d468038cbb",
+  "id": "ef7da1a1-342b-4aa1-8491-b6ae3567a951",
+  "prevId": "5123bb9c-90dd-4033-80a6-52348c5a8047",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -85,6 +85,12 @@
         "approved_by": {
           "name": "approved_by",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proposal_index": {
+          "name": "proposal_index",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },
@@ -233,6 +239,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "timezone": {
           "name": "timezone",
           "type": "text",
@@ -346,6 +359,45 @@
           "notNull": true,
           "default": "''"
         },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "logo_url": {
+          "name": "logo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "demo_funds": {
+          "name": "demo_funds",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "agent_permissions_approved_at": {
+          "name": "agent_permissions_approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agent_permissions_signature": {
+          "name": "agent_permissions_signature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "treasury_multisig": {
           "name": "treasury_multisig",
           "type": "text",
@@ -383,12 +435,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'[]'::jsonb"
-        },
-        "contact_email": {
-          "name": "contact_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",

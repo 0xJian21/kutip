@@ -4,6 +4,7 @@
  * Every LLM call gets one buyer's context (SPEC §5 L4). No inbound email channel exists yet;
  * the invoice page's "Simulate buyer reply" drives this for the demo.
  */
+import { UserError } from "../data/result";
 import { buildBuyerContext, decideReply, type ReplyClassifier, type ReplyDecision } from "@kutip/agent";
 import type { Store } from "@kutip/db";
 
@@ -31,9 +32,9 @@ export async function handleBuyerReply(d: {
 }) {
   const { store, exporterId, invoiceId, now } = d;
   const detail = await store.getInvoice(exporterId, invoiceId);
-  if (!detail) throw new Error("Invoice not found");
+  if (!detail) throw new UserError("Invoice not found");
   const raw = await store.getBuyerContext(exporterId, detail.buyer.id);
-  if (!raw) throw new Error("Buyer not found");
+  if (!raw) throw new UserError("Buyer not found");
   const ctx = buildBuyerContext(raw);
 
   const c = await d.classifier.classifyReply(ctx, { subject: d.subject, body: d.body, receivedAt: now.toISOString() });

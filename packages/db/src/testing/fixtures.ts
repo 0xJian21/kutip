@@ -21,6 +21,7 @@ export const RULEBOOK: Rulebook = {
     otherMovementsNeedApproval: true,
     cashOutAlertMarginBps: 50n,
   },
+  replies: { remindersAndReceipts: "automatic", buyerReplies: "draft" },
 };
 
 export const APP_URL = "https://kutip.test";

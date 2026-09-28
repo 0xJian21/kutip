@@ -174,7 +174,18 @@ export type CommandPreview =
   | { kind: "invoice"; line: InvoiceLine; payUrl: string; rate: Rate }
   | { kind: "reminder"; line: InvoiceLine; to: string; email: Email; ruleId: RuleId; ruleNote: string; rate: Rate }
   | { kind: "sweep"; vaults: Array<{ buyerName: string; amountUsdc: bigint; mode: "autonomous" | "proposal" | "refused"; ruleId: RuleId; reason: string }>; totalUsdc: bigint; rate: Rate }
-  | { kind: "cash_out"; amountUsdc: bigint; myrSen: bigint; rate: Rate; treasuryUsdc: bigint; destination?: string; allowed: boolean; ruleId: RuleId; reason: string }
+  | {
+      kind: "cash_out";
+      amountUsdc: bigint;
+      myrSen: bigint;
+      rate: Rate;
+      treasuryUsdc: bigint;
+      destination?: string;
+      whitelist: Array<{ label: string; address: string }>;
+      allowed: boolean;
+      ruleId: RuleId;
+      reason: string;
+    }
   | { kind: "agenda"; from: string; to: string; events: AgendaEvent[] }
   | { kind: "clarify"; message: string; options: string[] }
   | { kind: "help"; message: string; examples: string[] };
@@ -233,7 +244,7 @@ export async function planCommand(deps: { store: CommandPort; client: Anthropic;
       const myrSen = money.currency === "MYR" ? money.units : usdcToMyrSen(money.units, t.rate.myrPerUsd);
       const destination = t.cashOut.whitelisted[0]?.label;
       const move = treasuryMove({ kind: "cash_out", rulebook });
-      const base = { kind: "cash_out" as const, amountUsdc, myrSen, rate: t.rate, treasuryUsdc: t.mainBalanceUsdc, destination, ruleId: move.ruleId };
+      const base = { kind: "cash_out" as const, amountUsdc, myrSen, rate: t.rate, treasuryUsdc: t.mainBalanceUsdc, destination, whitelist: t.cashOut.whitelisted, ruleId: move.ruleId };
       if (!destination) return { ...base, allowed: false, reason: "Add your exchange deposit address in Treasury first; cash-outs only go there" };
       if (amountUsdc > t.mainBalanceUsdc) return { ...base, allowed: false, reason: "That's more than the treasury holds" };
       return { ...base, allowed: true, reason: `${move.reason}. You approve it with your passkey` };

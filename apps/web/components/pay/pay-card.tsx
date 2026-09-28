@@ -41,13 +41,17 @@ export function PayCard({ initial, solHref }: { initial: PayInvoice; solHref?: s
   const document = (
     <InvoiceDocument
       compact
-      from={{ name: pay.exporterName }}
+      tone="flat"
+      showTotal={paid}
+      from={{ name: pay.exporterName, logo: pay.exporterLogoUrl, lines: pay.exporterAddress ? [pay.exporterAddress] : [] }}
+      to={{ name: pay.buyerName, lines: pay.buyerAddress ? [pay.buyerAddress] : [] }}
       number={pay.invoiceNumber}
+      issuedAt={pay.issuedAt}
       dueDate={pay.dueDate}
       status={paid || overdue || seen ? pay.status : undefined}
+      lineItems={pay.lineItems}
       totalUsdc={pay.amountUsdc}
-      showItems={false}
-      note={paid ? null : "Pay with USDC, or SOL converted on the spot. No gas fee: the amount shown is the amount that arrives."}
+      note={null}
     />
   );
 
@@ -92,13 +96,12 @@ export function PayCard({ initial, solHref }: { initial: PayInvoice; solHref?: s
       <Card>
         {!confirming ? (
           <>
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="text-base text-ink-2">Amount due</span>
-              <span className="money text-money-md text-ink">
-                {formatUsdc(pay.amountUsdc)} <span className="text-[0.55em] font-semibold text-ink-3">USDC</span>
-              </span>
-            </div>
-            <Button variant="secondary" size="lg" className="mt-4 w-full" onClick={() => setConfirming(true)}>
+            <p className="text-sm font-medium text-ink-2">Amount due</p>
+            <p className="money mt-1 text-money-xl text-ink">
+              {formatUsdc(pay.amountUsdc)} <span className="text-[0.45em] font-semibold text-ink-3">USDC</span>
+            </p>
+            <p className="mt-1.5 text-sm text-ink-2">Pay with USDC, or SOL converted on the spot. No gas fee: the amount shown is the amount that arrives.</p>
+            <Button variant="secondary" size="lg" className="mt-5 w-full" onClick={() => setConfirming(true)}>
               Confirm and pay
             </Button>
             <p className="mt-3 text-center text-sm text-ink-3">Next: scan a QR or open your wallet. Nothing is charged until you approve there.</p>

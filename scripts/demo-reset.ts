@@ -92,8 +92,9 @@ async function main() {
       await raw.update(schema.buyers).set({ email: inbox }).where(eq(schema.buyers.id, b.id));
     }
     await raw.update(schema.users).set({ walletPubkey: owner.toBase58() }).where(eq(schema.users.id, "usr_owner"));
-    await raw.update(schema.exporters).set({ cashOutWhitelist: [{ label: "Luno MYR account (Teratai Woodworks)", address: cashOut.toBase58() }] }).where(eq(schema.exporters.id, EXPORTER_ID));
-    console.log(`  3. treasury, buyers, owner wallet and cash-out whitelist attached; buyer emails → ${inbox}`);
+    // demo_funds: the seeded business numbers stay, the hero says "Live on Solana mainnet · demo funds" next to the real balance.
+    await raw.update(schema.exporters).set({ cashOutWhitelist: [{ label: "HATA USDC deposit (Solana) · Teratai Woodworks", address: cashOut.toBase58() }], demoFunds: true }).where(eq(schema.exporters.id, EXPORTER_ID));
+    console.log(`  3. treasury, buyers, owner wallet and cash-out whitelist (HATA) attached, demo flag on; buyer emails → ${inbox}`);
 
     const today = new Date().toISOString().slice(0, 10);
     const due = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);

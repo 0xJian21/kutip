@@ -58,7 +58,7 @@ export function inboxPort(): InboxPort {
   return {
     getThread: (e, id) => i.getThread(e, id),
     getBuyerContext: (e, b) => s.getBuyerContext(e, b),
-    getRulebook: async (e) => ({ ...(await s.getRulebook(e)), replies: await i.getReplySettings(e) }),
+    getRulebook: (e) => s.getRulebook(e),
     setClassification: (id, c) => i.setClassification(id, c),
     setPromisedDate: (e, id, d) => s.setPromisedDate(e, id, d),
     setInvoiceStatus: (e, id, st, at) => s.setInvoiceStatus(e, id, st, at),

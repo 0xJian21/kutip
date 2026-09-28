@@ -36,6 +36,10 @@ export type CreateExporterInput = {
   name: string;
   registrationNo?: string;
   city?: string;
+  address?: string;
+  contactEmail?: string;
+  logoUrl?: string;
+  demoFunds?: boolean;
   treasuryMultisig: string;
   treasuryVault: string;
   treasuryUsdcAta: string;
@@ -51,7 +55,10 @@ export type CreateUserInput = {
   walletPubkey?: string;
 };
 
-export type CreateBuyerInput = Omit<Buyer, "id"> & { exporterId: string; spendingLimitPda?: string };
+export type CreateBuyerInput = Omit<Buyer, "id" | "address"> & { exporterId: string; address?: string; spendingLimitPda?: string };
+
+/** Company profile fields the owner edits (R1). `logoUrl: null` clears the logo. */
+export type ExporterProfilePatch = Partial<{ name: string; registrationNo: string; city: string; address: string; contactEmail: string; logoUrl: string | null }>;
 
 export type CreateInvoiceInput = {
   exporterId: string;
@@ -112,6 +119,8 @@ export type AgentActionInput = {
   txSignature?: string;
   /** Who approved it (E3): a user id, or "agent". */
   approvedBy?: string;
+  /** Squads proposal index, for actions the owner settles on-chain (approve+execute or reject). */
+  proposalIndex?: bigint;
   at?: Date;
 };
 
@@ -253,6 +262,10 @@ export function createStore(db: Db, opts: { appUrl: string }) {
         name: input.name,
         registrationNo: input.registrationNo ?? "",
         city: input.city ?? "",
+        address: input.address ?? "",
+        contactEmail: input.contactEmail ?? "",
+        logoUrl: input.logoUrl ?? null,
+        demoFunds: input.demoFunds ?? false,
         treasuryMultisig: input.treasuryMultisig,
         treasuryVault: input.treasuryVault,
         treasuryUsdcAta: input.treasuryUsdcAta,
@@ -291,6 +304,11 @@ export function createStore(db: Db, opts: { appUrl: string }) {
         name: e.name,
         registrationNo: e.registrationNo,
         city: e.city,
+        address: e.address,
+        contactEmail: e.contactEmail,
+        logoUrl: e.logoUrl ?? undefined,
+        demoFunds: e.demoFunds,
+        permissionsApprovedAt: iso(e.agentPermissionsApprovedAt),
         ownerName: people.find((u) => u.role === "owner")?.name ?? "",
         adminName: people.find((u) => u.role === "admin")?.name ?? "",
         treasuryMultisig: e.treasuryMultisig,
@@ -300,8 +318,42 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       };
     },
 
+    /** Owner edits the company profile (R1). Only the given fields change. */
+    async updateExporterProfile(exporterId: string, patch: ExporterProfilePatch): Promise<Exporter> {
+      const set: Partial<typeof s.exporters.$inferInsert> = {};
+      if (patch.name !== undefined) set.name = patch.name;
+      if (patch.registrationNo !== undefined) set.registrationNo = patch.registrationNo;
+      if (patch.city !== undefined) set.city = patch.city;
+      if (patch.address !== undefined) set.address = patch.address;
+      if (patch.contactEmail !== undefined) set.contactEmail = patch.contactEmail;
+      if (patch.logoUrl !== undefined) set.logoUrl = patch.logoUrl;
+      if (Object.keys(set).length > 0) {
+        const rows = await db.update(s.exporters).set(set).where(eq(s.exporters.id, exporterId)).returning({ id: s.exporters.id });
+        if (rows.length === 0) throw new Error(`exporter not found: ${exporterId}`);
+      }
+      const e = await store.getExporter(exporterId);
+      if (!e) throw new Error(`exporter not found: ${exporterId}`);
+      return e;
+    },
+
+    /** Owner's own DAX deposit addresses for cash-out (T4). Replaces the list. */
+    async setCashOutWhitelist(exporterId: string, list: Array<{ label: string; address: string }>): Promise<void> {
+      const rows = await db.update(s.exporters).set({ cashOutWhitelist: list }).where(eq(s.exporters.id, exporterId)).returning({ id: s.exporters.id });
+      if (rows.length === 0) throw new Error(`exporter not found: ${exporterId}`);
+    },
+
+    /** The owner approved the agent's permissions with the passkey (R4); keep the proof. */
+    async recordPermissionsApproval(exporterId: string, p: { wallet: string; signature: string; at?: Date }): Promise<void> {
+      const rows = await db
+        .update(s.exporters)
+        .set({ agentPermissionsApprovedAt: p.at ?? new Date(), agentPermissionsSignature: `${p.wallet}:${p.signature}` })
+        .where(eq(s.exporters.id, exporterId))
+        .returning({ id: s.exporters.id });
+      if (rows.length === 0) throw new Error(`exporter not found: ${exporterId}`);
+    },
+
     async createBuyer(input: CreateBuyerInput): Promise<Buyer> {
-      const [row] = await db.insert(s.buyers).values({ id: newId("buy"), ...input }).returning();
+      const [row] = await db.insert(s.buyers).values({ id: newId("buy"), ...input, address: input.address ?? "" }).returning();
       return toBuyer(row!);
     },
 
@@ -564,12 +616,14 @@ export function createStore(db: Db, opts: { appUrl: string }) {
 
     async getDashboard(exporterId: string, opts: { now?: Date } = {}): Promise<DashboardSummary> {
       const month = mytMonth(opts.now ?? new Date());
-      const [all, e, vaults, activity] = await Promise.all([
+      const [all, e, vaults, activity, scheduled] = await Promise.all([
         store.listInvoices(exporterId),
         exporterRow(exporterId),
         db.select({ balance: s.buyers.vaultUsdcBalance }).from(s.buyers).where(eq(s.buyers.exporterId, exporterId)),
         store.listAgentActions(exporterId, { limit: 8 }),
+        db.select({ scheduledFor: s.sweeps.scheduledFor }).from(s.sweeps).where(and(eq(s.sweeps.exporterId, exporterId), isNull(s.sweeps.executedAt))).orderBy(asc(s.sweeps.scheduledFor)).limit(1),
       ]);
+      const waiting = vaults.reduce((sum, v) => sum + v.balance, 0n);
       const received = all
         .filter((i) => {
           const when = i.settledAt ?? i.paidAt;
@@ -585,7 +639,9 @@ export function createStore(db: Db, opts: { appUrl: string }) {
         outstandingUsdc: due(open),
         overdueUsdc: due(overdue),
         overdueCount: overdue.length,
-        treasuryBalanceUsdc: vaults.reduce((sum, v) => sum + v.balance, e.treasuryUsdcBalance),
+        treasuryBalanceUsdc: e.treasuryUsdcBalance + waiting,
+        waitingInBuyerAccountsUsdc: waiting,
+        nextSweepAt: iso(scheduled[0]?.scheduledFor),
         attention: open.filter((i) => ATTENTION.includes(i.status)).sort((x, y) => (x.dueDate < y.dueDate ? -1 : x.dueDate > y.dueDate ? 1 : 0)),
         activity,
       };
@@ -603,12 +659,44 @@ export function createStore(db: Db, opts: { appUrl: string }) {
 
     async recordAgentAction(input: AgentActionInput): Promise<AgentAction> {
       if (input.buyerId) await assertBuyer(input.exporterId, input.buyerId);
-      const { at, ...rest } = input;
+      const { at, proposalIndex, ...rest } = input;
       const [row] = await db
         .insert(s.agentActions)
-        .values({ id: newId("act"), ...rest, createdAt: at ?? new Date() })
+        .values({ id: newId("act"), ...rest, proposalIndex: proposalIndex ?? null, createdAt: at ?? new Date() })
         .returning();
       return toAction(row!);
+    },
+
+    /**
+     * Owner settled a Squads proposal on-chain (approve+execute → executed, reject → rejected).
+     * Only a `proposed` action that belongs to that proposal index can be settled, so a
+     * signature can never overwrite the trail of an unrelated or already-decided action.
+     */
+    async settleProposal(exporterId: string, p: { actionId: string; proposalIndex: bigint; status: "executed" | "rejected"; txSignature?: string }): Promise<AgentAction | null> {
+      const [row] = await db
+        .update(s.agentActions)
+        .set(p.txSignature ? { status: p.status, txSignature: p.txSignature } : { status: p.status })
+        .where(
+          and(
+            eq(s.agentActions.id, p.actionId),
+            eq(s.agentActions.exporterId, exporterId),
+            eq(s.agentActions.status, "proposed"),
+            eq(s.agentActions.proposalIndex, p.proposalIndex),
+          ),
+        )
+        .returning();
+      return row ? toAction(row) : null;
+    },
+
+    /** The still-open action behind a proposal index, if any. */
+    async findProposalAction(exporterId: string, proposalIndex: bigint): Promise<AgentAction | null> {
+      const [row] = await db
+        .select()
+        .from(s.agentActions)
+        .where(and(eq(s.agentActions.exporterId, exporterId), eq(s.agentActions.proposalIndex, proposalIndex), eq(s.agentActions.status, "proposed")))
+        .orderBy(desc(s.agentActions.createdAt))
+        .limit(1);
+      return row ? toAction(row) : null;
     },
 
     /** Owner decision on a proposal. Only `proposed` actions can be decided; returns null otherwise. */
@@ -725,6 +813,26 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       return toBuyer(row);
     },
 
+    /** Sweeper / permissions: every buyer's on-chain accounts, including a re-issued spending-limit PDA. */
+    async listBuyerAccounts(exporterId: string): Promise<Array<{ id: string; multisig: string; usdcAta: string; spendingLimitPda?: string }>> {
+      const rows = await db
+        .select({ id: s.buyers.id, multisig: s.buyers.multisig, usdcAta: s.buyers.usdcAta, spendingLimitPda: s.buyers.spendingLimitPda })
+        .from(s.buyers)
+        .where(eq(s.buyers.exporterId, exporterId))
+        .orderBy(asc(s.buyers.createdAt), asc(s.buyers.id));
+      return rows.map((r) => ({ id: r.id, multisig: r.multisig, usdcAta: r.usdcAta, spendingLimitPda: r.spendingLimitPda ?? undefined }));
+    },
+
+    /** Permissions (R4): the agent's daily cap was re-issued on-chain as a new SpendingLimit account. */
+    async setBuyerSpendingLimit(exporterId: string, buyerId: string, spendingLimitPda: string): Promise<void> {
+      const rows = await db
+        .update(s.buyers)
+        .set({ spendingLimitPda })
+        .where(and(eq(s.buyers.id, buyerId), eq(s.buyers.exporterId, exporterId)))
+        .returning({ id: s.buyers.id });
+      if (rows.length === 0) throw new Error("buyer not found for this exporter");
+    },
+
     /** Provisioning (F1): store the main treasury addresses. */
     async updateTreasuryAccounts(exporterId: string, accounts: { treasuryMultisig: string; treasuryVault: string; treasuryUsdcAta: string }): Promise<void> {
       await db.update(s.exporters).set(accounts).where(eq(s.exporters.id, exporterId));
@@ -761,16 +869,23 @@ export function createStore(db: Db, opts: { appUrl: string }) {
         .select({
           id: s.invoices.id,
           number: s.invoices.number,
+          lineItems: s.invoices.lineItems,
           amountUsdc: s.invoices.amountUsdc,
+          issuedAt: s.invoices.issuedAt,
           dueDate: s.invoices.dueDate,
           status: s.invoices.status,
           paidAt: s.invoices.paidAt,
           settledAt: s.invoices.settledAt,
           exporterName: s.exporters.name,
+          exporterLogoUrl: s.exporters.logoUrl,
+          exporterAddress: s.exporters.address,
+          buyerName: s.buyers.name,
+          buyerAddress: s.buyers.address,
           rulebook: s.exporters.rulebook,
         })
         .from(s.invoices)
         .innerJoin(s.exporters, eq(s.exporters.id, s.invoices.exporterId))
+        .innerJoin(s.buyers, eq(s.buyers.id, s.invoices.buyerId))
         .where(eq(s.invoices.id, invoiceId));
       if (!r || r.status === "draft") return null;
       const [p] = await db
@@ -782,8 +897,14 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       return {
         invoiceId: r.id,
         exporterName: r.exporterName,
+        exporterLogoUrl: r.exporterLogoUrl ?? undefined,
+        exporterAddress: r.exporterAddress,
+        buyerName: r.buyerName,
+        buyerAddress: r.buyerAddress,
         invoiceNumber: r.number,
+        lineItems: r.lineItems.map((li) => ({ description: li.description, quantity: li.quantity, unitPriceUsdc: BigInt(li.unitPriceUsdc) })),
         amountUsdc: r.amountUsdc,
+        issuedAt: r.issuedAt,
         dueDate: r.dueDate,
         status: r.status,
         solanaPayUrl: `solana:${encodeURIComponent(`${appUrl}/api/pay/${r.id}`)}`,

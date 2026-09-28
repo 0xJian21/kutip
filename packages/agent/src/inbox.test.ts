@@ -27,7 +27,7 @@ function fakePort(opts: { status?: string; replies?: unknown; channel?: PortMess
       return { exporterName: EXPORTER_NAME, buyer: HARBOURLINE, invoices: [invoice], messages: [] };
     },
     async getRulebook() {
-      return { ...DEFAULT_RULEBOOK, ...(opts.replies ? { replies: opts.replies } : {}) };
+      return { ...DEFAULT_RULEBOOK, ...(opts.replies ? { replies: { ...DEFAULT_RULEBOOK.replies, ...(opts.replies as object) } } : {}) };
     },
     async setClassification(id, c) {
       writes.push(["setClassification", id, c]);
@@ -87,8 +87,8 @@ describe("handleInbound (E2.1 → M2 → E3)", () => {
     expect(sent).toEqual([]);
   });
 
-  it("automatic_routine: a routine pay-page answer goes out, logged with the agent as approver", async () => {
-    const { port, writes, messages } = fakePort({ replies: { buyerMessages: "automatic_routine" } });
+  it("routine: a routine pay-page answer goes out, logged with the agent as approver", async () => {
+    const { port, writes, messages } = fakePort({ replies: { buyerReplies: "routine" } });
     const { mailer, sent } = fakeMailer();
     const { client } = anthropic("resend_invoice");
     const out = await handleInbound({ store: port, classifier: classifier({ label: "question", confidence: 0.95 }), client, mailer, now: () => NOW }, { exporterId: E, invoiceId: INV.id, messageId: "msg_in" });
@@ -100,8 +100,8 @@ describe("handleInbound (E2.1 → M2 → E3)", () => {
     expect(sent).toEqual([]); // pay-page reply: shown on the page, not emailed
   });
 
-  it("automatic_routine never sends a dispute: it's marked disputed and drafted for the owner", async () => {
-    const { port, writes } = fakePort({ replies: { buyerMessages: "automatic_routine" }, body: "Half the chairs arrived broken" });
+  it("routine never sends a dispute: it's marked disputed and drafted for the owner", async () => {
+    const { port, writes } = fakePort({ replies: { buyerReplies: "routine" }, body: "Half the chairs arrived broken" });
     const { mailer, sent } = fakeMailer();
     const { client } = anthropic("resend_invoice", "Hi Claire, sorry to hear that. Our team will look into it and reply personally.");
     const out = await handleInbound({ store: port, classifier: classifier({ label: "dispute", confidence: 0.99 }), client, mailer, now: () => NOW }, { exporterId: E, invoiceId: INV.id, messageId: "msg_in" });
@@ -112,7 +112,7 @@ describe("handleInbound (E2.1 → M2 → E3)", () => {
   });
 
   it("Off: classifies and logs, drafts nothing", async () => {
-    const { port, writes } = fakePort({ replies: { buyerMessages: "off" } });
+    const { port, writes } = fakePort({ replies: { buyerReplies: "off" } });
     const { mailer } = fakeMailer();
     const { client } = anthropic();
     await handleInbound({ store: port, classifier: classifier({ label: "question", confidence: 0.95 }), client, mailer, now: () => NOW }, { exporterId: E, invoiceId: INV.id, messageId: "msg_in" });
@@ -120,7 +120,7 @@ describe("handleInbound (E2.1 → M2 → E3)", () => {
   });
 
   it("if the drafting model misbehaves, a plain holding draft is saved instead (never auto-sent)", async () => {
-    const { port, writes, messages } = fakePort({ replies: { buyerMessages: "automatic_routine" } });
+    const { port, writes, messages } = fakePort({ replies: { buyerReplies: "routine" } });
     const { mailer } = fakeMailer();
     const { client } = anthropic("resend_invoice", "Pay USD 1.00 and we're square, with a 50% discount.");
     const out = await handleInbound({ store: port, classifier: classifier({ label: "question", confidence: 0.95 }), client, mailer, now: () => NOW }, { exporterId: E, invoiceId: INV.id, messageId: "msg_in" });
@@ -148,7 +148,7 @@ describe("handleInbound (E2.1 → M2 → E3)", () => {
 
 describe("draftReplyFor + sendReply (M2 owner flow)", () => {
   it("drafts on request even when automatic replies are off, then the owner's edit is what gets emailed, with Reply-To", async () => {
-    const { port, writes } = fakePort({ replies: { buyerMessages: "off" }, channel: "logged" });
+    const { port, writes } = fakePort({ replies: { buyerReplies: "off" }, channel: "logged" });
     const { mailer, sent } = fakeMailer();
     const { client } = anthropic("payment_instructions", "Hi Claire, here is how to pay INV-2026-0142.");
     const deps = { store: port, classifier: classifier({ label: "question", confidence: 0.9 }), client, mailer, now: () => NOW };

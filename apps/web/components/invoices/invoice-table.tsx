@@ -55,7 +55,7 @@ export function InvoiceTable({
                 <TD className="w-full max-w-0">
                   <span className="flex items-center gap-2.5">
                     <Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />
-                    <span className="min-w-0 truncate text-ink">{buyerName(inv.buyerId)}</span>
+                    <span className="line-clamp-2 min-w-0 leading-snug text-ink" title={buyerName(inv.buyerId)}>{buyerName(inv.buyerId)}</span>
                   </span>
                 </TD>
                 <TD className={`whitespace-nowrap tabular ${urgent ? "font-medium text-overdue-fg" : "text-ink-2"}`}>
@@ -77,12 +77,12 @@ export function InvoiceTable({
             <li key={inv.id} className="relative flex items-center gap-3 px-5 py-3 transition-colors duration-(--dur-fast) hover:bg-paper-2/50">
               <Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />
               <div className="min-w-0 flex-1">
-                <Link href={`/invoices/${inv.id}`} className="block truncate text-base font-medium text-ink after:absolute after:inset-0 after:content-['']">
+                <Link href={`/invoices/${inv.id}`} className="line-clamp-2 block text-base font-medium leading-snug text-ink after:absolute after:inset-0 after:content-['']">
                   {buyerName(inv.buyerId)}
                 </Link>
-                <p className="truncate text-sm tabular text-ink-2">
-                  {inv.number}
-                  <span className={urgent ? "font-medium text-overdue-fg" : ""}> · {inv.status === "overdue" ? dueLabel(inv.dueDate) : `Due ${formatDate(inv.dueDate)}`}</span>
+                <p className="flex flex-wrap gap-x-1.5 text-sm tabular text-ink-2">
+                  <span className="whitespace-nowrap">{inv.number}</span>
+                  <span className={`whitespace-nowrap ${urgent ? "font-medium text-overdue-fg" : ""}`}>{inv.status === "overdue" ? dueLabel(inv.dueDate) : `Due ${formatDate(inv.dueDate)}`}</span>
                 </p>
                 <div className="mt-1.5"><StatusPill status={inv.status} /></div>
               </div>

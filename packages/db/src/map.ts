@@ -8,6 +8,9 @@ export function iso(d: Date | null | undefined): string | undefined {
   return d ? d.toISOString() : undefined;
 }
 
+/** Same defaults as @kutip/agent DEFAULT_REPLIES (kept here so @kutip/db has no agent dependency). */
+export const DEFAULT_REPLIES: Rulebook["replies"] = { remindersAndReceipts: "automatic", buyerReplies: "draft" };
+
 export function rulebookToJson(r: Rulebook): s.RulebookJson {
   return {
     collections: { ...r.collections },
@@ -16,6 +19,7 @@ export function rulebookToJson(r: Rulebook): s.RulebookJson {
       agentDailyLimitUsdc: r.treasury.agentDailyLimitUsdc.toString(),
       cashOutAlertMarginBps: r.treasury.cashOutAlertMarginBps.toString(),
     },
+    replies: { ...r.replies },
   };
 }
 
@@ -27,6 +31,7 @@ export function rulebookFromJson(j: s.RulebookJson): Rulebook {
       agentDailyLimitUsdc: BigInt(j.treasury.agentDailyLimitUsdc),
       cashOutAlertMarginBps: BigInt(j.treasury.cashOutAlertMarginBps),
     },
+    replies: { ...(j.replies ?? DEFAULT_REPLIES) },
   };
 }
 
@@ -39,6 +44,7 @@ export function toBuyer(r: Row<typeof s.buyers>): Buyer {
     country: r.country,
     countryName: r.countryName,
     city: r.city,
+    address: r.address,
     timezone: r.timezone,
     multisig: r.multisig,
     vault: r.vault,
@@ -106,6 +112,7 @@ export function toAction(r: Row<typeof s.agentActions>): AgentAction {
     ruleId: r.ruleId,
     status: r.status,
     txSignature: r.txSignature ?? undefined,
+    proposalIndex: r.proposalIndex === null ? undefined : Number(r.proposalIndex),
     createdAt: r.createdAt.toISOString(),
   };
 }
