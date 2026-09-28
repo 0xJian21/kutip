@@ -17,8 +17,8 @@ import { formatBps, formatMyr, formatRate, formatSol, formatUsdc, parseUsdc } fr
 
 const STEPS = [
   { key: "quote", label: "Quote" },
-  { key: "proposed", label: "Proposed by agent" },
-  { key: "approved", label: "Approved with Touch ID" },
+  { key: "proposed", label: "Proposed" },
+  { key: "approved", label: "Touch ID" },
   { key: "chain", label: "On Solana" },
 ];
 

@@ -66,7 +66,7 @@ export function PreviewCard({ preview, onAsk, onDone }: { preview: Preview; onAs
                   <li key={v.buyerName} className="flex items-center gap-3 py-2.5">
                     <Avatar name={v.buyerName} size="sm" shape="square" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-base text-ink">{v.buyerName}</span>
+                      <span className="block truncate text-base text-ink" title={v.buyerName}>{v.buyerName}</span>
                       <span className="block text-xs text-ink-3">{v.mode === "autonomous" ? "Within the agent's daily limit" : v.mode === "proposal" ? "Needs your approval" : v.reason}</span>
                     </span>
                     <Chip>Rule {v.ruleId}</Chip>
@@ -157,9 +157,10 @@ function InvoiceRows({ lines, rate, onNavigate }: { lines: InvoiceLine[]; rate: 
           <Link href={`/invoices/${l.id}`} onClick={onNavigate} className="-mx-2 flex items-center gap-3 rounded-md px-2 py-2.5 transition-colors duration-(--dur-fast) hover:bg-paper-2/60">
             <Avatar name={l.buyerName} size="sm" shape="square" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-base text-ink">{l.buyerName}</span>
-              <span className="block truncate text-sm tabular text-ink-2">
-                {l.number} · <span className={l.status === "overdue" ? "font-medium text-overdue-fg" : ""}>{dueLabel(l.dueDate)}</span>
+              <span className="block truncate text-base text-ink" title={l.buyerName}>{l.buyerName}</span>
+              <span className="flex flex-wrap gap-x-1.5 text-sm tabular text-ink-2">
+                <span className="whitespace-nowrap">{l.number}</span>
+                <span className={`whitespace-nowrap ${l.status === "overdue" ? "font-medium text-overdue-fg" : ""}`}>{dueLabel(l.dueDate)}</span>
               </span>
             </span>
             <span className="hidden sm:inline-flex"><StatusPill status={l.status} /></span>

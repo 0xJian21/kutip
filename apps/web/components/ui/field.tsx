@@ -38,9 +38,9 @@ export function Input({ className = "", ...props }: ComponentProps<"input">) {
 /** Input with a fixed prefix (USD, RM, https://) that reads as part of the field. */
 export function PrefixedInput({ prefix, className = "", ...props }: ComponentProps<"input"> & { prefix: ReactNode }) {
   return (
-    <span className="relative block">
-      <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-sm font-medium text-ink-3">{prefix}</span>
-      <input className={`${CONTROL} tabular pl-12 ${className}`} {...props} />
+    <span className="flex h-10 min-w-0 items-center rounded-md border border-line-strong bg-surface pl-3.5 transition-colors duration-(--dur-fast) hover:border-ink-3 focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent/25 has-disabled:bg-paper-2 has-aria-invalid:border-disputed-fg">
+      <span className="pointer-events-none shrink-0 whitespace-nowrap pr-2 text-sm font-medium text-ink-3">{prefix}</span>
+      <input className={`h-full min-w-0 flex-1 rounded-r-md bg-transparent pr-3.5 text-base tabular text-ink placeholder:text-ink-3 focus:outline-none disabled:text-ink-3 ${className}`} {...props} />
     </span>
   );
 }

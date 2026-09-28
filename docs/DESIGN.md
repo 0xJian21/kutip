@@ -283,7 +283,7 @@ Label (13px, ink-2), money MD in ink with muted decimals (SM on phones), then on
 
 ### Inputs
 - 40px, `surface` fill, `line-strong` border, 12px radius, 14px side padding, 14px text with tabular figures. Hover darkens the border; focus is a violet border with a 3px 25% ring. Labels are 13px medium ink above; a required mark is violet. Hints in ink-3 and errors in disputed-fg beneath, the error saying what to change.
-- **Prefixed input** carries a unit (USD, RM) inside the field. **Select** has a chevron. **DateInput** has a calendar mark and uses the native picker. **Textarea** grows. **Checkbox** is 18px with the label in the same tap target.
+- **Prefixed input** carries a unit (USD, USDC, RM, %) in flow before the value, so any prefix length fits; the wrapper carries the border and focus ring. **Select** has a chevron. **DateInput** has a calendar mark and uses the native picker. **Textarea** grows. **Checkbox** is 18px with the label in the same tap target.
 - **Logo upload:** a dashed `line-strong` box on `well`, the current logo or initials at 56px, one line of copy, an outline Choose file button. Drag-over turns the border violet and floats.
 
 ### Avatars and logos
@@ -298,6 +298,9 @@ One hue. Solid violet (a light vertical gradient) where money has landed; a 45°
 
 ### Stepper
 Nodes of 32px (24px small) joined by 2px rails. Complete: violet with a check. Current: violet ring on white, pulsing when something is in flight. Upcoming: line ring with the step number in ink-3. Labels beneath at 13px, optional tabular caption (a timestamp). Used for the invoice life on detail and pay pages and for onboarding (Account → Company → Treasury → Agent permissions).
+
+### Dialogs and sheets
+A flow that needs the owner's full attention (Sweep now, Cash out, Log a message) opens a native `<dialog>` (`components/ui/dialog.tsx`): a 24px-radius card centred on desktop at up to 34rem, a full-width bottom sheet with rounded top corners on phones, `shadow-float`, a 30% ink backdrop. Title and caption top-left, a round close button top-right, a small `Stepper` under the caption when the flow has stages, primary action bottom-right with Cancel as ghost beside it. Step labels are one or two words ("Quote", "Proposed", "Touch ID", "On Solana") so they fit at 375px; the Stepper wraps labels to two lines rather than cutting them.
 
 ### Command bar
 A full-round white field with a violet sparkle mark, a placeholder in the user's words, and a round ink submit button. Suggestion chips beneath. Until Session 8c wires `onSubmit` the input is disabled and a caption says so. It sits under the dashboard's KPI row.

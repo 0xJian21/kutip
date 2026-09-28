@@ -142,14 +142,18 @@ function DayEvents({ events, empty }: { events: AgendaEvent[]; empty: string }) 
   return (
     <ul className="grid gap-1.5">
       {events.map((e, i) => (
-        <li key={`${e.kind}-${e.invoiceId ?? i}`} className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5">
+        <li key={`${e.kind}-${e.invoiceId ?? i}`} className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-0.5">
           <AgendaBadge kind={e.kind} />
-          <span className="min-w-0 flex-1 truncate text-base text-ink">
+          <span className="min-w-0 text-base leading-snug text-ink">
             {e.invoiceId ? <Link href={`/invoices/${e.invoiceId}`} className="hover:underline">{e.label}</Link> : e.label}
             {e.buyerName && e.kind !== "promised" ? <span className="text-ink-2"> · {e.buyerName}</span> : null}
           </span>
-          {e.at && e.kind !== "rate_alert" ? <span className="text-sm tabular text-ink-3">{formatTime(e.at, "Asia/Kuala_Lumpur", false)}</span> : null}
-          {e.amountUsdc !== undefined ? <span className="text-sm tabular text-ink-2">{formatUsdc(e.amountUsdc)} USD</span> : null}
+          {(e.at && e.kind !== "rate_alert") || e.amountUsdc !== undefined ? (
+            <span className="col-start-2 flex flex-wrap gap-x-3 text-sm tabular text-ink-3">
+              {e.at && e.kind !== "rate_alert" ? <span>{formatTime(e.at, "Asia/Kuala_Lumpur", false)} MYT</span> : null}
+              {e.amountUsdc !== undefined ? <span className="text-ink-2">{formatUsdc(e.amountUsdc)} USD</span> : null}
+            </span>
+          ) : null}
         </li>
       ))}
     </ul>

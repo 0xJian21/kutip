@@ -39,7 +39,7 @@ export function Stepper({ steps, done, live = false, size = "md", className = ""
                 </span>
               ) : null}
             </div>
-            <div className={`mt-2 truncate pr-2 text-sm ${complete || current ? "font-medium text-ink" : "text-ink-3"}`}>{s.label}</div>
+            <div className={`mt-2 line-clamp-2 pr-2 leading-snug ${size === "sm" ? "text-xs" : "text-sm"} ${complete || current ? "font-medium text-ink" : "text-ink-3"}`}>{s.label}</div>
             {s.caption !== undefined ? <div className="truncate pr-2 text-xs tabular text-ink-3">{s.caption}</div> : null}
           </li>
         );

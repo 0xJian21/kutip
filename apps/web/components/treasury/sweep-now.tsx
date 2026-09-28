@@ -14,7 +14,7 @@ import { shortAddress } from "@/lib/ui/format";
 
 const STEPS = [
   { key: "checked", label: "Checked" },
-  { key: "signed", label: "Signed by agent" },
+  { key: "signed", label: "Signed" },
   { key: "chain", label: "On Solana" },
   { key: "recorded", label: "Recorded" },
 ];

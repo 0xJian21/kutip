@@ -125,8 +125,8 @@ export function AgentPermissionsForm({ initial, embedded = false, onSaved }: { i
           <ul className="mt-4 divide-y divide-line">
             {view.buyers.map((b) => (
               <li key={b.buyerId} className="flex items-center justify-between gap-3 py-2.5 text-base">
-                <span className="min-w-0"><span className="block truncate text-ink">{b.buyerName}</span>{b.limit ? <span className="block text-xs tabular text-ink-3"><Address value={b.limit.pda} /></span> : null}</span>
-                <span className="text-right">
+                <span className="min-w-0"><span className="line-clamp-2 block leading-snug text-ink" title={b.buyerName}>{b.buyerName}</span>{b.limit ? <span className="block text-xs tabular text-ink-3"><Address value={b.limit.pda} /></span> : null}</span>
+                <span className="shrink-0 whitespace-nowrap text-right">
                   {!b.provisioned ? <Chip>Not on Solana yet</Chip> : b.limit ? <span className="tabular text-ink">USD {formatUsdc(b.limit.amountUsdc, 0)}/day{b.matchesCap ? "" : " · differs"}</span> : <Chip>No limit</Chip>}
                 </span>
               </li>
