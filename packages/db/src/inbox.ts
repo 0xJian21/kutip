@@ -260,6 +260,15 @@ export function createInboxStore(db: Db, opts: { appUrl?: string } = {}) {
       });
     },
 
+    /**
+     * The rulebook's "replies" section (IMPROVEMENTS E3) as stored, unparsed: Session 8b owns its schema.
+     * The agent parses it with parseReplySettings, which falls back to "Draft — I approve".
+     */
+    async getReplySettings(exporterId: string): Promise<unknown> {
+      const [r] = await db.select({ rulebook: s.exporters.rulebook }).from(s.exporters).where(eq(s.exporters.id, exporterId));
+      return (r?.rulebook as { replies?: unknown } | undefined)?.replies ?? null;
+    },
+
     async getContactEmail(exporterId: string): Promise<string | null> {
       const [r] = await db.select({ email: s.exporters.contactEmail }).from(s.exporters).where(eq(s.exporters.id, exporterId));
       return r?.email ?? null;

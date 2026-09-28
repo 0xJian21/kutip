@@ -13,6 +13,7 @@ import { getPayInvoice, ownerDataOrThrow } from "@/lib/server/data";
 import { validateRulebook } from "@/lib/server/access";
 import { handleBuyerReply } from "@/lib/server/replies";
 import { store } from "@/lib/server/store";
+import { inbox } from "@/app/api/agent/_lib/deps";
 import type { LineItem, Rulebook } from "@/lib/ui/types";
 import { toResult } from "./result";
 
@@ -130,7 +131,9 @@ async function createInvoiceImpl(input: {
     ].join("\n"),
   };
   await store().recordMessage({ invoiceId: inv.id, direction: "out", from, subject: email.subject, body: email.body });
-  const delivery = await mailer().send(buyer.email, email);
+  // Reply-To = the exporter's own address (IMPROVEMENTS E2.2, Session 8c).
+  const replyTo = (await inbox().getContactEmail(exporterId)) ?? undefined;
+  const delivery = await mailer().send(buyer.email, email, { replyTo });
   return { id: inv.id, number: inv.number, payUrl: inv.payUrl, sentTo: buyer.email, delivery };
 }
 

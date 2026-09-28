@@ -21,13 +21,16 @@ export function createCollections(deps: {
   log: (msg: string) => void;
   /** Log what would happen; write nothing, call no LLM (safe against a shared demo database). */
   dryRun?: boolean;
+  /** The exporter's own address, set as Reply-To so buyers' replies reach them (IMPROVEMENTS E2.2). */
+  replyTo?: (exporterId: string) => Promise<string | null>;
 }) {
   const { store, anthropic, mailer, log, dryRun } = deps;
   let warnedNoKey = false;
 
-  async function sendAndRecord(ctx: BuyerContext, invoiceId: string, email: Email, at: Date): Promise<string> {
+  async function sendAndRecord(exporterId: string, ctx: BuyerContext, invoiceId: string, email: Email, at: Date): Promise<string> {
     await store.recordMessage({ invoiceId, direction: "out", from: ctx.exporterName, subject: email.subject, body: email.body, at });
-    return mailer.send(ctx.buyer.email, email);
+    const replyTo = (await deps.replyTo?.(exporterId).catch(() => null)) ?? undefined;
+    return mailer.send(ctx.buyer.email, email, replyTo ? { replyTo } : undefined);
   }
 
   return {
@@ -89,7 +92,7 @@ export function createCollections(deps: {
               log(`reminder failed for ${inv.invoiceId}: ${(e as Error).message}`);
               continue;
             }
-            const delivery = await sendAndRecord(ctx, inv.invoiceId, email, now);
+            const delivery = await sendAndRecord(exporterId, ctx, inv.invoiceId, email, now);
             sent.push({ invoiceId: inv.invoiceId, at: now.toISOString() });
             await store.recordAgentAction({
               exporterId, buyerId, invoiceId: inv.invoiceId, kind: "reminder", status: "executed", confidence: 1, ruleId: plan.ruleId, at: now,
@@ -118,7 +121,7 @@ export function createCollections(deps: {
       if (!anthropic) return;
       try {
         const email = await writeReceipt(anthropic, buildBuyerContext(ctx), { invoiceId: inv.id, paidUsdc: inv.receivedUsdc, paidAt: inv.paidAt ? new Date(inv.paidAt) : now });
-        log(`Receipt ${inv.id}, email ${await sendAndRecord(ctx, inv.id, email, now)}`);
+        log(`Receipt ${inv.id}, email ${await sendAndRecord(paid.exporterId, ctx, inv.id, email, now)}`);
       } catch (e) {
         log(`receipt failed for ${inv.id}: ${(e as Error).message}`);
       }

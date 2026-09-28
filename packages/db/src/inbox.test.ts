@@ -176,6 +176,12 @@ describe("unified inbox (M1)", () => {
     expect(t!.lastIntent).toEqual({ intent: "claims_paid", confidence: 0.93 });
   });
 
+  test("reply settings are read raw from the rulebook's replies section", async () => {
+    expect(await inbox.getReplySettings(exporterId)).toBeNull();
+    await db.execute(sql`update exporters set rulebook = rulebook || '{"replies":{"buyerMessages":"automatic_routine"}}'::jsonb where id = ${exporterId}`);
+    expect(await inbox.getReplySettings(exporterId)).toEqual({ buyerMessages: "automatic_routine" });
+  });
+
   test("Reply-To address is the exporter's contact email", async () => {
     expect(await inbox.getContactEmail(exporterId)).toBeNull();
     await db.execute(sql`update exporters set contact_email = 'owner@teratai.test' where id = ${exporterId}`);
