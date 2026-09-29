@@ -11,6 +11,7 @@ import { refresh } from "next/cache";
 import { MOCK, signIn, signOut } from "@/lib/server/auth";
 import { getPayInvoice, ownerDataOrThrow } from "@/lib/server/data";
 import { validateRulebook } from "@/lib/server/access";
+import { recipientEmail } from "@/lib/server/input";
 import { llmBudget } from "@/lib/server/llm-budget";
 import { handleBuyerReply } from "@/lib/server/replies";
 import { store } from "@/lib/server/store";
@@ -98,30 +99,47 @@ function mailer() {
   });
 }
 
-/** New invoice, step 2: create it as sent with a fresh Solana Pay reference key, then email the buyer the pay link. */
+/**
+ * New invoice, step 2: create it as sent with a fresh Solana Pay reference key, then email the pay link
+ * to the address on the form (EMAIL_ALLOWLIST still decides what is really sent). Every attempt is
+ * recorded on the message with its outcome, so a skipped email is never shown as sent.
+ */
 async function createInvoiceImpl(input: {
   buyerId: string;
   number?: string;
   dueDate: string;
   lineItems: LineItem[];
-}): Promise<{ id: string; number: string; payUrl: string; sentTo: string; delivery: "sent" | "recorded" | "skipped" | "failed" }> {
+  /** The buyer's address from the form (pre-filled from the buyer, editable). */
+  sendTo: string;
+  /** Copy the owner (the exporter's contact email). */
+  ccMe?: boolean;
+  /** Use `sendTo` for this buyer from now on (reminders and replies go to the buyer's email). */
+  saveForBuyer?: boolean;
+}): Promise<{ id: string; number: string; payUrl: string; amountUsdc: bigint; dueDate: string; sentTo: string; cc?: string; delivery: "sent" | "recorded" | "skipped" | "failed" }> {
   const { exporterId } = await ownerDataOrThrow({ write: true });
   if (MOCK) throw new UserError("Creating invoices needs the real database (NEXT_PUBLIC_KUTIP_MOCK is on)");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) throw new UserError("Enter a due date");
   if (input.lineItems.length === 0 || input.lineItems.some((l) => l.quantity <= 0 || l.unitPriceUsdc < 0n)) throw new UserError("Every line needs a quantity and a price");
+  const sendTo = recipientEmail(input.sendTo);
+  const [exporter, buyers, contact] = await Promise.all([store().getExporter(exporterId), store().listBuyers(exporterId), inbox().getContactEmail(exporterId)]);
+  const buyer = buyers.find((b) => b.id === input.buyerId);
+  if (!buyer) throw new UserError("Choose a buyer");
+  const cc = input.ccMe ? contact?.trim() || undefined : undefined;
+  if (input.ccMe && !cc) throw new UserError("Add your email under Settings, Company to get a copy");
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur" }).format(new Date());
   const inv = await store().createInvoice({
     exporterId,
-    buyerId: input.buyerId,
+    buyerId: buyer.id,
     number: input.number?.trim() || undefined,
     lineItems: input.lineItems,
     issuedAt: today,
     dueDate: input.dueDate,
     referencePubkey: Keypair.generate().publicKey.toBase58(),
     status: "sent",
+    sendTo,
+    ...(cc ? { sendCc: cc } : {}),
   });
-  const [exporter, buyers] = await Promise.all([store().getExporter(exporterId), store().listBuyers(exporterId)]);
-  const buyer = buyers.find((b) => b.id === inv.buyerId)!;
+  if (input.saveForBuyer && sendTo.toLowerCase() !== buyer.email.toLowerCase()) await store().setBuyerEmail(exporterId, buyer.id, sendTo);
   const from = exporter?.name ?? "Kutip";
   const email = {
     subject: `Invoice ${inv.number} from ${from}`,
@@ -136,11 +154,10 @@ async function createInvoiceImpl(input: {
       from,
     ].join("\n"),
   };
-  await store().recordMessage({ invoiceId: inv.id, direction: "out", from, subject: email.subject, body: email.body });
   // Reply-To = the exporter's own address (IMPROVEMENTS E2.2, Session 8c).
-  const replyTo = (await inbox().getContactEmail(exporterId)) ?? undefined;
-  const delivery = await mailer().send(buyer.email, email, { replyTo });
-  return { id: inv.id, number: inv.number, payUrl: inv.payUrl, sentTo: buyer.email, delivery };
+  const delivery = await mailer().send(sendTo, email, { replyTo: contact ?? undefined, ...(cc ? { cc } : {}) });
+  await store().recordMessage({ invoiceId: inv.id, direction: "out", from, subject: email.subject, body: email.body, toAddress: sendTo, delivery });
+  return { id: inv.id, number: inv.number, payUrl: inv.payUrl, amountUsdc: inv.amountUsdc, dueDate: inv.dueDate, sentTo: sendTo, ...(cc ? { cc } : {}), delivery };
 }
 
 /** Demo scene (SPEC F8): a buyer reply goes through Jev (Haiku fallback) → rules engine → agent log. */

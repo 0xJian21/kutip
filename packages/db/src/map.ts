@@ -72,6 +72,8 @@ export function toInvoice(r: Row<typeof s.invoices>, appUrl: string): Invoice {
     settledAt: iso(r.settledAt),
     payUrl: `${appUrl}/pay/${r.id}`,
     x402Url: `${appUrl}/api/x402/invoice/${r.id}`,
+    ...(r.sendTo ? { sendTo: r.sendTo } : {}),
+    ...(r.sendCc ? { sendCc: r.sendCc } : {}),
   };
 }
 
@@ -129,6 +131,8 @@ export function toMessage(r: Row<typeof s.messages>): Message {
     classification: r.classification
       ? { intent: r.classification.intent as ReplyIntent, confidence: r.classification.confidence }
       : undefined,
+    ...(r.toAddress ? { toAddress: r.toAddress } : {}),
+    ...(r.delivery ? { delivery: r.delivery } : {}),
     createdAt: r.createdAt.toISOString(),
   };
 }

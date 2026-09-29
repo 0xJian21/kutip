@@ -94,6 +94,9 @@ export type Invoice = {
   settledAt?: string;
   payUrl: string;
   x402Url: string;
+  /** Where the invoice email went, and the owner's CC. */
+  sendTo?: string;
+  sendCc?: string;
 };
 
 export type Payment = {
@@ -146,6 +149,9 @@ export type Message = {
   subject: string;
   body: string;
   classification?: { intent: ReplyIntent; confidence: number };
+  /** Outbound email: the address it was for and what happened. */
+  toAddress?: string;
+  delivery?: "sent" | "recorded" | "skipped" | "failed";
   createdAt: string;
 };
 

@@ -5,10 +5,10 @@
  */
 import type { Email } from "./writer";
 
-export type Mailer = { send(to: string, email: Email, opts?: { replyTo?: string }): Promise<"sent" | "recorded" | "skipped" | "failed"> };
+export type Mailer = { send(to: string, email: Email, opts?: { replyTo?: string; cc?: string }): Promise<"sent" | "recorded" | "skipped" | "failed"> };
 
-/** a+tag@x.com matches a@x.com. Case-insensitive. */
-function allowed(to: string, allowlist: string[]): boolean {
+/** a+tag@x.com matches a@x.com. Case-insensitive. The web uses it to tell the owner before sending. */
+export function emailAllowed(to: string, allowlist: string[]): boolean {
   if (allowlist.includes("*")) return true;
   const m = /^([^@+\s]+)(?:\+[^@\s]*)?@([^@\s]+)$/.exec(to.trim().toLowerCase());
   return m !== null && allowlist.some((a) => a.trim().toLowerCase() === `${m[1]}@${m[2]}`);
@@ -20,16 +20,18 @@ export function createMailer(opts: { apiKey?: string; from: string; log: (msg: s
   return {
     async send(to, email, o = {}) {
       if (!opts.apiKey) return "recorded";
-      if (!allowed(to, allowlist)) {
+      if (!emailAllowed(to, allowlist)) {
         opts.log(`email to ${to} skipped: not on EMAIL_ALLOWLIST`);
         return "skipped";
       }
+      const cc = o.cc?.trim();
+      if (cc && !emailAllowed(cc, allowlist)) opts.log(`cc to ${cc} dropped: not on EMAIL_ALLOWLIST`);
       try {
         const res = await fetchFn("https://api.resend.com/emails", {
           method: "POST",
           headers: { authorization: `Bearer ${opts.apiKey}`, "content-type": "application/json" },
           // Reply-To = the exporter's own address, so a buyer who hits Reply reaches them (IMPROVEMENTS E2.2).
-          body: JSON.stringify({ from: opts.from, to: [to], subject: email.subject, text: email.body, ...(o.replyTo?.trim() ? { reply_to: o.replyTo.trim() } : {}) }),
+          body: JSON.stringify({ from: opts.from, to: [to], ...(cc && emailAllowed(cc, allowlist) ? { cc: [cc] } : {}), subject: email.subject, text: email.body, ...(o.replyTo?.trim() ? { reply_to: o.replyTo.trim() } : {}) }),
           signal: AbortSignal.timeout(10_000),
         });
         if (res.ok) return "sent";

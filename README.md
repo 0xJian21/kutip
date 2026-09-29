@@ -112,6 +112,20 @@ fly scale count 1
 ```
 `fly.toml` sets `APP_URL`, `USDC_MINT` and `COLLECTIONS` (`on` sends reminders and receipts; `dry` logs them and writes nothing, for a shared database you're still seeding; `off`). Health: the worker answers `GET /health` on port 8080 inside Fly (503 when the stream is silent for 60 s); `fly status` shows the check. It never needs the fee payer's secret, only its public key for the low-balance alert. About US$4 per 30 days at 512 MB; `fly scale memory 256` halves it.
 
+## Emailing buyers for real
+
+Out of the box Kutip uses Resend's test sender (`onboarding@resend.dev`), which only delivers to the Resend account's own address, so `EMAIL_ALLOWLIST` holds just that inbox. The New invoice form still takes the buyer's address ("Send to", pre-filled from the buyer, optional CC to you). When the address is not on the allowlist, nothing is sent: the owner sees "Email not sent: Kutip can only email you until a domain is verified" with Copy pay link and Share on WhatsApp, and the attempt is recorded on the invoice (`messages.to_address`, `messages.delivery = skipped`).
+
+To email any buyer:
+
+1. In Resend, add and verify a domain you own (DNS: the SPF, DKIM and return-path records Resend lists).
+2. Set, on Vercel **and** Fly (web sends invoices; the worker sends reminders and receipts):
+   - `EMAIL_FROM="Teratai Woodworks via Kutip <invoices@your-domain.com>"` (an address on the verified domain)
+   - `EMAIL_ALLOWLIST=*` (`*` lets the mailer send to anyone; leave a list while testing)
+3. Redeploy. The form's caption changes to "The invoice and its pay link go here", and invoices, reminders, receipts and agent replies go to the buyer, with Reply-To set to the exporter's contact email.
+
+The allowlist stays the safety gate: CC addresses pass the same check, and a skipped or failed send is always shown as not sent.
+
 ## Safety notes
 
 - Money is `bigint` base units everywhere (USDC has 6 decimals).

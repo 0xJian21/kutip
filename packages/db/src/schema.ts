@@ -167,6 +167,9 @@ export const invoices = pgTable(
     settledAt: ts("settled_at"),
     /** Date the buyer promised to pay (C5); reminders pause until the day after. */
     promisedDate: date("promised_date", { mode: "string" }),
+    /** Where the invoice email went (the owner may change the buyer's address on the form), and the owner's CC. */
+    sendTo: text("send_to"),
+    sendCc: text("send_cc"),
   },
   (t) => [
     unique("invoices_exporter_number_uq").on(t.exporterId, t.number),
@@ -271,12 +274,16 @@ export const messages = pgTable(
     status: text("status").$type<"draft" | "sent" | "discarded">().notNull().default("sent"),
     /** The inbound message this reply answers. */
     inReplyTo: text("in_reply_to"),
+    /** Outbound email only: the address it was for, and what happened (null = recorded before 0007). */
+    toAddress: text("to_address"),
+    delivery: text("delivery").$type<"sent" | "recorded" | "skipped" | "failed">(),
     createdAt: createdAt(),
   },
   (t) => [
     index("messages_invoice_idx").on(t.invoiceId),
     check("messages_status_valid", sql`${t.status} in ('draft', 'sent', 'discarded')`),
     check("messages_channel_valid", sql`${t.channel} in ('email', 'pay_page', 'logged')`),
+    check("messages_delivery_valid", sql`${t.delivery} is null or ${t.delivery} in ('sent', 'recorded', 'skipped', 'failed')`),
   ],
 ).enableRLS();
 

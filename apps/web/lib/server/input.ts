@@ -43,3 +43,10 @@ export function validateCompany(input: CompanyInput, opts: { logoPrefix?: string
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.contactEmail)) throw new UserError("Enter a valid email for receipts");
   return c;
 }
+
+/** New invoice "Send to": one plain address (no lists, no line breaks), ≤ 254 characters. */
+export function recipientEmail(raw: string): string {
+  const v = (raw ?? "").trim();
+  if (v.length > 254 || !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(v)) throw new UserError("Enter the buyer's email, like accounts@buyer.com");
+  return v;
+}

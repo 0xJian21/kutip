@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Plus, Send, Trash2, Upload } from "lucide-react";
+import { Check, Copy, FileText, MessageCircle, Plus, Send, Trash2, Upload } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { Card, CardHeader, Inset } from "@/components/ui/card";
-import { Field, Input, PrefixedInput, Select, DateInput } from "@/components/ui/field";
+import { Checkbox, Field, Input, PrefixedInput, Select, DateInput } from "@/components/ui/field";
 import { CopyField } from "@/components/ui/copy-field";
 import { QrCode } from "@/components/pay/qr-code";
 import { InvoiceDocument } from "@/components/invoices/invoice-document";
@@ -27,11 +27,21 @@ const priceInput = (n: bigint) => formatUsdcExact(n).replace(/,/g, "").replace(/
  * PDF can also be dropped anywhere on the form. Send creates the invoice with a
  * fresh reference key and emails the pay link.
  */
-export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; exporter: Exporter; rate: BnmRate }) {
+const EMAIL = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
+
+/**
+ * `emailRestricted`: no verified sending domain yet (EMAIL_ALLOWLIST is not "*"), so only the
+ * owner's own inbox gets mail; anyone else gets a pay link to share instead. Said up front.
+ */
+export function NewInvoice({ buyers, exporter, rate, emailRestricted }: { buyers: Buyer[]; exporter: Exporter; rate: BnmRate; emailRestricted: boolean }) {
   const [phase, setPhase] = useState<Phase>("edit");
   const [fileName, setFileName] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [buyerId, setBuyerId] = useState(buyers[0]?.id ?? "");
+  const [sendTo, setSendTo] = useState(buyers[0]?.email ?? "");
+  const [sendToTouched, setSendToTouched] = useState(false);
+  const [saveForBuyer, setSaveForBuyer] = useState(true);
+  const [ccMe, setCcMe] = useState(false);
   const [number, setNumber] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [lines, setLines] = useState<Line[]>(EMPTY_LINES);
@@ -84,6 +94,7 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
   async function create() {
     if (!buyerId) return setError("Choose a buyer.");
     if (!dueDate) return setError("Enter a due date.");
+    if (!EMAIL.test(sendTo.trim())) return (setSendToTouched(true), setError("Enter the buyer's email, like accounts@buyer.com."));
     const lineItems = lines
       .filter((l) => l.description.trim() || l.unitPrice.trim())
       .map((l) => ({ description: l.description.trim(), quantity: Number.parseInt(l.quantity, 10), unitPriceUsdc: parseUsdc(l.unitPrice) }));
@@ -93,7 +104,7 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
     setError(null);
     setCreating(true);
     try {
-      setCreated(unwrap(await createInvoice({ buyerId, number, dueDate, lineItems: lineItems.map((l) => ({ ...l, unitPriceUsdc: l.unitPriceUsdc! })) })));
+      setCreated(unwrap(await createInvoice({ buyerId, number, dueDate, lineItems: lineItems.map((l) => ({ ...l, unitPriceUsdc: l.unitPriceUsdc! })), sendTo: sendTo.trim(), ccMe, saveForBuyer: changedAddress && saveForBuyer })));
       setPhase("created");
     } catch (e) {
       setError((e as Error).message);
@@ -104,6 +115,15 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
 
   const buyer = buyers.find((b) => b.id === buyerId);
   const reading = phase === "reading";
+  const changedAddress = !!buyer && sendTo.trim().toLowerCase() !== buyer.email.toLowerCase();
+  const sendToError = sendToTouched && !EMAIL.test(sendTo.trim()) ? "Enter the buyer's email, like accounts@buyer.com" : undefined;
+
+  function chooseBuyer(id: string) {
+    setBuyerId(id);
+    setSendTo(buyers.find((b) => b.id === id)?.email ?? "");
+    setSendToTouched(false);
+    setSaveForBuyer(true);
+  }
 
   // What the preview shows: every line the form has, even half-filled.
   const previewLines: LineItem[] = lines
@@ -116,6 +136,9 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
     setFileName(null);
     setNumber("");
     setDueDate("");
+    setSendTo(buyer?.email ?? "");
+    setSendToTouched(false);
+    setCcMe(false);
     setLines(EMPTY_LINES);
     setWarnings([]);
     setError(null);
@@ -145,18 +168,47 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
 
   if (phase === "created" && created) {
     const { id: invoiceId, payUrl } = created;
+    const delivered = created.delivery === "sent";
+    const notSent =
+      created.delivery === "skipped"
+        ? "Email not sent: Kutip can only email you until a domain is verified."
+        : created.delivery === "recorded"
+          ? "Email not sent: no email provider is set up yet."
+          : "Email not sent: the email provider refused it.";
+    // Numbers and dates from the server's invoice, never retyped.
+    const share = `Invoice ${created.number} from ${exporter.name}: USD ${formatUsdc(created.amountUsdc)}, due ${formatDate(created.dueDate)}. Pay online in USDC or SOL, no network fee: ${payUrl}`;
     return (
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-6">
         <Card>
-          <CardHeader title="Invoice sent" caption={created.number} />
-          <p className="mt-4 text-base text-ink">
-            {created.delivery === "sent" ? `Emailed to ${buyer?.contactName} at ${created.sentTo}.` : `Saved. The email to ${created.sentTo} was not sent (${created.delivery === "skipped" ? "address not on the email allowlist" : created.delivery === "recorded" ? "no email provider configured" : "the email provider refused it"}); share the pay link below.`}{" "}
-            The first reminder goes out three days before {formatDate(dueDate)}.
-          </p>
+          <CardHeader title={delivered ? "Invoice sent" : "Invoice created"} caption={created.number} />
+          {delivered ? (
+            <p className="mt-4 text-base text-ink">
+              Emailed to {created.sentTo}{created.cc ? `, with a copy to ${created.cc}` : ""}. The first reminder goes out three days before {formatDate(created.dueDate)}.
+            </p>
+          ) : (
+            <div role="status" className="mt-4">
+              <Inset className="px-4 py-3.5">
+                <p className="text-base font-medium text-ink">{notSent}</p>
+                <p className="mt-1 text-sm text-ink-2">Nothing went to {created.sentTo}. Send the buyer the pay link yourself; the attempt is recorded on the invoice.</p>
+              </Inset>
+            </div>
+          )}
           <div className="mt-5"><CopyField label="Pay link" value={payUrl} href={`/pay/${invoiceId}`} /></div>
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
+            <CopyButton value={payUrl} variant={delivered ? "outline" : "secondary"} />
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(share)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClass("outline", "md")}
+            >
+              <MessageCircle size={15} aria-hidden="true" />
+              Share on WhatsApp
+            </a>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-5">
             <ButtonLink href={`/invoices/${invoiceId}`}>View invoice</ButtonLink>
-            <ButtonLink variant="outline" href={`/pay/${invoiceId}`}>Open pay page</ButtonLink>
+            <ButtonLink variant="ghost" href={`/pay/${invoiceId}`}>Open pay page</ButtonLink>
             <Button variant="ghost" onClick={reset}>Create another</Button>
           </div>
         </Card>
@@ -208,10 +260,29 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
 
         <fieldset disabled={reading} className="mt-5 grid gap-5">
           <Field label="Buyer" required>
-            <Select value={buyerId} onChange={(e) => setBuyerId(e.target.value)}>
+            <Select value={buyerId} onChange={(e) => chooseBuyer(e.target.value)}>
               {buyers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </Select>
           </Field>
+          <div className="grid gap-2.5">
+            <Field
+              label="Send to"
+              required
+              error={sendToError}
+              hint={emailRestricted ? "Until a sending domain is verified, Kutip emails only your own inbox. Anyone else gets a pay link you share." : `The invoice and its pay link go here; replies come back to ${exporter.contactEmail || "your email"}.`}
+            >
+              <Input type="email" inputMode="email" autoComplete="off" value={sendTo} aria-invalid={sendToError ? true : undefined} onChange={(e) => setSendTo(e.target.value)} onBlur={() => setSendToTouched(true)} placeholder="accounts@buyer.com" />
+            </Field>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {changedAddress && buyer ? <Checkbox label={<span className="text-sm">Use for {buyer.name} from now on</span>} checked={saveForBuyer} onChange={(e) => setSaveForBuyer(e.target.checked)} /> : null}
+              <Checkbox
+                label={<span className="text-sm">{exporter.contactEmail ? `CC me (${exporter.contactEmail})` : "CC me (add your email in Settings)"}</span>}
+                checked={ccMe}
+                disabled={!exporter.contactEmail}
+                onChange={(e) => setCcMe(e.target.checked)}
+              />
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Invoice number" hint="Leave blank for the next number">
               <Input value={number} placeholder="INV-2026-0162" onChange={(e) => setNumber(e.target.value)} />
@@ -244,7 +315,7 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
                       <Trash2 size={15} aria-hidden="true" />
                     </button>
                     <Input aria-label="Quantity" inputMode="numeric" className="text-right" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} />
-                    <PrefixedInput prefix="USD" aria-label="Unit price" inputMode="decimal" placeholder="0.00" className="pl-11 text-right" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} />
+                    <PrefixedInput prefix="USD" aria-label="Unit price" inputMode="decimal" placeholder="0.00" className="text-right" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} />
                     <span className="truncate text-right tabular text-base text-ink">{unit === null ? "" : formatUsdc(unit * BigInt(qty))}</span>
                   </div>
                 );
@@ -281,5 +352,24 @@ export function NewInvoice({ buyers, exporter, rate }: { buyers: Buyer[]; export
         {document}
       </div>
     </div>
+  );
+}
+
+function CopyButton({ value, variant }: { value: string; variant: "outline" | "secondary" }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      variant={variant}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {}
+      }}
+    >
+      {copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
+      {copied ? "Copied" : "Copy pay link"}
+    </Button>
   );
 }

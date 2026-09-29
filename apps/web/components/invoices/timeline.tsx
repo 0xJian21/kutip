@@ -65,6 +65,11 @@ export function MessageThread({ messages, buyer }: { messages: Message[]; buyer:
               <span className="text-xs tabular text-ink-3">{formatDateTime(m.createdAt, buyer.timezone)} {localTimeLabel(buyer.timezone)}</span>
             </div>
             <p className="mt-0.5 text-sm text-ink-2">{m.subject}</p>
+            {m.toAddress ? (
+              <p className="mt-1 text-xs text-ink-3">
+                {m.delivery === "sent" ? `Emailed to ${m.toAddress}` : `Not emailed to ${m.toAddress}: ${m.delivery === "skipped" ? "Kutip can only email you until a domain is verified" : m.delivery === "recorded" ? "no email provider set up" : "the email provider refused it"}`}
+              </p>
+            ) : null}
             <p className="mt-2 text-base text-ink">{m.body}</p>
             {m.classification ? (
               <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-2 text-xs text-ink-3">

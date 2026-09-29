@@ -69,7 +69,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
               className="mt-4"
               items={[
                 { label: "Contact", value: <span className="text-left">{buyer.contactName}</span> },
-                { label: "Email", value: <span className="break-all">{buyer.email}</span>, muted: true },
+                { label: "Email", value: <span className="break-all">{invoice.sendTo ?? buyer.email}</span>, muted: true },
                 { label: "Location", value: `${buyer.city}, ${buyer.countryName}` },
                 { label: "Reminders go out in", value: localTimeLabel(buyer.timezone), muted: true },
                 { label: "Issued", value: formatDate(invoice.issuedAt), muted: true },

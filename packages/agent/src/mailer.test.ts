@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { createMailer } from "./mailer";
+import { createMailer, emailAllowed } from "./mailer";
 
 const email = { subject: "Invoice INV-2026-0001", body: "Hi" };
 
@@ -62,4 +62,22 @@ test("Reply-To is the exporter's own address when given (IMPROVEMENTS E2.2)", as
   await m.send("buyer@x.test", email, { replyTo: "  " });
   await m.send("buyer@x.test", email);
   expect(bodies.map((b) => (b as { reply_to?: string }).reply_to)).toEqual(["owner@teratai.test", undefined, undefined]);
+});
+
+test("CC goes out only when the CC address passes the allowlist too", async () => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const logs: string[] = [];
+  const fetchFn = (async (_url: string, init: RequestInit) => (bodies.push(JSON.parse(String(init.body))), new Response("{}"))) as unknown as typeof fetch;
+  const m = createMailer({ apiKey: "k", from: "f", log: (l) => logs.push(l), fetchFn, allowlist: ["jianwei2102@gmail.com"] });
+  expect(await m.send("jianwei2102+buyer@gmail.com", email, { cc: "jianwei2102@gmail.com" })).toBe("sent");
+  expect(await m.send("jianwei2102+buyer@gmail.com", email, { cc: "boss@teratai.example" })).toBe("sent");
+  expect(bodies.map((b) => b.cc)).toEqual([["jianwei2102@gmail.com"], undefined]);
+  expect(logs).toEqual(["cc to boss@teratai.example dropped: not on EMAIL_ALLOWLIST"]);
+});
+
+test("emailAllowed mirrors the gate: '*' opens it, otherwise listed inboxes and their +aliases", () => {
+  expect(emailAllowed("anyone@buyer.example", ["*"])).toBe(true);
+  expect(emailAllowed("JianWei2102+x@gmail.com", ["jianwei2102@gmail.com"])).toBe(true);
+  expect(emailAllowed("ap@buyer.example", ["jianwei2102@gmail.com"])).toBe(false);
+  expect(emailAllowed("ap@buyer.example", [])).toBe(false);
 });
