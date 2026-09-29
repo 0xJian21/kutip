@@ -23,7 +23,7 @@ export function Dialog({ open, onClose, title, caption, children, className = ""
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
-      className={`fixed inset-x-0 bottom-0 m-0 w-full max-w-none rounded-t-2xl bg-surface p-0 text-ink shadow-float backdrop:bg-ink/30 sm:inset-0 sm:m-auto sm:max-h-[90vh] sm:w-[min(100%-2rem,34rem)] sm:rounded-2xl ${className}`}
+      className={`fixed inset-x-0 top-auto bottom-0 m-0 w-full max-w-none rounded-t-2xl bg-surface p-0 text-ink shadow-float backdrop:bg-ink/30 sm:inset-0 sm:top-0 sm:m-auto sm:max-h-[90vh] sm:w-[min(100%-2rem,34rem)] sm:rounded-2xl ${className}`}
     >
       <div className="max-h-[85vh] overflow-y-auto p-5 sm:p-6">
         <header className="flex items-start justify-between gap-4">

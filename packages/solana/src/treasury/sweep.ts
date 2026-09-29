@@ -101,6 +101,8 @@ export type SweepDeps = {
   usdcMint: PublicKey;
   store: SweepStore;
   exporterId: string;
+  /** The owner's ticked buyer accounts ("Sweep now"); every account when absent (the daily sweep). */
+  buyerIds?: string[];
   now?: Date;
   /** Called with the plan before any write; throw to abort (scripts prompt here). */
   confirm?: (lines: string[]) => Promise<void>;
@@ -110,6 +112,23 @@ export type SweepResult = {
   plan: SweepPlan;
   sweeps: Array<{ id: string; signature: string; buyerIds: string[]; amountUsdc: bigint }>;
 };
+
+/** An owner-facing problem with the sweep selection (safe to show as is). */
+export class SweepSelectionError extends Error {}
+
+/**
+ * Narrows the exporter's buyer accounts to the owner's selection. Ids come from the browser,
+ * so anything outside this exporter's own accounts is refused rather than ignored.
+ */
+export function selectSweepAccounts<T extends { id: string }>(accounts: T[], buyerIds?: string[]): T[] {
+  if (buyerIds === undefined) return accounts;
+  if (buyerIds.length === 0) throw new SweepSelectionError("Tick at least one buyer account to sweep");
+  const own = new Set(accounts.map((a) => a.id));
+  const stranger = buyerIds.find((id) => !own.has(id));
+  if (stranger !== undefined) throw new SweepSelectionError(`${stranger} is not one of your buyer accounts`);
+  const picked = new Set(buyerIds);
+  return accounts.filter((a) => picked.has(a.id));
+}
 
 /**
  * The buyer's SpendingLimit PDA: the one stored after a permissions change (Session 8b),
@@ -162,7 +181,8 @@ export async function runSweep(d: SweepDeps): Promise<SweepResult> {
   const now = d.now ?? new Date();
   const exporter = await d.store.getExporter(d.exporterId);
   if (!exporter) throw new Error(`exporter not found: ${d.exporterId}`);
-  const [buyers, rulebook] = await Promise.all([d.store.listBuyerAccounts(d.exporterId), d.store.getRulebook(d.exporterId)]);
+  const [accounts, rulebook] = await Promise.all([d.store.listBuyerAccounts(d.exporterId), d.store.getRulebook(d.exporterId)]);
+  const buyers = selectSweepAccounts(accounts, d.buyerIds);
   const vaults = await readVaults({ connection: d.connection, feePayer: d.feePayer, usdcMint: d.usdcMint, buyers, now });
   const treasuryVaultPda = new PublicKey(exporter.treasuryVault);
   const plan = planSweep({ vaults, rulebook, treasuryUsdcAta: new PublicKey(exporter.treasuryUsdcAta) });

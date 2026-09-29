@@ -8,8 +8,9 @@ import { CashOutDialog } from "./cash-out";
 import { SweepNowDialog } from "./sweep-now";
 
 /** The two money actions on the treasury hero, each owning its dialog. Server pages can render them directly. */
-export function SweepNowButton({ rate, variant = "hero", className = "" }: { rate: BnmRate; variant?: "hero" | "primary" | "secondary"; className?: string }) {
-  const [open, setOpen] = useState(false);
+/** `openOnMount`: the command bar's "Sweep now" goes straight to the dialog; the button reopens it. */
+export function SweepNowButton({ rate, variant = "hero", className = "", openOnMount = false }: { rate: BnmRate; variant?: "hero" | "primary" | "secondary"; className?: string; openOnMount?: boolean }) {
+  const [open, setOpen] = useState(openOnMount);
   const router = useRouter();
   return (
     <>

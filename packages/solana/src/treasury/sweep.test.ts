@@ -3,7 +3,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
 import { describe, expect, it } from "vitest";
 import { SWEEP_BATCH_SIZE } from "./config";
-import { planSweep, randomSweepTime, sweepInstructions, sweptToday, type VaultState } from "./sweep";
+import { limitPdaForBuyer, planSweep, randomSweepTime, runSweep, selectSweepAccounts, sweepInstructions, sweptToday, type SweepStore, type VaultState } from "./sweep";
 
 const usdc = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 const agent = Keypair.generate().publicKey;
@@ -102,5 +102,61 @@ describe("randomSweepTime", () => {
   });
   it("is spread across the day, not a fixed offset", () => {
     expect(randomSweepTime(after, () => 0.25).getTime()).toBeLessThan(randomSweepTime(after, () => 0.75).getTime());
+  });
+});
+
+describe("selectSweepAccounts", () => {
+  const accounts = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it("keeps every account when no selection is given (the daily sweep)", () => {
+    expect(selectSweepAccounts(accounts)).toEqual(accounts);
+  });
+
+  it("keeps only the owner's ticked accounts, in account order", () => {
+    expect(selectSweepAccounts(accounts, ["c", "a"]).map((a) => a.id)).toEqual(["a", "c"]);
+  });
+
+  it("refuses an empty selection", () => {
+    expect(() => selectSweepAccounts(accounts, [])).toThrow(/at least one/);
+  });
+
+  it("refuses an account that is not this exporter's", () => {
+    expect(() => selectSweepAccounts(accounts, ["a", "someone-elses"])).toThrow(/not one of your buyer accounts/);
+  });
+});
+
+describe("runSweep with a selection", () => {
+  it("reads and moves only the selected buyer accounts", async () => {
+    const feePayer = Keypair.generate();
+    const buyers = ["a", "b", "c"].map((id) => ({ id, multisig: Keypair.generate().publicKey.toBase58(), usdcAta: Keypair.generate().publicKey.toBase58() }));
+    const limitOf = new Map(buyers.map((b) => [limitPdaForBuyer({ multisigPda: new PublicKey(b.multisig), secret: feePayer.secretKey }).toBase58(), b.id]));
+    const read: string[] = [];
+    // No spending limit on-chain → nothing is planned or sent; we only watch which accounts were read.
+    const connection = { getAccountInfo: async (pda: PublicKey) => (read.push(limitOf.get(pda.toBase58()) ?? "?"), null) } as unknown as Parameters<typeof runSweep>[0]["connection"];
+    const writes: string[] = [];
+    const store: SweepStore = {
+      getExporter: async () => ({ id: "e", name: "E", treasuryVault: treasuryVaultPda.toBase58(), treasuryUsdcAta: treasuryUsdcAta.toBase58() }) as never,
+      listBuyerAccounts: async () => buyers,
+      getRulebook: async () => rulebook,
+      recordSweep: async () => (writes.push("recordSweep"), {}) as never,
+      recordAgentAction: async () => (writes.push("recordAgentAction"), {}) as never,
+      updateBalances: async (_e, b) => void writes.push(`updateBalances:${Object.keys(b.vaults ?? {}).join(",")}`),
+    };
+    const r = await runSweep({ connection, feePayer, agent: Keypair.generate(), usdcMint: usdc, store, exporterId: "e", buyerIds: ["b"] });
+    expect(read.filter((x) => x !== "?")).toEqual(["b"]); // "?" = the treasury balance refresh at the end
+    expect(r.sweeps).toEqual([]);
+    expect(writes).toEqual(["updateBalances:"]);
+  });
+
+  it("refuses a selection with another exporter's account before touching the chain", async () => {
+    const read: string[] = [];
+    const connection = { getAccountInfo: async () => (read.push("x"), null) } as unknown as Parameters<typeof runSweep>[0]["connection"];
+    const store = {
+      getExporter: async () => ({ id: "e", name: "E", treasuryVault: treasuryVaultPda.toBase58(), treasuryUsdcAta: treasuryUsdcAta.toBase58() }),
+      listBuyerAccounts: async () => [{ id: "a", multisig: Keypair.generate().publicKey.toBase58(), usdcAta: Keypair.generate().publicKey.toBase58() }],
+      getRulebook: async () => rulebook,
+    } as unknown as SweepStore;
+    await expect(runSweep({ connection, feePayer: Keypair.generate(), agent: Keypair.generate(), usdcMint: usdc, store, exporterId: "e", buyerIds: ["zz"] })).rejects.toThrow(/not one of your buyer accounts/);
+    expect(read).toEqual([]);
   });
 });

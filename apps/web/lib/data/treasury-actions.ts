@@ -26,9 +26,13 @@ export async function sweepPreview() {
   return toResult(async () => previewSweep((await sessionOrThrow()).exporterId));
 }
 
-export async function sweepNow() {
+/** Sweeps only the buyer accounts the owner ticked. The server re-checks each one (T2 cap, destination = treasury). */
+export async function sweepNow(input: { buyerIds: string[] }) {
   return toResult(async () => {
-    const r = await executeSweep((await ownerSessionOrThrow()).exporterId);
+    const { exporterId } = await ownerSessionOrThrow();
+    const ids = input?.buyerIds;
+    if (!Array.isArray(ids) || ids.length > 100 || ids.some((id) => typeof id !== "string" || id.length > 64)) throw new UserError("That selection of buyer accounts isn't valid. Close the dialog and try again.");
+    const r = await executeSweep(exporterId, [...new Set(ids)]);
     refresh();
     return r;
   });

@@ -16,7 +16,7 @@ export {
   type SpendingLimitSpec,
   type StepResult,
 } from "./provision";
-export { limitPdaForBuyer, planSweep, randomSweepTime, readVaults, runSweep, sweepInstructions, sweptToday, type SweepDeps, type SweepItem, type SweepPlan, type SweepResult, type SweepSkip, type SweepStore, type VaultState } from "./sweep";
+export { limitPdaForBuyer, planSweep, randomSweepTime, readVaults, runSweep, selectSweepAccounts, SweepSelectionError, sweepInstructions, sweptToday, type SweepDeps, type SweepItem, type SweepPlan, type SweepResult, type SweepSkip, type SweepStore, type VaultState } from "./sweep";
 export {
   approveExecuteInstructions,
   buildOwnerTx,

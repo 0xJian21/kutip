@@ -54,6 +54,7 @@ export function PreviewCard({ preview, onAsk, onDone }: { preview: Preview; onAs
     case "reminder":
       return <ReminderPreview preview={preview} onDone={onDone} />;
     case "sweep":
+      // "Sweep now" opens the same dialog as the treasury card: tick the accounts there.
       return (
         <section aria-label="Sweep preview">
           <Heading title="Sweep into the treasury" aside={<Chip>Preview</Chip>} />
@@ -61,25 +62,12 @@ export function PreviewCard({ preview, onAsk, onDone }: { preview: Preview; onAs
             <EmptyState compact title="Nothing waiting" body="Every buyer account is empty; payments are already in the treasury." />
           ) : (
             <>
-              <ul className="mt-2 divide-y divide-line">
-                {preview.vaults.map((v) => (
-                  <li key={v.buyerName} className="flex items-center gap-3 py-2.5">
-                    <Avatar name={v.buyerName} size="sm" shape="square" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-base text-ink" title={v.buyerName}>{v.buyerName}</span>
-                      <span className="block text-xs text-ink-3">{v.mode === "autonomous" ? "Within the agent's daily limit" : v.mode === "proposal" ? "Needs your approval" : v.reason}</span>
-                    </span>
-                    <Chip>Rule {v.ruleId}</Chip>
-                    <MoneyCell usdc={v.amountUsdc} rate={preview.rate} />
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-3 flex items-baseline justify-between gap-3 border-t border-line pt-3">
-                <span className="text-sm text-ink-2">Total to the treasury</span>
+              <div className="mt-2 flex items-baseline justify-between gap-3">
+                <span className="text-sm text-ink-2">{preview.vaults.length} buyer account{preview.vaults.length === 1 ? "" : "s"} waiting</span>
                 <MoneyCell usdc={preview.totalUsdc} rate={preview.rate} />
               </div>
-              <Confirm note="Opens the sweep flow: a fresh on-chain check, then you confirm. Network fee paid by Kutip; the spending limit on Solana is the final check.">
-                <SweepNowButton rate={preview.rate} variant="primary" />
+              <Confirm note="Choose the accounts in the sweep dialog. Network fee paid by Kutip; the spending limit on Solana is the final check.">
+                <SweepNowButton rate={preview.rate} variant="primary" openOnMount />
               </Confirm>
             </>
           )}
