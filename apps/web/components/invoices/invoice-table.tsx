@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RowItem, RowList } from "@/components/ui/row-list";
 import { Avatar } from "@/components/ui/avatar";
 import { MoneyCell } from "@/components/ui/money";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -38,8 +39,8 @@ export function InvoiceTable({
             <TH>Invoice</TH>
             <TH>Buyer</TH>
             <TH>Due</TH>
-            <TH>Status</TH>
             <TH align="right">Amount</TH>
+            <TH align="right">Status</TH>
           </tr>
         </THead>
         <TBody>
@@ -62,35 +63,34 @@ export function InvoiceTable({
                   <span>{formatDate(inv.dueDate)}</span>
                   {inv.status === "overdue" ? <span className="block text-xs">{dueLabel(inv.dueDate)}</span> : null}
                 </TD>
-                <TD><StatusPill status={inv.status} /></TD>
                 <TD align="right"><MoneyCell usdc={inv.amountUsdc} rate={rate} /></TD>
+                <TD align="right" className="w-px"><span className="inline-flex"><StatusPill status={inv.status} /></span></TD>
               </TR>
             );
           })}
         </TBody>
       </Table>
 
-      <ul className="divide-y divide-line sm:hidden">
+      <RowList className="sm:hidden" label="Invoices">
         {invoices.map((inv) => {
           const urgent = URGENT.has(inv.status);
           return (
-            <li key={inv.id} className="relative flex items-center gap-3 px-5 py-3 transition-colors duration-(--dur-fast) hover:bg-paper-2/50">
-              <Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />
-              <div className="min-w-0 flex-1">
-                <Link href={`/invoices/${inv.id}`} className="line-clamp-2 block text-base font-medium leading-snug text-ink after:absolute after:inset-0 after:content-['']">
-                  {buyerName(inv.buyerId)}
-                </Link>
-                <p className="flex flex-wrap gap-x-1.5 text-sm tabular text-ink-2">
-                  <span className="whitespace-nowrap">{inv.number}</span>
-                  <span className={`whitespace-nowrap ${urgent ? "font-medium text-overdue-fg" : ""}`}>{inv.status === "overdue" ? dueLabel(inv.dueDate) : `Due ${formatDate(inv.dueDate)}`}</span>
-                </p>
-                <div className="mt-1.5"><StatusPill status={inv.status} /></div>
-              </div>
-              <MoneyCell usdc={inv.amountUsdc} rate={rate} />
-            </li>
+            <RowItem
+              key={inv.id}
+              href={`/invoices/${inv.id}`}
+              lead={<Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />}
+              amount={<MoneyCell usdc={inv.amountUsdc} rate={rate} />}
+              status={<StatusPill status={inv.status} />}
+            >
+              <span className="line-clamp-2 text-base font-medium leading-snug text-ink" title={buyerName(inv.buyerId)}>{buyerName(inv.buyerId)}</span>
+              <span className="flex flex-wrap gap-x-1.5 text-sm tabular text-ink-2">
+                <span className="whitespace-nowrap">{inv.number}</span>
+                <span className={`whitespace-nowrap ${urgent ? "font-medium text-overdue-fg" : ""}`}>{inv.status === "overdue" ? dueLabel(inv.dueDate) : `Due ${formatDate(inv.dueDate)}`}</span>
+              </span>
+            </RowItem>
           );
         })}
-      </ul>
+      </RowList>
     </>
   );
 }

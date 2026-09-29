@@ -20,7 +20,8 @@ export function Field({
   className?: string;
 }) {
   return (
-    <label className={`grid min-w-0 gap-1.5 ${className}`}>
+    // content-start: a neighbour's hint or error must never stretch this field's rows and push its input down.
+    <label className={`grid min-w-0 content-start gap-1.5 ${className}`}>
       <span className="text-sm font-medium text-ink">
         {label}
         {required ? <span className="text-accent"> *</span> : null}

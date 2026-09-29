@@ -51,8 +51,8 @@ export function ThreadView({ detail, rate, busy, onChanged }: { detail: InboxThr
             </p>
           </div>
           <div className="flex items-center gap-3 max-sm:w-full max-sm:justify-between">
-            <StatusPill status={invoice.status} />
             <MoneyCell usdc={outstanding > 0n ? outstanding : invoice.amountUsdc} rate={rate} />
+            <StatusPill status={invoice.status} />
           </div>
         </div>
       </Card>

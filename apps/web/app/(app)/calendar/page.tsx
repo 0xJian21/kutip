@@ -137,23 +137,29 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   );
 }
 
+/** Invoice numbers never break across lines ("INV-2026-" / "0145" is a wrong number at a glance). */
+function keepNumbers(label: string) {
+  return label.split(/(INV-\d{4}-\d+)/).map((part, i) => (i % 2 ? <span key={i} className="whitespace-nowrap">{part}</span> : part));
+}
+
 function DayEvents({ events, empty }: { events: AgendaEvent[]; empty: string }) {
   if (events.length === 0) return <p className="text-sm text-ink-3">{empty}</p>;
   return (
     <ul className="grid gap-1.5">
       {events.map((e, i) => (
-        <li key={`${e.kind}-${e.invoiceId ?? i}`} className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-0.5">
-          <AgendaBadge kind={e.kind} />
+        // The kind badge is the row's status: last, flush right, vertically centred, so the text column always starts at one edge.
+        <li key={`${e.kind}-${e.invoiceId ?? i}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5">
           <span className="min-w-0 text-base leading-snug text-ink">
-            {e.invoiceId ? <Link href={`/invoices/${e.invoiceId}`} className="hover:underline">{e.label}</Link> : e.label}
+            {e.invoiceId ? <Link href={`/invoices/${e.invoiceId}`} className="hover:underline">{keepNumbers(e.label)}</Link> : keepNumbers(e.label)}
             {e.buyerName && e.kind !== "promised" ? <span className="text-ink-2"> · {e.buyerName}</span> : null}
           </span>
           {(e.at && e.kind !== "rate_alert") || e.amountUsdc !== undefined ? (
-            <span className="col-start-2 flex flex-wrap gap-x-3 text-sm tabular text-ink-3">
+            <span className="col-start-1 flex flex-wrap gap-x-3 text-sm tabular text-ink-3">
               {e.at && e.kind !== "rate_alert" ? <span>{formatTime(e.at, "Asia/Kuala_Lumpur", false)} MYT</span> : null}
               {e.amountUsdc !== undefined ? <span className="text-ink-2">{formatUsdc(e.amountUsdc)} USD</span> : null}
             </span>
           ) : null}
+          <span className="col-start-2 row-span-2 row-start-1 flex justify-end"><AgendaBadge kind={e.kind} /></span>
         </li>
       ))}
     </ul>

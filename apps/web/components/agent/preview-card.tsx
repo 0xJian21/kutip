@@ -151,8 +151,8 @@ function InvoiceRows({ lines, rate, onNavigate }: { lines: InvoiceLine[]; rate: 
                 <span className={`whitespace-nowrap ${l.status === "overdue" ? "font-medium text-overdue-fg" : ""}`}>{dueLabel(l.dueDate)}</span>
               </span>
             </span>
-            <span className="hidden sm:inline-flex"><StatusPill status={l.status} /></span>
             <MoneyCell usdc={l.outstandingUsdc} rate={rate} />
+            <span className="hidden shrink-0 sm:inline-flex"><StatusPill status={l.status} /></span>
           </Link>
         </li>
       ))}
@@ -247,13 +247,13 @@ function AgendaList({ from, to, events, onNavigate }: { from: string; to: string
                 {events.filter((e) => e.date === d).map((e, i) => (
                   <li key={`${e.kind}-${e.invoiceId ?? i}`}>
                     <Inset className="flex items-center gap-2.5 px-3 py-2">
-                      <AgendaBadge kind={e.kind} />
                       <span className="min-w-0 flex-1 truncate text-sm text-ink">
                         {e.invoiceId ? <Link href={`/invoices/${e.invoiceId}`} onClick={onNavigate} className="hover:underline">{e.label}</Link> : e.label}
                         {e.buyerName && e.kind !== "promised" ? <span className="text-ink-2"> · {e.buyerName}</span> : null}
                       </span>
                       {e.at && e.kind !== "rate_alert" ? <span className="text-xs tabular text-ink-3">{formatTime(e.at, "Asia/Kuala_Lumpur", false)}</span> : null}
                       {e.amountUsdc !== undefined ? <span className="text-sm tabular text-ink-2">{formatUsdc(e.amountUsdc)} USD</span> : null}
+                      <AgendaBadge kind={e.kind} />
                     </Inset>
                   </li>
                 ))}

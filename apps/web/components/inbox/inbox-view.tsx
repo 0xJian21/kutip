@@ -5,6 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import { ArrowLeft, ClipboardPaste, MessageSquare, Sparkles } from "lucide-react";
 import type { InboxThread, InboxThreadDetail } from "@kutip/db";
 import { Avatar } from "@/components/ui/avatar";
+import { RowItem, RowList } from "@/components/ui/row-list";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/states";
@@ -117,41 +118,40 @@ export function InboxView({
               body={threads.length ? "Try another filter." : "Reminders, buyer questions from the pay page and messages you log show up here."}
             />
           ) : (
-            <ul className="divide-y divide-line">
+            <RowList stacked label="Conversations">
               {visible.map((t) => (
-                <li key={t.invoiceId}>
-                  <button
-                    type="button"
-                    onClick={() => open(t.invoiceId)}
-                    aria-current={t.invoiceId === selected ? "true" : undefined}
-                    className={`flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors duration-(--dur-fast) sm:px-5 ${t.invoiceId === selected ? "bg-accent-soft/60" : "hover:bg-paper-2/60"}`}
-                  >
-                    <Avatar name={t.buyerName} size="sm" shape="square" className="mt-0.5" />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-baseline justify-between gap-2">
-                        <span className={`min-w-0 text-base ${t.needsReply ? "font-semibold text-ink" : "font-medium text-ink"}`}>{t.buyerName}</span>
-                        <span className="shrink-0 text-xs tabular text-ink-3">{relativeTime(t.last.createdAt)}</span>
-                      </span>
-                      <span className="block truncate text-sm tabular text-ink-2">{t.invoiceNumber}</span>
-                      <span className="mt-0.5 block truncate text-sm text-ink-2">
-                        {t.last.direction === "out" ? "You: " : ""}
-                        {t.last.body}
-                      </span>
-                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        {t.needsReply ? <span className="inline-flex h-5 items-center rounded-full bg-overdue-bg px-2 text-xs font-medium text-overdue-fg">Needs reply</span> : null}
+                <RowItem
+                  key={t.invoiceId}
+                  stacked
+                  onClick={() => open(t.invoiceId)}
+                  selected={t.invoiceId === selected}
+                  lead={<Avatar name={t.buyerName} size="sm" shape="square" />}
+                  status={
+                    t.needsReply || t.hasDraft || t.lastIntent ? (
+                      <span className="flex flex-col items-end gap-1">
+                        {t.needsReply ? <span className="inline-flex h-5 items-center whitespace-nowrap rounded-full bg-overdue-bg px-2 text-xs font-medium text-overdue-fg">Needs reply</span> : null}
                         {t.hasDraft ? (
-                          <span className="inline-flex h-5 items-center gap-1 rounded-full bg-accent-soft px-2 text-xs font-medium text-accent">
+                          <span className="inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-full bg-accent-soft px-2 text-xs font-medium text-accent">
                             <Sparkles size={11} aria-hidden="true" />
                             Draft ready
                           </span>
                         ) : null}
                         {t.lastIntent ? <IntentChip intent={t.lastIntent.intent} /> : null}
                       </span>
-                    </span>
-                  </button>
-                </li>
+                    ) : undefined
+                  }
+                >
+                  <span className={`line-clamp-2 text-base leading-snug ${t.needsReply ? "font-semibold text-ink" : "font-medium text-ink"}`}>{t.buyerName}</span>
+                  <span className="block text-sm tabular text-ink-2">
+                    <span className="whitespace-nowrap">{t.invoiceNumber}</span> · <span className="whitespace-nowrap">{relativeTime(t.last.createdAt)}</span>
+                  </span>
+                  <span className="mt-0.5 block truncate text-sm text-ink-2">
+                    {t.last.direction === "out" ? "You: " : ""}
+                    {t.last.body}
+                  </span>
+                </RowItem>
               ))}
-            </ul>
+            </RowList>
           )}
         </Card>
       </div>

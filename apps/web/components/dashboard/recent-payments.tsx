@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
 import { Card, CardHeader } from "@/components/ui/card";
 import { MoneyCell } from "@/components/ui/money";
+import { RowItem, RowList } from "@/components/ui/row-list";
 import { StatusPill } from "@/components/ui/status-pill";
 import { EmptyState } from "@/components/ui/states";
 import { formatDateTime, relativeTime } from "@/lib/ui/format";
@@ -20,23 +21,22 @@ export function RecentPayments({ payments, buyers, rate }: { payments: Invoice[]
       {payments.length === 0 ? (
         <EmptyState compact title="No payments yet" body="The first one shows here the second it lands." />
       ) : (
-        <ul className="mt-3 divide-y divide-line">
+        <RowList className="mt-3" label="Recent payments">
           {payments.map((inv) => (
-            <li key={inv.id}>
-              <Link href={`/invoices/${inv.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors duration-(--dur-fast) hover:bg-paper-2/50 sm:px-6">
-                <Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-base font-medium text-ink" title={buyerName(inv.buyerId)}>{buyerName(inv.buyerId)}</span>
-                  <span className="block truncate text-sm tabular text-ink-2" title={inv.paidAt ? `${formatDateTime(inv.paidAt)} MYT` : undefined}>
-                    {inv.number} · {inv.paidAt ? relativeTime(inv.paidAt) : ""}
-                  </span>
-                </span>
-                <span className="hidden sm:inline-flex"><StatusPill status={inv.status} /></span>
-                <MoneyCell usdc={inv.amountUsdc} rate={rate} />
-              </Link>
-            </li>
+            <RowItem
+              key={inv.id}
+              href={`/invoices/${inv.id}`}
+              lead={<Avatar name={buyerName(inv.buyerId)} size="sm" shape="square" />}
+              amount={<MoneyCell usdc={inv.amountUsdc} rate={rate} />}
+              status={<StatusPill status={inv.status} />}
+            >
+              <span className="line-clamp-2 text-base font-medium leading-snug text-ink" title={buyerName(inv.buyerId)}>{buyerName(inv.buyerId)}</span>
+              <span className="block text-sm tabular text-ink-2" title={inv.paidAt ? `${formatDateTime(inv.paidAt)} MYT` : undefined}>
+                <span className="whitespace-nowrap">{inv.number}</span> · <span className="whitespace-nowrap">{inv.paidAt ? relativeTime(inv.paidAt) : ""}</span>
+              </span>
+            </RowItem>
           ))}
-        </ul>
+        </RowList>
       )}
     </Card>
   );

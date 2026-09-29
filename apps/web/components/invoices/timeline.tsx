@@ -33,15 +33,17 @@ export function ReminderTimeline({ actions, buyer }: { actions: AgentAction[]; b
       {ordered.map((a) => (
         <li key={a.id} className="relative pb-5 pl-5 last:pb-0">
           <span aria-hidden="true" className={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${a.status === "escalated" ? "bg-overdue-fg" : a.status === "proposed" ? "bg-partial-fg" : "bg-accent"}`} />
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <span className="text-sm font-medium text-ink">{AGENT_KIND_LABEL[a.kind]}</span>
-            <span className="text-xs tabular text-ink-3">{formatDateTime(a.createdAt)} MYT</span>
-          </div>
-          <p className="mt-0.5 text-base text-ink">{a.decision}</p>
-          <p className="text-sm text-ink-2">{a.reason}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs tabular text-ink-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="text-sm font-medium text-ink">{AGENT_KIND_LABEL[a.kind]}</span>
+                <span className="text-xs tabular text-ink-3">{formatDateTime(a.createdAt)} MYT</span>
+              </div>
+              <p className="mt-0.5 text-base text-ink">{a.decision}</p>
+              <p className="text-sm text-ink-2">{a.reason}</p>
+              <p className="mt-1 text-xs tabular text-ink-3">Rule {a.ruleId} · {confidenceLabel(a.confidence)}</p>
+            </div>
             <AgentStatusPill status={a.status} />
-            <span>Rule {a.ruleId} · {confidenceLabel(a.confidence)}</span>
           </div>
         </li>
       ))}
