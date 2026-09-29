@@ -66,6 +66,7 @@ export function inboxPort(): InboxPort {
     saveDraft: (e, d) => i.saveDraft(e, d),
     sendDraft: (e, id, x) => i.sendDraft(e, id, x),
     getContactEmail: (e) => i.getContactEmail(e),
+    getLetterhead: (e) => s.getLetterhead(e),
   };
 }
 
@@ -131,6 +132,7 @@ export async function reminderPort(exporterId: string): Promise<ReminderSendPort
     recordMessage: (m) => s.recordMessage(m),
     recordAgentAction: (a) => s.recordAgentAction(a),
     getContactEmail: (e) => inbox().getContactEmail(e),
+    getLetterhead: (e) => s.getLetterhead(e),
     exporterName: (await s.getExporter(exporterId))?.name,
   };
 }

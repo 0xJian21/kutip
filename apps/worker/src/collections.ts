@@ -4,7 +4,7 @@
  * Every LLM call gets one buyer's context (SPEC §5 L4).
  */
 import type Anthropic from "@anthropic-ai/sdk";
-import { buildBuyerContext, nextReminder, writeReceipt, writeReminder, type Email } from "@kutip/agent";
+import { buildBuyerContext, letterEmail, nextReminder, writeReceipt, writeReminder, type Email, type LetterKind } from "@kutip/agent";
 import type { BuyerContext, Store } from "@kutip/db";
 import type { Mailer } from "@kutip/agent";
 import type { PaidInvoice } from "./payments";
@@ -27,10 +27,24 @@ export function createCollections(deps: {
   const { store, anthropic, mailer, log, dryRun } = deps;
   let warnedNoKey = false;
 
-  async function sendAndRecord(exporterId: string, ctx: BuyerContext, invoiceId: string, email: Email, at: Date): Promise<string> {
-    await store.recordMessage({ invoiceId, direction: "out", from: ctx.exporterName, subject: email.subject, body: email.body, at });
+  /**
+   * Haiku's text goes out inside the formal letter (subject, summary, pay button and sign-off from code),
+   * to the invoice's own recipient when the owner set one. The history keeps just the message.
+   */
+  async function sendAndRecord(exporterId: string, ctx: BuyerContext, invoiceId: string, kind: LetterKind, written: Email, at: Date, paid?: { amountUsdc: bigint; at: string }): Promise<string> {
+    const inv = ctx.invoices.find((i) => i.id === invoiceId)!;
+    const head = await store.getLetterhead(exporterId);
+    const letter = letterEmail(kind, {
+      head,
+      contactName: ctx.buyer.contactName,
+      invoice: { number: inv.number, issuedAt: inv.issuedAt, dueDate: inv.dueDate, amountUsdc: inv.amountUsdc, payUrl: inv.payUrl, status: inv.status },
+      body: written.body,
+      ...(paid ? { paid } : {}),
+      now: at.toISOString(),
+    });
+    await store.recordMessage({ invoiceId, direction: "out", from: ctx.exporterName, subject: letter.subject, body: letter.record, at });
     const replyTo = (await deps.replyTo?.(exporterId).catch(() => null)) ?? undefined;
-    return mailer.send(ctx.buyer.email, email, replyTo ? { replyTo } : undefined);
+    return mailer.send(inv.sendTo ?? ctx.buyer.email, { subject: letter.subject, body: letter.body, html: letter.html }, replyTo ? { replyTo } : undefined);
   }
 
   return {
@@ -92,7 +106,7 @@ export function createCollections(deps: {
               log(`reminder failed for ${inv.invoiceId}: ${(e as Error).message}`);
               continue;
             }
-            const delivery = await sendAndRecord(exporterId, ctx, inv.invoiceId, email, now);
+            const delivery = await sendAndRecord(exporterId, ctx, inv.invoiceId, `reminder_${plan.tone}`, email, now);
             sent.push({ invoiceId: inv.invoiceId, at: now.toISOString() });
             await store.recordAgentAction({
               exporterId, buyerId, invoiceId: inv.invoiceId, kind: "reminder", status: "executed", confidence: 1, ruleId: plan.ruleId, at: now,
@@ -120,8 +134,9 @@ export function createCollections(deps: {
       });
       if (!anthropic) return;
       try {
-        const email = await writeReceipt(anthropic, buildBuyerContext(ctx), { invoiceId: inv.id, paidUsdc: inv.receivedUsdc, paidAt: inv.paidAt ? new Date(inv.paidAt) : now });
-        log(`Receipt ${inv.id}, email ${await sendAndRecord(paid.exporterId, ctx, inv.id, email, now)}`);
+        const paidAt = inv.paidAt ? new Date(inv.paidAt) : now;
+        const email = await writeReceipt(anthropic, buildBuyerContext(ctx), { invoiceId: inv.id, paidUsdc: inv.receivedUsdc, paidAt });
+        log(`Receipt ${inv.id}, email ${await sendAndRecord(paid.exporterId, ctx, inv.id, "receipt", email, now, { amountUsdc: inv.receivedUsdc, at: paidAt.toISOString() })}`);
       } catch (e) {
         log(`receipt failed for ${inv.id}: ${(e as Error).message}`);
       }

@@ -81,3 +81,11 @@ test("emailAllowed mirrors the gate: '*' opens it, otherwise listed inboxes and 
   expect(emailAllowed("ap@buyer.example", ["jianwei2102@gmail.com"])).toBe(false);
   expect(emailAllowed("ap@buyer.example", [])).toBe(false);
 });
+
+test("a letter goes out as HTML with the plain text as the alternative", async () => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const fetchFn = (async (_url: string, init: RequestInit) => (bodies.push(JSON.parse(String(init.body))), new Response("{}"))) as unknown as typeof fetch;
+  const m = createMailer({ apiKey: "k", from: "f", log: () => {}, fetchFn, allowlist: ["*"] });
+  await m.send("a@b.test", { subject: "s", body: "plain", html: "<p>letter</p>" });
+  expect(bodies[0]).toMatchObject({ text: "plain", html: "<p>letter</p>" });
+});

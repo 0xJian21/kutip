@@ -54,6 +54,7 @@ function fakePort(opts: { status?: string; replies?: unknown; channel?: PortMess
       return { message: m, action: { id: "act_reply" } };
     },
     async getContactEmail() { return "owner@teratai.test"; },
+    async getLetterhead() { return { name: EXPORTER_NAME, contactEmail: "owner@teratai.test", ownerName: "Farid Zulkifli" }; },
   };
   return { port, writes, messages };
 }
@@ -166,11 +167,17 @@ describe("draftReplyFor + sendReply (M2 owner flow)", () => {
     const deps = { store: port, classifier: classifier({ label: "question", confidence: 0.9 }), client, mailer, now: () => NOW };
     const draft = await draftReplyFor(deps, { exporterId: E, invoiceId: INV.id });
     expect(draft).toMatchObject({ status: "draft", channel: "email" });
-    expect(draft.body).toContain(INV.payUrl);
+    expect(draft.body).not.toContain(INV.payUrl); // the letter carries the pay button
 
     const r = await sendReply(deps, { exporterId: E, invoiceId: INV.id, draftId: draft.id, body: "Owner's edited text", approvedBy: "usr_owner" });
     expect(r.delivery).toBe("sent");
-    expect(sent).toEqual([[HARBOURLINE.email, { subject: "Re: INV-2026-0142", body: "Owner's edited text" }, { replyTo: "owner@teratai.test" }]]);
+    expect(sent).toHaveLength(1);
+    const [to, email, opts] = sent[0]! as [string, { subject: string; body: string; html?: string }, unknown];
+    expect([to, opts]).toEqual([HARBOURLINE.email, { replyTo: "owner@teratai.test" }]);
+    expect(email.subject).toBe(`Re: invoice INV-2026-0142 from ${EXPORTER_NAME}`);
+    expect(email.body).toContain("Owner's edited text");
+    expect(email.body).toContain("Farid Zulkifli");
+    expect(email.html).toContain("Owner&#39;s edited text");
     expect(writes.find((w) => w[0] === "sendDraft")![2]).toMatchObject({ approvedBy: "usr_owner", body: "Owner's edited text" });
   });
 

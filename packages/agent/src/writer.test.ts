@@ -19,12 +19,12 @@ describe("writeReminder", () => {
     expect(text).toMatch(/firm/i);
   });
 
-  it("appends the pay link and the one allowed payment line itself", async () => {
-    const { client } = fakeAnthropic(draft("Hi Claire, a reminder about INV-2026-0142 for USD 12,480.00."));
+  it("returns only the message: the formal letter (./letter) adds greeting, pay button and sign-off", async () => {
+    const { client, requests } = fakeAnthropic(draft("A reminder about INV-2026-0142 for USD 12,480.00."));
     const email = await writeReminder(client, ctx, { invoiceId: "inv_0142", tone: "friendly", now });
-    expect(email.body).toContain("https://kutip.my/pay/inv_0142");
-    expect(email.body).toContain("Pay with USDC, no gas fee needed");
-    expect(email.subject).toBe("Invoice INV-2026-0142 is overdue");
+    expect(email.body).toBe("A reminder about INV-2026-0142 for USD 12,480.00.");
+    expect(email.body).not.toContain("https://kutip.my/pay/inv_0142");
+    expect(JSON.stringify(requests[0])).toMatch(/no greeting line, no sign-off/);
   });
 
   it("rejects a draft that states a different amount", async () => {
@@ -105,11 +105,10 @@ describe("writeReply (M2)", () => {
     expect(out).toMatchObject({ topic: "resend_invoice", subject: "Re: INV-2026-0142" });
   });
 
-  it("adds the pay link itself for email replies that resend the invoice or explain how to pay", async () => {
-    const { client } = fakeAnthropic(reply("Hi Claire, here is how to pay INV-2026-0142.", "payment_instructions"));
-    expect((await writeReply(client, ctx, { invoiceId: "inv_0142", message, channel: "email", now })).body).toContain("https://kutip.my/pay/inv_0142");
-    const { client: c2 } = fakeAnthropic(reply("Hi Claire, here is how to pay INV-2026-0142.", "payment_instructions"));
-    // On the pay page the buyer is already on the link.
+  it("never adds the pay link itself: the email letter carries the button, and on the pay page the buyer is already on it", async () => {
+    const { client } = fakeAnthropic(reply("Here is how to pay INV-2026-0142.", "payment_instructions"));
+    expect((await writeReply(client, ctx, { invoiceId: "inv_0142", message, channel: "email", now })).body).toBe("Here is how to pay INV-2026-0142.");
+    const { client: c2 } = fakeAnthropic(reply("Here is how to pay INV-2026-0142.", "payment_instructions"));
     expect((await writeReply(c2, ctx, { invoiceId: "inv_0142", message, channel: "pay_page", now })).body).not.toContain("https://");
   });
 

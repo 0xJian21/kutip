@@ -5,6 +5,7 @@
  * Every LLM call gets ONE buyer's context (SPEC §5 L4). The store is a port so this stays DB-free.
  */
 import { InputError } from "./input-error";
+import { letterEmail, type Letterhead } from "./letter";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { ReplyClassifier, ReplyLabel } from "./classifier";
 import { buildBuyerContext, type BuyerRecord, type InvoiceRecord, type MessageRecord } from "./context";
@@ -47,6 +48,8 @@ export type InboxPort = {
   saveDraft(exporterId: string, d: Draft): Promise<PortMessage>;
   sendDraft(exporterId: string, messageId: string, s: Send): Promise<{ message: PortMessage; action: { id: string } } | null>;
   getContactEmail(exporterId: string): Promise<string | null>;
+  /** Company profile for the formal letter (store.getLetterhead). */
+  getLetterhead(exporterId: string): Promise<Letterhead>;
 };
 
 export type InboxDeps = { store: InboxPort; classifier: ReplyClassifier; client: Anthropic; mailer: Mailer; now: () => Date; log?: (msg: string) => void };
@@ -96,11 +99,12 @@ async function draftFor(deps: InboxDeps, loaded: Awaited<ReturnType<typeof load>
 async function deliver(deps: InboxDeps, exporterId: string, thread: NonNullable<Awaited<ReturnType<InboxPort["getThread"]>>>, draft: PortMessage, send: Send) {
   const sent = await deps.store.sendDraft(exporterId, draft.id, send);
   if (!sent) throw new InputError("This draft is no longer waiting to be sent");
-  // Pay-page replies show on the pay page; everything else is emailed, Reply-To the exporter.
-  const delivery =
-    draft.channel === "pay_page"
-      ? ("shown" as const)
-      : await deps.mailer.send(thread.buyer.email, { subject: draft.subject, body: send.body }, { replyTo: (await deps.store.getContactEmail(exporterId)) ?? undefined });
+  // Pay-page replies show on the pay page; everything else is emailed as a formal letter, Reply-To the exporter.
+  if (draft.channel === "pay_page") return { action: sent.action, delivery: "shown" as const };
+  const [head, replyTo] = await Promise.all([deps.store.getLetterhead(exporterId), deps.store.getContactEmail(exporterId)]);
+  const { number, dueDate, amountUsdc, payUrl, status } = thread.invoice;
+  const letter = letterEmail("reply", { head, contactName: thread.buyer.contactName, invoice: { number, dueDate, amountUsdc, payUrl, status }, body: send.body, now: deps.now().toISOString() });
+  const delivery = await deps.mailer.send(thread.invoice.sendTo ?? thread.buyer.email, { subject: letter.subject, body: letter.body, html: letter.html }, { replyTo: replyTo ?? undefined });
   return { action: sent.action, delivery };
 }
 

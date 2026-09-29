@@ -31,7 +31,7 @@ export function createMailer(opts: { apiKey?: string; from: string; log: (msg: s
           method: "POST",
           headers: { authorization: `Bearer ${opts.apiKey}`, "content-type": "application/json" },
           // Reply-To = the exporter's own address, so a buyer who hits Reply reaches them (IMPROVEMENTS E2.2).
-          body: JSON.stringify({ from: opts.from, to: [to], ...(cc && emailAllowed(cc, allowlist) ? { cc: [cc] } : {}), subject: email.subject, text: email.body, ...(o.replyTo?.trim() ? { reply_to: o.replyTo.trim() } : {}) }),
+          body: JSON.stringify({ from: opts.from, to: [to], ...(cc && emailAllowed(cc, allowlist) ? { cc: [cc] } : {}), subject: email.subject, text: email.body, ...(email.html ? { html: email.html } : {}), ...(o.replyTo?.trim() ? { reply_to: o.replyTo.trim() } : {}) }),
           signal: AbortSignal.timeout(10_000),
         });
         if (res.ok) return "sent";

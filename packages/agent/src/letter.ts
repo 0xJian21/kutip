@@ -14,7 +14,8 @@ export type LetterInput = {
   letterhead: { name: string; registrationNo?: string; address?: string; logoUrl?: string; contactEmail?: string };
   recipientName: string;
   sender: { name: string; title: string };
-  invoice: { number: string; issuedAt: string; dueDate: string; amountUsdc: bigint; payUrl: string; status?: string };
+  /** `issuedAt` is optional: the agent's invoice records don't carry it, and the row is left out. */
+  invoice: { number: string; issuedAt?: string; dueDate: string; amountUsdc: bigint; payUrl: string; status?: string };
   /** BNM USD/MYR (4 implied decimals) for the ringgit line; omitted when unknown. */
   rate?: { myrPerUsd: bigint; date: string };
   /** Receipts: what arrived and when. */
@@ -162,7 +163,7 @@ export function renderLetter(p: LetterInput): { subject: string; html: string; t
 
   const rows: Array<[string, string, string?]> = [
     ["Invoice number", inv.number],
-    ["Issue date", day(inv.issuedAt)],
+    ...(inv.issuedAt ? ([["Issue date", day(inv.issuedAt)]] as Array<[string, string]>) : []),
     ["Due date", day(inv.dueDate)],
     ["Amount", usd(inv.amountUsdc), rateNote ?? undefined],
     ...(p.paid ? ([["Payment received", `${usd(p.paid.amountUsdc)} on ${day(p.paid.at)}`]] as Array<[string, string]>) : []),
@@ -278,4 +279,51 @@ ${summary}
 </html>`;
 
   return { subject, html, text };
+}
+
+/** What a sender knows about the exporter (store.getLetterhead). */
+export type Letterhead = LetterInput["letterhead"] & { ownerName?: string; rate?: { myrPerUsd: bigint; date: string } };
+
+const GREETING = /^(dear|hi|hello|good (morning|afternoon|day))\b[^\n]*,?\s*$/i;
+const SIGN_OFF = /^(kind|best|warm)?\s*(regards|wishes)\b|^(thank you|thanks|sincerely|yours (sincerely|faithfully|truly)|cheers)\s*,\s*$/i;
+
+/** The writer's text as paragraphs, without a greeting or sign-off (the letter adds its own). */
+export function letterParagraphs(body: string): string[] {
+  const blocks = body.replace(/\r\n/g, "\n").split(/\n\s*\n/).map((b) => b.split("\n").map((l) => l.trim()).filter(Boolean));
+  const out: string[] = [];
+  for (const [i, lines] of blocks.entries()) {
+    if (lines.length === 0) continue;
+    if (i === 0 && lines.length === 1 && GREETING.test(lines[0]!)) continue;
+    const signAt = lines.findIndex((l) => SIGN_OFF.test(l));
+    if (signAt === 0) break; // "Kind regards," and the signature after it
+    const kept = signAt > 0 ? lines.slice(0, signAt) : lines;
+    out.push(kept.join(" "));
+    if (signAt > 0) break;
+  }
+  return out;
+}
+
+/**
+ * One buyer email as a formal letter. `body` is the writer's text (Haiku or the owner's edit);
+ * `record` is that text without greeting or sign-off, for the message history.
+ */
+export function letterEmail(
+  kind: LetterKind,
+  p: { head: Letterhead; contactName: string; invoice: LetterInput["invoice"]; body?: string; paid?: LetterInput["paid"]; now?: string },
+): { subject: string; body: string; html: string; record: string } {
+  const paragraphs = p.body ? letterParagraphs(p.body) : [];
+  const { ownerName, rate, ...letterhead } = p.head;
+  const input: LetterInput = {
+    kind,
+    letterhead,
+    recipientName: p.contactName,
+    sender: ownerName?.trim() ? { name: ownerName.trim(), title: "Owner" } : { name: "Accounts team", title: "Accounts" },
+    invoice: p.invoice,
+    ...(rate ? { rate } : {}),
+    ...(p.paid ? { paid: p.paid } : {}),
+    paragraphs,
+    ...(p.now ? { now: p.now } : {}),
+  };
+  const r = renderLetter(input);
+  return { subject: r.subject, body: r.text, html: r.html, record: (paragraphs.length ? paragraphs : defaultParagraphs(input)).join("\n\n") };
 }

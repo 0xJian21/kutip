@@ -620,6 +620,26 @@ export function createStore(db: Db, opts: { appUrl: string; rateTtlMs?: number; 
       if (rows.length === 0) throw new Error(`invoice not found for this exporter: ${invoiceId}`);
     },
 
+    /** The formal emails' letterhead: company profile, the owner's name, and the latest BNM rate (if any). */
+    async getLetterhead(exporterId: string): Promise<{ name: string; registrationNo?: string; address?: string; logoUrl?: string; contactEmail?: string; ownerName?: string; rate?: BnmRate }> {
+      const [e, people, fx] = await Promise.all([
+        exporterRow(exporterId),
+        db.select({ name: s.users.name, role: s.users.role }).from(s.users).where(eq(s.users.exporterId, exporterId)).orderBy(asc(s.users.createdAt)),
+        latestRate().catch(() => null),
+      ]);
+      const owner = people.find((u) => u.role === "owner")?.name;
+      const opt = (v: string | null | undefined) => (v?.trim() ? v.trim() : undefined);
+      return {
+        name: e.name,
+        ...(opt(e.registrationNo) ? { registrationNo: opt(e.registrationNo) } : {}),
+        ...(opt(e.address) ?? opt(e.city) ? { address: opt(e.address) ?? opt(e.city) } : {}),
+        ...(opt(e.logoUrl) ? { logoUrl: opt(e.logoUrl) } : {}),
+        ...(opt(e.contactEmail) ? { contactEmail: opt(e.contactEmail) } : {}),
+        ...(opt(owner) ? { ownerName: opt(owner) } : {}),
+        ...(fx ? { rate: { myrPerUsd: fx.myrPerUsd, date: fx.date } } : {}),
+      };
+    },
+
     /** New invoice: "use this address for the buyer from now on" (reminders and replies follow buyers.email). */
     async setBuyerEmail(exporterId: string, buyerId: string, email: string): Promise<void> {
       const rows = await db.update(s.buyers).set({ email }).where(and(eq(s.buyers.id, buyerId), eq(s.buyers.exporterId, exporterId))).returning({ id: s.buyers.id });

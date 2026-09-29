@@ -9,7 +9,7 @@ let store: Store;
 let exporterId: string;
 let a: Buyer;
 let b: Buyer;
-let mail: Array<{ to: string; subject: string; body: string }>;
+let mail: Array<{ to: string; subject: string; body: string; html?: string }>;
 let logs: string[];
 
 // Buyers are in Australia/Sydney (UTC+10 in late September).
@@ -52,11 +52,16 @@ describe("reminders", () => {
     expect(requests).toHaveLength(1);
     const d = (await store.getInvoice(exporterId, inv.id))!;
     expect(d.messages).toHaveLength(1);
-    expect(d.messages[0]).toMatchObject({ direction: "out", subject: "Invoice reminder", from: "Teratai Woodworks Sdn. Bhd." });
-    expect(d.messages[0]!.body).toContain(`Pay here: ${inv.payUrl}`);
+    // Sent as the formal letter: the subject is built in code, the history keeps Haiku's message only.
+    const subject = `Reminder: invoice ${inv.number} from Teratai Woodworks Sdn. Bhd. — USD 50.00 due 29 Sep 2026`;
+    expect(d.messages[0]).toMatchObject({ direction: "out", subject, from: "Teratai Woodworks Sdn. Bhd." });
+    expect(d.messages[0]!.body).not.toContain("Pay here");
     expect(d.actions[0]).toMatchObject({ kind: "reminder", status: "executed", ruleId: "C1", buyerId: a.id, confidence: 1 });
     expect(d.actions[0]!.decision).toBe(`Sent a friendly reminder for ${inv.number}`);
-    expect(mail).toEqual([{ to: a.email, subject: "Invoice reminder", body: d.messages[0]!.body }]);
+    expect(mail).toHaveLength(1);
+    expect(mail[0]).toMatchObject({ to: a.email, subject });
+    expect(mail[0]!.body).toContain(d.messages[0]!.body);
+    expect(mail[0]!.html).toContain(inv.payUrl);
   });
 
   test("at most one message per buyer per 48 hours, across invoices and runs", async () => {
@@ -145,8 +150,10 @@ describe("onPaid", () => {
 
     const d = (await store.getInvoice(exporterId, inv.id))!;
     expect(d.actions.map((x) => [x.kind, x.ruleId, x.status])).toEqual([["cancel_reminders", "C6", "executed"]]);
-    expect(d.messages[0]).toMatchObject({ direction: "out", subject: "Payment received" });
-    expect(mail).toEqual([{ to: a.email, subject: "Payment received", body: "Thank you, we received USD 50.00." }]);
+    expect(d.messages[0]).toMatchObject({ direction: "out", subject: expect.stringMatching(/^Payment received: invoice INV-/), body: "Thank you, we received USD 50.00." });
+    expect(mail).toHaveLength(1);
+    expect(mail[0]).toMatchObject({ to: a.email, subject: d.messages[0]!.subject });
+    expect(mail[0]!.html).toContain("Paid in full");
   });
 });
 

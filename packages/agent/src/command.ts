@@ -6,6 +6,7 @@
  * L4: the router sees only the owner's words; buyer data reaches a model only as ONE buyer's context.
  */
 import { InputError } from "./input-error";
+import { letterEmail, letterSubject, type Letterhead } from "./letter";
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { buildAgenda, weekRange, type AgendaEvent, type AgendaInvoice } from "./agenda";
@@ -150,7 +151,7 @@ export async function routeCommand(
 // ── Previews ─────────────────────────────────────────────────────────────────────────────────────
 
 type Rate = { myrPerUsd: bigint; date: string };
-type PortInvoice = AgendaInvoice & { payUrl: string };
+type PortInvoice = AgendaInvoice & { payUrl: string; issuedAt?: string; sendTo?: string };
 type PortBuyer = BuyerRecord & { email: string };
 
 /** Everything planCommand may touch. No write method exists on it. */
@@ -328,7 +329,9 @@ export async function planCommand(deps: { store: CommandPort; client: Anthropic;
     : plan.sendAt
       ? `The rulebook would wait until ${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Kuala_Lumpur" }).format(plan.sendAt)} (${plan.reason.toLowerCase()}). Sending now is your call.`
       : `${plan.reason}. Sending now is your call.`;
-  return { kind: "reminder", line: line(inv), to: buyer.email, email, ruleId: plan.ruleId, ruleNote, rate };
+  // The subject the formal letter will carry (built in code), so the preview shows what is sent.
+  const subject = letterSubject({ kind: `reminder_${tone}`, letterhead: { name: ctx.exporterName }, recipientName: buyer.contactName, sender: { name: "", title: "" }, invoice: { number: inv.number, dueDate: inv.dueDate, amountUsdc: inv.amountUsdc, payUrl: inv.payUrl }, paragraphs: [] });
+  return { kind: "reminder", line: line(inv), to: inv.sendTo ?? buyer.email, email: { ...email, subject }, ruleId: plan.ruleId, ruleNote, rate };
 }
 
 // ── Confirmation ─────────────────────────────────────────────────────────────────────────────────
@@ -340,6 +343,8 @@ export type ReminderSendPort = Pick<CommandPort, "listInvoices" | "listBuyers"> 
     confidence: number; ruleId: string; status: "executed"; approvedBy: string; at?: Date;
   }): Promise<{ id: string }>;
   getContactEmail(exporterId: string): Promise<string | null>;
+  /** Company profile for the formal letter (store.getLetterhead). */
+  getLetterhead(exporterId: string): Promise<Letterhead>;
   exporterName?: string;
 };
 
@@ -363,8 +368,12 @@ export async function confirmReminder(
   if (subject.length > 200) throw new InputError("Keep the subject under 200 characters");
   const now = deps.now();
 
-  await deps.store.recordMessage({ invoiceId: inv.id, direction: "out", from: deps.store.exporterName ?? "You", subject, body, at: now });
-  const delivery = await deps.mailer.send(buyer.email, { subject, body }, { replyTo: (await deps.store.getContactEmail(exporterId)) ?? undefined });
+  // Sent as the formal letter: the owner's approved text in the middle, everything else from code.
+  const [head, replyTo] = await Promise.all([deps.store.getLetterhead(exporterId), deps.store.getContactEmail(exporterId)]);
+  const kind = inv.status === "overdue" ? "reminder_firm" : "reminder_friendly"; // same tone the preview drafted
+  const letter = letterEmail(kind, { head, contactName: buyer.contactName, invoice: { number: inv.number, dueDate: inv.dueDate, amountUsdc: inv.amountUsdc, payUrl: inv.payUrl, status: inv.status, ...(inv.issuedAt ? { issuedAt: inv.issuedAt } : {}) }, body, now: now.toISOString() });
+  await deps.store.recordMessage({ invoiceId: inv.id, direction: "out", from: deps.store.exporterName ?? "You", subject: letter.subject, body: letter.record, at: now });
+  const delivery = await deps.mailer.send(inv.sendTo ?? buyer.email, { subject: letter.subject, body: letter.body, html: letter.html }, { replyTo: replyTo ?? undefined });
   const action = await deps.store.recordAgentAction({
     exporterId, buyerId: buyer.id, invoiceId: inv.id, kind: "reminder", status: "executed", confidence: 1, ruleId: "C2", approvedBy: req.approvedBy, at: now,
     inputSummary: `Command bar: remind ${buyer.name} about ${inv.number}`,

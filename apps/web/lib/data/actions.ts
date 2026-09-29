@@ -5,7 +5,7 @@
  * check the session and scope every call to its exporter; fetchPayInvoice is public.
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { createMailer, explainAction, extractInvoice, formatUsdc, haikuClassifier, jevClassifier } from "@kutip/agent";
+import { createMailer, explainAction, extractInvoice, haikuClassifier, jevClassifier, letterEmail } from "@kutip/agent";
 import { Keypair } from "@kutip/solana";
 import { refresh } from "next/cache";
 import { MOCK, signIn, signOut } from "@/lib/server/auth";
@@ -121,7 +121,7 @@ async function createInvoiceImpl(input: {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) throw new UserError("Enter a due date");
   if (input.lineItems.length === 0 || input.lineItems.some((l) => l.quantity <= 0 || l.unitPriceUsdc < 0n)) throw new UserError("Every line needs a quantity and a price");
   const sendTo = recipientEmail(input.sendTo);
-  const [exporter, buyers, contact] = await Promise.all([store().getExporter(exporterId), store().listBuyers(exporterId), inbox().getContactEmail(exporterId)]);
+  const [head, buyers, contact] = await Promise.all([store().getLetterhead(exporterId), store().listBuyers(exporterId), inbox().getContactEmail(exporterId)]);
   const buyer = buyers.find((b) => b.id === input.buyerId);
   if (!buyer) throw new UserError("Choose a buyer");
   const cc = input.ccMe ? contact?.trim() || undefined : undefined;
@@ -140,23 +140,15 @@ async function createInvoiceImpl(input: {
     ...(cc ? { sendCc: cc } : {}),
   });
   if (input.saveForBuyer && sendTo.toLowerCase() !== buyer.email.toLowerCase()) await store().setBuyerEmail(exporterId, buyer.id, sendTo);
-  const from = exporter?.name ?? "Kutip";
-  const email = {
-    subject: `Invoice ${inv.number} from ${from}`,
-    body: [
-      `Hi ${buyer.contactName},`,
-      "",
-      `Please find invoice ${inv.number} for USD ${formatUsdc(inv.amountUsdc)}, due ${inv.dueDate}.`,
-      "",
-      `Pay online in USDC or SOL; the network fee is covered: ${inv.payUrl}`,
-      "",
-      "Thank you,",
-      from,
-    ].join("\n"),
-  };
+  // The formal letter (@kutip/agent renderLetter): every number and date from the invoice, written by code.
+  const letter = letterEmail("invoice", {
+    head,
+    contactName: buyer.contactName,
+    invoice: { number: inv.number, issuedAt: inv.issuedAt, dueDate: inv.dueDate, amountUsdc: inv.amountUsdc, payUrl: inv.payUrl, status: inv.status },
+  });
   // Reply-To = the exporter's own address (IMPROVEMENTS E2.2, Session 8c).
-  const delivery = await mailer().send(sendTo, email, { replyTo: contact ?? undefined, ...(cc ? { cc } : {}) });
-  await store().recordMessage({ invoiceId: inv.id, direction: "out", from, subject: email.subject, body: email.body, toAddress: sendTo, delivery });
+  const delivery = await mailer().send(sendTo, { subject: letter.subject, body: letter.body, html: letter.html }, { replyTo: contact ?? undefined, ...(cc ? { cc } : {}) });
+  await store().recordMessage({ invoiceId: inv.id, direction: "out", from: head.name, subject: letter.subject, body: letter.record, toAddress: sendTo, delivery });
   return { id: inv.id, number: inv.number, payUrl: inv.payUrl, amountUsdc: inv.amountUsdc, dueDate: inv.dueDate, sentTo: sendTo, ...(cc ? { cc } : {}), delivery };
 }
 

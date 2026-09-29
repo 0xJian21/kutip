@@ -16,6 +16,8 @@ export type InvoiceRecord = {
   status: InvoiceStatus;
   lineItems: Array<{ description: string; quantity: number; unitPriceUsdc: bigint }>;
   payUrl: string;
+  /** Where this invoice's emails go when the owner set one on the form (else the buyer's email). */
+  sendTo?: string;
 };
 export type MessageRecord = { invoiceId: string; direction: "out" | "in"; subject: string; body: string; createdAt: string };
 

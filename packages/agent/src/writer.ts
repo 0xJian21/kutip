@@ -12,7 +12,8 @@ import type { Tone } from "./rules/reminders";
 import { REPLY_TOPICS, type ReplyTopic } from "./rules/reply-permission";
 import { localParts, parseIsoDate } from "./rules/time";
 
-export type Email = { subject: string; body: string };
+/** `body` is the plain text; `html`, when present, is the formal letter (./letter) sent alongside it. */
+export type Email = { subject: string; body: string; html?: string };
 
 export type AgentActionKind =
   | "reminder"
@@ -29,7 +30,7 @@ const emailSchema = z.object({ subject: z.string(), body: z.string() });
 
 const STYLE = `Style for every email:
 - Plain, polite business English. Short: under 120 words in the body. No markdown.
-- Address the contact by first name and sign off as the seller company.
+- Write only the message paragraphs: no greeting line, no sign-off, no signature. The letter around your text adds those, the invoice summary and the pay button.
 - Use only the facts given. State amounts exactly as written in the facts. Write dates like "25 September 2026" (never in digits only, never spelled out).
 - Do not include payment instructions or links; they are added after your text.
 - Never mention cryptocurrency, blockchain, wallets, tokens or networks.
@@ -42,7 +43,6 @@ const TONE: Record<Tone, string> = {
   final: "final: the last automatic reminder; say that the seller's team will follow up personally next. Still courteous, no threats.",
 };
 
-const PAY_FOOTER = (payUrl: string) => `\n\nPay here: ${payUrl}\nPay with USDC, no gas fee needed.`;
 
 const JARGON = /\b(crypto\w*|blockchain|solana|wallets?|tokens?|gas|web3|on-?chain|seed phrase|defi|nft|sol|usdt)\b/i;
 const MONEY = /(?:USD|US\$|\$)\s?\d[\d,]*(?:\.\d+)?|\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\b\d+\.\d{2}\b/g;
@@ -58,7 +58,7 @@ export async function writeReminder(client: Anthropic, ctx: BuyerContext, req: {
   ];
   const draft = await draftEmail(client, ctx, `Write a payment reminder. Tone: ${TONE[req.tone]}`, facts);
   checkDraft(draft, [inv.amountUsdc, ...printedOn(inv)]);
-  return { subject: draft.subject, body: draft.body.trimEnd() + PAY_FOOTER(inv.payUrl) };
+  return { subject: draft.subject, body: draft.body.trim() };
 }
 
 export async function writeReceipt(client: Anthropic, ctx: BuyerContext, req: { invoiceId: string; paidUsdc: bigint; paidAt: Date }): Promise<Email> {
@@ -73,7 +73,7 @@ export async function writeReceipt(client: Anthropic, ctx: BuyerContext, req: { 
   ];
   const draft = await draftEmail(client, ctx, "Write a short payment receipt thanking the buyer.", facts);
   checkDraft(draft, [inv.amountUsdc, req.paidUsdc, ...(balance > 0n ? [balance] : [])]);
-  return { subject: draft.subject, body: draft.body.trimEnd() + (balance > 0n ? PAY_FOOTER(inv.payUrl) : "") };
+  return { subject: draft.subject, body: draft.body.trim() };
 }
 
 const replySchema = z.object({ subject: z.string(), body: z.string(), topic: z.string() });
@@ -122,8 +122,7 @@ export async function writeReply(
   const discount = DISCOUNT.exec(`${draft.subject}\n${draft.body}`);
   if (discount) throw new Error(`Draft talks about a discount ("${discount[0]}")`);
   const topic: ReplyTopic = (REPLY_TOPICS as readonly string[]).includes(out.topic) ? (out.topic as ReplyTopic) : "other";
-  const footer = req.channel === "email" && (topic === "resend_invoice" || topic === "payment_instructions") && !paid ? PAY_FOOTER(inv.payUrl) : "";
-  return { subject: draft.subject, body: draft.body.trimEnd() + footer, topic };
+  return { subject: draft.subject, body: draft.body.trim(), topic };
 }
 
 const explanationSchema = z.object({ decision: z.string(), reason: z.string() });

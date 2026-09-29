@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { letterSubject, renderLetter, type LetterInput } from "./letter";
+import { letterEmail, letterParagraphs, letterSubject, renderLetter, type LetterInput } from "./letter";
 
 const base: LetterInput = {
   kind: "invoice",
@@ -72,4 +72,33 @@ test("the footer never doubles the full stop after Sdn. Bhd.", () => {
   const { html, text } = renderLetter(base);
   expect(text).toContain("on behalf of Teratai Woodworks Sdn. Bhd. Reply");
   expect(html).toContain("on behalf of Teratai Woodworks Sdn. Bhd. Reply");
+});
+
+describe("letterParagraphs", () => {
+  test("splits on blank lines and drops a greeting, sign-off and signature the writer added anyway", () => {
+    const body = "Hi Claire,\n\nInvoice INV-2026-0162 was due on 4 October 2026.\nCould you let us know when to expect payment?\n\nKind regards,\nTeratai Woodworks Sdn. Bhd.";
+    expect(letterParagraphs(body)).toEqual(["Invoice INV-2026-0162 was due on 4 October 2026. Could you let us know when to expect payment?"]);
+    expect(letterParagraphs("Dear Ms Whitmore,\n\nThank you.\n\nBest regards,\nFarid")).toEqual(["Thank you."]);
+    expect(letterParagraphs("Thanks for your message.\n\nWe will reply personally.")).toEqual(["Thanks for your message.", "We will reply personally."]);
+  });
+});
+
+describe("letterEmail", () => {
+  const head = { name: "Teratai Woodworks Sdn. Bhd.", registrationNo: "202001034567 (1391234-K)", address: "Muar", contactEmail: "accounts@teratai.example", ownerName: "Farid Zulkifli", rate: { myrPerUsd: 42150n, date: "2026-09-26" } };
+  const invoice = { number: "INV-2026-0162", dueDate: "2026-10-04", amountUsdc: 1_250_000_000n, payUrl: "https://kutip.test/pay/inv_abc", status: "overdue" };
+
+  test("subject, html and text from code; the record keeps just the message", () => {
+    const e = letterEmail("reminder_firm", { head, contactName: "Claire Whitmore", invoice, body: "Hi Claire,\n\nIt is overdue.\n\nRegards,\nTeratai", now: "2026-10-09T00:00:00Z" });
+    expect(e.subject).toBe("Overdue: invoice INV-2026-0162 from Teratai Woodworks Sdn. Bhd. — USD 1,250.00 was due 4 Oct 2026");
+    expect(e.record).toBe("It is overdue.");
+    expect(e.body).toContain("Dear Claire Whitmore,");
+    expect(e.body).toContain("Farid Zulkifli\nOwner, Teratai Woodworks Sdn. Bhd.");
+    expect(e.html).toContain("5 days overdue");
+    expect(e.html).not.toContain("Issue date");
+  });
+
+  test("without an owner name the letter is signed by the accounts team", () => {
+    const e = letterEmail("reply", { head: { ...head, ownerName: "" }, contactName: "Claire Whitmore", invoice, body: "Thanks." });
+    expect(e.body).toContain("Accounts team\nAccounts, Teratai Woodworks Sdn. Bhd.");
+  });
 });

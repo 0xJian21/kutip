@@ -48,3 +48,12 @@ describe("setBuyerEmail", () => {
     await expect(store.setBuyerEmail(exporterId, theirs.id, "x@y.example")).rejects.toThrow(/buyer not found/);
   });
 });
+
+describe("getLetterhead", () => {
+  test("the exporter's profile, owner name and latest rate for the formal emails", async () => {
+    await store.createUser({ exporterId, name: "Farid Zulkifli", role: "owner" });
+    const h = await store.getLetterhead(exporterId);
+    expect(h).toMatchObject({ name: "Teratai Woodworks Sdn. Bhd.", ownerName: "Farid Zulkifli", rate: { myrPerUsd: 42150n, date: "2026-09-26" } });
+    await expect(store.getLetterhead("exp_nobody")).rejects.toThrow(/exporter not found/);
+  });
+});

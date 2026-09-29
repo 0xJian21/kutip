@@ -112,7 +112,7 @@ describe("planCommand: previews only, numbers from code", () => {
     const { port, calls } = fakePort();
     const { client, requests } = fakeAnthropic(reminderDraft);
     const p = await plan({ tool: "draft_reminder", buyer: "Harbourline" }, port, client);
-    expect(p).toMatchObject({ kind: "reminder", to: HARBOURLINE.email, line: { number: "INV-2026-0142" }, email: { subject: "INV-2026-0142 is overdue" } });
+    expect(p).toMatchObject({ kind: "reminder", to: HARBOURLINE.email, line: { number: "INV-2026-0142" }, email: { subject: "Overdue: invoice INV-2026-0142 from Teratai Woodworks Sdn. Bhd. — USD 12,480.00 was due 21 Sep 2026" } }); // the letter's code-built subject, not the model's
     for (const secret of MERIDIAN_SECRETS) expect(promptText(requests[0])).not.toContain(secret);
     expect(calls.filter((c) => !["listInvoices", "listBuyers", "getRulebook", "getBuyerContext", "getTreasury", "agenda"].includes(c))).toEqual([]);
   });
@@ -189,6 +189,7 @@ describe("confirmReminder: the only way a command bar reminder goes out", () => 
           async recordMessage(m) { writes.push(["recordMessage", m]); },
           async recordAgentAction(a) { writes.push(["recordAgentAction", a]); return { id: "act_1" }; },
           async getContactEmail() { return "owner@teratai.test"; },
+          async getLetterhead() { return { name: "Teratai Woodworks Sdn. Bhd.", ownerName: "Farid Zulkifli" }; },
         },
         mailer,
         now: () => NOW,
@@ -197,14 +198,20 @@ describe("confirmReminder: the only way a command bar reminder goes out", () => 
       { invoiceId: "inv_0142", subject: "INV-2026-0142 is overdue", body: "Edited by owner", approvedBy: "usr_owner" },
     );
     expect(r.delivery).toBe("sent");
-    expect(sent).toEqual([[HARBOURLINE.email, { subject: "INV-2026-0142 is overdue", body: "Edited by owner" }, { replyTo: "owner@teratai.test" }]]);
+    expect(sent).toHaveLength(1);
+    const [to, email, opts] = sent[0]! as [string, { subject: string; body: string; html?: string }, unknown];
+    expect([to, opts]).toEqual([HARBOURLINE.email, { replyTo: "owner@teratai.test" }]);
+    expect(email.subject).toMatch(/^(Overdue|Reminder): invoice INV-2026-0142 from Teratai Woodworks Sdn\. Bhd\. — /);
+    expect(email.body).toContain("Edited by owner");
+    expect(email.html).toContain("View &amp; pay invoice");
+    expect(writes[0]![1]).toMatchObject({ subject: email.subject, body: "Edited by owner" });
     expect(writes.map((w) => w[0])).toEqual(["recordMessage", "recordAgentAction"]);
     expect(writes[1]![1]).toMatchObject({ kind: "reminder", status: "executed", buyerId: HARBOURLINE.id, invoiceId: "inv_0142", approvedBy: "usr_owner" });
   });
 
   it("refuses paid or unknown invoices, and oversized text", async () => {
     const deps = {
-      store: { ...fakePort().port, async recordMessage() {}, async recordAgentAction() { return { id: "x" }; }, async getContactEmail() { return null; } },
+      store: { ...fakePort().port, async recordMessage() {}, async recordAgentAction() { return { id: "x" }; }, async getContactEmail() { return null; }, async getLetterhead() { return { name: "T" }; } },
       mailer: { async send() { return "sent" as const; } },
       now: () => NOW,
     };
