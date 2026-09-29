@@ -2,21 +2,26 @@
  * MAINNET proof of the daily sweep: buyer vaults → treasury via the agent's
  * spending limit, only where @kutip/agent treasuryMove says `autonomous`.
  *
- *   pnpm --filter @kutip/scripts exec tsx sweep-demo.ts [--yes]
+ *   pnpm --filter @kutip/scripts exec tsx sweep-demo.ts [--buyers b_harbourline,b_meridian] [--yes]
+ *
+ * --buyers sweeps only those buyer accounts: the same runSweep({ buyerIds }) path as the
+ * Sweep now dialog (anything not this exporter's is refused before the chain is read).
  *
  * Read-only phase prints the plan (on-chain balances + limits); nothing is sent
  * until confirmed. Records the sweep with recordSweep + an agent action.
  * The worker (Session 4) calls the same runSweep at randomSweepTime().
  */
 import { runSweep } from "@kutip/solana";
-import { EXPORTER_ID, chain, closePrompt, confirmOrAbort, db, sol } from "./_shared";
+import { EXPORTER_ID, arg, chain, closePrompt, confirmOrAbort, db, sol } from "./_shared";
 
 async function main() {
   const { connection, feePayer, agent, usdcMint } = chain();
   const { store, close } = db();
   try {
     const before = await connection.getBalance(feePayer.publicKey);
-    const result = await runSweep({ connection, feePayer, agent, usdcMint, store, exporterId: EXPORTER_ID, confirm: confirmOrAbort });
+    const buyerIds = arg("buyers")?.split(",").map((s) => s.trim()).filter(Boolean);
+    if (buyerIds) console.log(`  ticked: ${buyerIds.join(", ")}`);
+    const result = await runSweep({ connection, feePayer, agent, usdcMint, store, exporterId: EXPORTER_ID, confirm: confirmOrAbort, ...(buyerIds ? { buyerIds } : {}) });
     for (const s of result.sweeps) console.log(`  sweep ${s.id}: ${s.buyerIds.join(", ")} → ${s.amountUsdc} base units  https://solscan.io/tx/${s.signature}`);
     for (const s of result.plan.skipped) console.log(`  skipped ${s.buyerId}: ${s.mode} — ${s.reason}`);
     if (result.sweeps.length === 0) console.log("  nothing swept");
