@@ -1,6 +1,6 @@
 # Kutip
 
-AI collections + settlement agent for Malaysian exporters on Solana. Hackathon build, demo-ready Oct 3.
+AI collections + settlement agent for Malaysian exporters on Solana. Hackathon build, submissions close Oct 11.
 
 Read before working: `docs/SPEC.md` (what), `docs/ARCHITECTURE.md` (how), `docs/DECISIONS.md` (why), `docs/PLAN.md` (your session's tasks).
 

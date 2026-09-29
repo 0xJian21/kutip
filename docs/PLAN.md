@@ -1,6 +1,6 @@
 # Build Plan
 
-Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session in its own worktree/branch, owning only its listed paths. Check items off as you finish; add blockers under "Requests".
+Target: submissions close **Oct 11** (was Oct 3; see DECISIONS D7). Each session = fresh Claude Code session in its own worktree/branch, owning only its listed paths. Check items off as you finish; add blockers under "Requests".
 
 ## Session 0 — Foundation (Sep 27) ✅ when all checked
 - [x] SPEC.md, ARCHITECTURE.md, DECISIONS.md, PLAN.md, CLAUDE.md
@@ -172,7 +172,7 @@ Target: demo-ready **Oct 3, 5pm MYT**. Each session = fresh Claude Code session 
 ## Session 9 — Submission (Oct 2) · Opus
 - [ ] Pitch deck, demo script, 2-min pitch + 2-min demo videos (+ 2–3 min Solami demo)
 - [ ] Write-up: 1-liner, user, problem, why Solana, what's next
-- [ ] Submit Colosseum + Superteam Earn (both listings) by **Oct 3 noon**
+- [ ] Submit Colosseum + Superteam Earn (both listings) by **Oct 10** (a day before the Oct 11 close)
 
 ## Requests (cross-session interface changes)
 <!-- "Session N needs X from package Y" -->

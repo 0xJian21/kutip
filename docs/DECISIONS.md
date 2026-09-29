@@ -38,9 +38,10 @@ Each decision: what, why, alternatives rejected, and what would make us revisit 
 - Fallback: Haiku structured-output classifier behind the same interface.
 - Revisit if: Spike D shows no usable TS/REST access → small Python sidecar with Pydantic AI.
 
-## D7 — Deadline: demo-ready Oct 3, 5pm MYT
-- Superteam MY track text: submissions close Oct 3 5pm; Demo Day Oct 4 KL. Colosseum main closes Oct 12.
-- **Open:** confirm with Superteam MY. If Oct 12, use extra days for stretch goals — plan does not change.
+## D7 — Deadline: submissions close Oct 11 (updated 2026-09-29, user)
+- Originally Oct 3 5pm / Demo Day Oct 4 (track text). The user reports the due date is now **Oct 11**; Colosseum main closes Oct 12.
+- **Open:** confirm the new Demo Day date with Superteam MY.
+- RPC fallback (Session 8f idea after the 2026-09-29 Solami outage) dropped by the user.
 
 ## D8 — Stack
 - pnpm workspaces monorepo, TypeScript everywhere, Node 22.
