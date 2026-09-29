@@ -9,7 +9,7 @@ export default function Loading() {
       </div>
       <div className="mb-4 flex gap-2">
         {[16, 28, 20, 16, 18].map((w, i) => (
-          <Skeleton key={i} className={`h-8 w-${w}`} />
+          <Skeleton key={i} className="h-8 rounded-full" width={`${w / 4}rem`} />
         ))}
       </div>
       <div className="rounded-xl bg-surface shadow-card"><SkeletonRows rows={8} /></div>

@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { useEffect, useState } from "react";
-import { Bot, BookOpen, CalendarDays, FileText, Inbox, LayoutGrid, Landmark, LogOut, Menu, Plus, Settings, X } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Bot, BookOpen, CalendarDays, FileText, Inbox, LayoutGrid, Landmark, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Settings, X } from "lucide-react";
 import { Avatar, KutipMark } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { buttonClass } from "@/components/ui/button";
 import { endSession } from "@/lib/data/actions";
+import { RAIL_COOKIE } from "@/lib/ui/rail";
 
 const ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutGrid },
@@ -21,16 +22,28 @@ const ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-function Wordmark() {
+function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2.5 rounded-full">
+    <Link href="/dashboard" aria-label={compact ? "Kutip, overview" : undefined} className="flex items-center gap-2.5 rounded-full">
       <KutipMark size={28} />
-      <span className="text-lg font-semibold tracking-tight text-ink">Kutip</span>
+      {compact ? null : <span className="text-lg font-semibold tracking-tight text-ink">Kutip</span>}
     </Link>
   );
 }
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+/** Label beside an icon in the collapsed rail. Visual only: the control keeps its own accessible name. */
+function Tip({ children }: { children: ReactNode }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute left-full top-1/2 z-40 ml-3 -translate-y-1/2 whitespace-nowrap rounded-full bg-surface px-3 py-1 text-sm font-medium text-ink opacity-0 shadow-float transition-opacity duration-(--dur-fast) group-hover:opacity-100 group-focus-visible:opacity-100"
+    >
+      {children}
+    </span>
+  );
+}
+
+function NavList({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }) {
   const pathname = usePathname();
   return (
     <ul className="grid gap-1">
@@ -42,12 +55,12 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
               href={href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-base transition-colors duration-(--dur-fast) ${
+              className={`group relative flex h-10 items-center rounded-full text-base transition-colors duration-(--dur-fast) ${compact ? "w-10 justify-center" : "gap-3 px-3.5"} ${
                 active ? "bg-surface font-medium text-ink shadow-pill" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
               }`}
             >
               <Icon size={17} strokeWidth={1.9} aria-hidden="true" className={active ? "text-accent" : "text-ink-3"} />
-              {label}
+              {compact ? <><span className="sr-only">{label}</span><Tip>{label}</Tip></> : label}
             </Link>
           </li>
         );
@@ -56,7 +69,8 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function ExporterRow({ name, logoUrl }: { name: string; logoUrl?: string }) {
+function ExporterRow({ name, logoUrl, compact = false }: { name: string; logoUrl?: string; compact?: boolean }) {
+  if (compact) return <div title={name}><Avatar name={name} src={logoUrl} size="md" shape="square" /></div>;
   return (
     <div className="flex items-center gap-3 px-1">
       <Avatar name={name} src={logoUrl} size="md" shape="square" />
@@ -68,15 +82,31 @@ function ExporterRow({ name, logoUrl }: { name: string; logoUrl?: string }) {
   );
 }
 
-function OwnerRow({ name }: { name: string }) {
+function useSignOut() {
   const { logout, authenticated } = usePrivy();
   const router = useRouter();
-  const signOut = async () => {
+  return async () => {
     // Both halves: Privy's client session and Kutip's own cookie, so a re-sign-in starts clean.
     if (authenticated) await logout().catch(() => undefined);
     await endSession();
     router.replace("/onboarding");
   };
+}
+
+function OwnerRow({ name, compact = false }: { name: string; compact?: boolean }) {
+  const signOut = useSignOut();
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        <ThemeToggle />
+        <button type="button" onClick={() => void signOut()} aria-label="Sign out" className="group relative inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-3 hover:bg-surface/70 hover:text-ink">
+          <LogOut size={16} aria-hidden="true" />
+          <Tip>Sign out</Tip>
+        </button>
+        <div title={name}><Avatar name={name} size="sm" /></div>
+      </div>
+    );
+  }
   return (
     <div className="flex items-center gap-3">
       <Avatar name={name} size="sm" />
@@ -92,26 +122,73 @@ function OwnerRow({ name }: { name: string }) {
 }
 
 /**
- * Desktop rail. The aside stretches with the page (so its background never
- * stops short); the inner column is sticky and viewport-high. Bottom padding
- * keeps the owner row clear of the dev-tools badge.
+ * Desktop rail: 248px, or a 72px icon rail when collapsed (toggle button or ⌘B / Ctrl+B,
+ * remembered per browser). The aside stretches with the page (so its background never
+ * stops short); the inner column is sticky and viewport-high. Bottom padding keeps the
+ * owner row clear of the dev-tools badge. Phones use TopBar's sheet instead.
  */
-export function SideNav({ exporterName, ownerName, logoUrl }: { exporterName: string; ownerName: string; logoUrl?: string }) {
+export function SideNav({ exporterName, ownerName, logoUrl, initialCollapsed = false }: { exporterName: string; ownerName: string; logoUrl?: string; initialCollapsed?: boolean }) {
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
+
+  useEffect(() => {
+    document.cookie = `${RAIL_COOKIE}=${collapsed ? "collapsed" : "open"}; path=/; max-age=31536000; samesite=lax`;
+  }, [collapsed]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setCollapsed((c) => !c);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const toggleLabel = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  const toggle = (
+    <button
+      type="button"
+      onClick={() => setCollapsed((c) => !c)}
+      aria-label={toggleLabel}
+      aria-expanded={!collapsed}
+      aria-keyshortcuts="Meta+B Control+B"
+      title={`${toggleLabel} (⌘B)`}
+      className="group relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-(--dur-fast) hover:bg-surface/70 hover:text-ink"
+    >
+      {collapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
+    </button>
+  );
+
   return (
-    <aside className="hidden w-[248px] shrink-0 self-stretch border-r border-line bg-paper lg:block">
-      <div className="sticky top-0 flex h-screen flex-col px-4 pb-16 pt-5">
-        <div className="px-1"><Wordmark /></div>
-        <div className="mt-6"><ExporterRow name={exporterName} logoUrl={logoUrl} /></div>
+    <aside
+      data-collapsed={collapsed || undefined}
+      className={`hidden shrink-0 self-stretch border-r border-line bg-paper transition-[width] duration-(--dur-base) ease-out motion-reduce:transition-none lg:block ${collapsed ? "w-[72px]" : "w-[248px]"}`}
+    >
+      <div className={`sticky top-0 flex h-screen flex-col pb-16 pt-5 ${collapsed ? "items-center px-3" : "px-4"}`}>
+        {collapsed ? (
+          <div className="flex flex-col items-center gap-3"><Wordmark compact />{toggle}</div>
+        ) : (
+          <div className="flex items-center justify-between gap-2 px-1"><Wordmark />{toggle}</div>
+        )}
+        <div className="mt-6"><ExporterRow name={exporterName} logoUrl={logoUrl} compact={collapsed} /></div>
         <nav aria-label="Main" className="mt-6">
-          <NavList />
+          <NavList compact={collapsed} />
         </nav>
         <div className="mt-4">
-          <Link href="/invoices/new" className={buttonClass("primary", "md", "w-full")}>
-            <Plus size={16} aria-hidden="true" />
-            New invoice
-          </Link>
+          {collapsed ? (
+            <Link href="/invoices/new" aria-label="New invoice" className={`group relative ${buttonClass("primary", "md", "w-10 px-0!")}`}>
+              <Plus size={16} aria-hidden="true" />
+              <Tip>New invoice</Tip>
+            </Link>
+          ) : (
+            <Link href="/invoices/new" className={buttonClass("primary", "md", "w-full")}>
+              <Plus size={16} aria-hidden="true" />
+              New invoice
+            </Link>
+          )}
         </div>
-        <div className="mt-auto px-1"><OwnerRow name={ownerName} /></div>
+        <div className={`mt-auto ${collapsed ? "" : "px-1"}`}><OwnerRow name={ownerName} compact={collapsed} /></div>
       </div>
     </aside>
   );

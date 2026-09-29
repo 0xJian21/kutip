@@ -27,7 +27,7 @@ export function inbox(): InboxStore {
   if (globalThis.__kutipInbox) return globalThis.__kutipInbox;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("missing env DATABASE_URL");
-  globalThis.__kutipInbox = createInboxStore(connect(url, { max: 2 }).db, { appUrl: appUrl() });
+  globalThis.__kutipInbox = createInboxStore(connect(url, { max: 5 }).db, { appUrl: appUrl() });
   return globalThis.__kutipInbox;
 }
 
@@ -86,19 +86,19 @@ export function inboxDeps(): InboxDeps {
 /** Calendar (A3) and the command bar's "this week": one query, built in code. */
 export async function agenda(exporterId: string, range: { from: string; to: string }): Promise<AgendaEvent[]> {
   const s = store();
-  const [invoices, open, buyers, treasury, actions, rulebook] = await Promise.all([
+  const [invoices, open, buyers, treasury, actions, rulebook, messages] = await Promise.all([
     s.listInvoices(exporterId),
     s.listOpenInvoices(exporterId),
     s.listBuyers(exporterId),
     s.getTreasury(exporterId),
     s.listAgentActions(exporterId, { limit: 200 }),
     s.getRulebook(exporterId),
+    s.listSentMessages(exporterId),
   ]);
   const promised = new Map(open.map((o) => [o.invoiceId, o.promisedDate]));
-  const buyerIds = [...new Set(open.map((o) => o.buyerId))];
-  // Outbound history per buyer (for the reminder cap), read one buyer at a time.
-  const contexts = await Promise.all(buyerIds.map((b) => s.getBuyerContext(exporterId, b)));
-  const sent = contexts.flatMap((c) => (c ? c.messages.filter((m) => m.direction === "out").map((m) => ({ buyerId: c.buyer.id, invoiceId: m.invoiceId, at: m.createdAt })) : []));
+  // Outbound history of buyers with open invoices (for the reminder cap).
+  const buyerIds = new Set(open.map((o) => o.buyerId));
+  const sent = messages.filter((m) => buyerIds.has(m.buyerId));
   return buildAgenda({
     ...range,
     now: new Date(),

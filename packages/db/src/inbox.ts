@@ -200,12 +200,13 @@ export function createInboxStore(db: Db, opts: { appUrl?: string } = {}) {
     },
 
     async getThread(exporterId: string, invoiceId: string): Promise<InboxThreadDetail | null> {
-      const owned = await ownedInvoice(exporterId, invoiceId);
-      if (!owned) return null;
-      const [messages, actions] = await Promise.all([
+      // One round trip: the messages are read alongside the ownership check and dropped unless it passes.
+      const [owned, messages, actions] = await Promise.all([
+        ownedInvoice(exporterId, invoiceId),
         db.select().from(s.messages).where(and(eq(s.messages.invoiceId, invoiceId), inArray(s.messages.status, ["sent", "draft"]))).orderBy(asc(s.messages.createdAt), asc(s.messages.id)),
         db.select().from(s.agentActions).where(and(eq(s.agentActions.exporterId, exporterId), eq(s.agentActions.invoiceId, invoiceId))).orderBy(desc(s.agentActions.createdAt)),
       ]);
+      if (!owned) return null;
       return {
         invoice: toInvoice(owned.invoice, appUrl),
         buyer: toBuyer(owned.buyer),

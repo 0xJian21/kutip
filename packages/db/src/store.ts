@@ -216,19 +216,32 @@ function toScreening(r: typeof s.screenings.$inferSelect): Screening {
   return { id: r.id, wallet: r.wallet, invoiceId: r.invoiceId ?? undefined, result: r.result, reasons: r.reasons, createdAt: r.createdAt.toISOString() };
 }
 
-export function createStore(db: Db, opts: { appUrl: string }) {
-  const { appUrl } = opts;
+/**
+ * `rateTtlMs` keeps the latest BNM rate in memory that long (web pages: the worker records it once a day
+ * at noon, and every owner page shows it). Off by default so the worker and tests always read it fresh.
+ */
+export function createStore(db: Db, opts: { appUrl: string; rateTtlMs?: number; clock?: () => number }) {
+  const { appUrl, rateTtlMs = 0, clock = Date.now } = opts;
   const invoice = (r: typeof s.invoices.$inferSelect) => toInvoice(r, appUrl);
 
-  async function latestRate(): Promise<typeof s.fxRates.$inferSelect> {
-    const [r] = await db.select().from(s.fxRates).orderBy(desc(s.fxRates.date)).limit(1);
-    if (!r) throw new Error("no BNM rate recorded; call recordRate first");
-    return r;
+  let rateMemo: { at: number; row: Promise<typeof s.fxRates.$inferSelect> } | undefined;
+  function latestRate(): Promise<typeof s.fxRates.$inferSelect> {
+    if (rateMemo && clock() - rateMemo.at < rateTtlMs) return rateMemo.row;
+    const row = db
+      .select()
+      .from(s.fxRates)
+      .orderBy(desc(s.fxRates.date))
+      .limit(1)
+      .then(([r]) => {
+        if (!r) throw new Error("no BNM rate recorded; call recordRate first");
+        return r;
+      });
+    if (rateTtlMs > 0) {
+      rateMemo = { at: clock(), row };
+      row.catch(() => (rateMemo = undefined));
+    }
+    return row;
   }
-  const rate = async (): Promise<BnmRate> => {
-    const r = await latestRate();
-    return { myrPerUsd: r.myrPerUsd, date: r.date };
-  };
 
   async function assertBuyer(exporterId: string, buyerId: string): Promise<void> {
     const [buyer] = await db
@@ -304,9 +317,11 @@ export function createStore(db: Db, opts: { appUrl: string }) {
     },
 
     async getExporter(exporterId: string): Promise<Exporter | null> {
-      const [e] = await db.select().from(s.exporters).where(eq(s.exporters.id, exporterId));
+      const [[e], people] = await Promise.all([
+        db.select().from(s.exporters).where(eq(s.exporters.id, exporterId)),
+        db.select().from(s.users).where(eq(s.users.exporterId, exporterId)).orderBy(asc(s.users.createdAt)),
+      ]);
       if (!e) return null;
-      const people = await db.select().from(s.users).where(eq(s.users.exporterId, exporterId)).orderBy(asc(s.users.createdAt));
       return {
         id: e.id,
         name: e.name,
@@ -392,24 +407,26 @@ export function createStore(db: Db, opts: { appUrl: string }) {
     },
 
     async getInvoice(exporterId: string, id: string): Promise<InvoiceDetail | null> {
-      const [row] = await db
-        .select()
-        .from(s.invoices)
-        .innerJoin(s.buyers, eq(s.buyers.id, s.invoices.buyerId))
-        .where(and(eq(s.invoices.id, id), eq(s.invoices.exporterId, exporterId)));
-      if (!row) return null;
-      const [payments, messages, actions] = await Promise.all([
+      // One round trip: the child rows are read alongside the ownership check and dropped unless it passes.
+      const [[row], payments, messages, actions, fx] = await Promise.all([
+        db
+          .select()
+          .from(s.invoices)
+          .innerJoin(s.buyers, eq(s.buyers.id, s.invoices.buyerId))
+          .where(and(eq(s.invoices.id, id), eq(s.invoices.exporterId, exporterId))),
         db.select().from(s.payments).where(eq(s.payments.invoiceId, id)).orderBy(asc(s.payments.observedAt)),
         db.select().from(s.messages).where(and(eq(s.messages.invoiceId, id), eq(s.messages.status, "sent"))).orderBy(asc(s.messages.createdAt)),
         db.select().from(s.agentActions).where(eq(s.agentActions.invoiceId, id)).orderBy(desc(s.agentActions.createdAt)),
+        latestRate(),
       ]);
+      if (!row) return null;
       return {
         invoice: invoice(row.invoices),
         buyer: toBuyer(row.buyers),
         payments: payments.map(toPayment),
         messages: messages.map(toMessage),
         actions: actions.map(toAction),
-        rate: await rate(),
+        rate: { myrPerUsd: fx.myrPerUsd, date: fx.date },
       };
     },
 
@@ -624,12 +641,13 @@ export function createStore(db: Db, opts: { appUrl: string }) {
 
     async getDashboard(exporterId: string, opts: { now?: Date } = {}): Promise<DashboardSummary> {
       const month = mytMonth(opts.now ?? new Date());
-      const [all, e, vaults, activity, scheduled] = await Promise.all([
+      const [all, e, vaults, activity, scheduled, fx] = await Promise.all([
         store.listInvoices(exporterId),
         exporterRow(exporterId),
         db.select({ balance: s.buyers.vaultUsdcBalance }).from(s.buyers).where(eq(s.buyers.exporterId, exporterId)),
         store.listAgentActions(exporterId, { limit: 8 }),
         db.select({ scheduledFor: s.sweeps.scheduledFor }).from(s.sweeps).where(and(eq(s.sweeps.exporterId, exporterId), isNull(s.sweeps.executedAt))).orderBy(asc(s.sweeps.scheduledFor)).limit(1),
+        latestRate(),
       ]);
       const waiting = vaults.reduce((sum, v) => sum + v.balance, 0n);
       const received = all
@@ -642,7 +660,7 @@ export function createStore(db: Db, opts: { appUrl: string }) {
       const due = (list: Invoice[]) => list.reduce((sum, i) => sum + (i.amountUsdc - i.receivedUsdc), 0n);
       const overdue = open.filter((i) => i.status === "overdue");
       return {
-        rate: await rate(),
+        rate: { myrPerUsd: fx.myrPerUsd, date: fx.date },
         receivedThisMonthUsdc: received,
         outstandingUsdc: due(open),
         overdueUsdc: due(overdue),
@@ -738,8 +756,8 @@ export function createStore(db: Db, opts: { appUrl: string }) {
     },
 
     async getTreasury(exporterId: string): Promise<TreasurySummary> {
-      const e = await exporterRow(exporterId);
-      const [buyerRows, executed, scheduled, fx] = await Promise.all([
+      const [e, buyerRows, executed, scheduled, fx] = await Promise.all([
+        exporterRow(exporterId),
         db.select().from(s.buyers).where(eq(s.buyers.exporterId, exporterId)).orderBy(asc(s.buyers.createdAt), asc(s.buyers.id)),
         db.select().from(s.sweeps).where(and(eq(s.sweeps.exporterId, exporterId), isNotNull(s.sweeps.executedAt))).orderBy(desc(s.sweeps.executedAt)),
         db.select().from(s.sweeps).where(and(eq(s.sweeps.exporterId, exporterId), isNull(s.sweeps.executedAt))).orderBy(asc(s.sweeps.scheduledFor)).limit(1),
@@ -929,6 +947,17 @@ export function createStore(db: Db, opts: { appUrl: string }) {
      * Agent context for one buyer (SPEC §5 L4): that buyer's invoices, messages
      * and actions only. Actions without a buyer_id (multi-buyer sweeps) are excluded.
      */
+    /** Every buyer's sent outbound messages (reminder-cap history for the calendar), oldest first, in one query. */
+    async listSentMessages(exporterId: string): Promise<Array<{ buyerId: string; invoiceId: string; at: string }>> {
+      const rows = await db
+        .select({ buyerId: s.invoices.buyerId, invoiceId: s.messages.invoiceId, at: s.messages.createdAt })
+        .from(s.messages)
+        .innerJoin(s.invoices, eq(s.invoices.id, s.messages.invoiceId))
+        .where(and(eq(s.invoices.exporterId, exporterId), eq(s.messages.direction, "out"), eq(s.messages.status, "sent")))
+        .orderBy(asc(s.messages.createdAt), asc(s.messages.id));
+      return rows.map((r) => ({ buyerId: r.buyerId, invoiceId: r.invoiceId, at: r.at.toISOString() }));
+    },
+
     async getBuyerContext(exporterId: string, buyerId: string): Promise<BuyerContext | null> {
       const [r] = await db
         .select({ buyer: s.buyers, exporterName: s.exporters.name })

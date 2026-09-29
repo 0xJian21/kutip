@@ -14,7 +14,9 @@ export function store(): Store {
   if (globalThis.__kutipStore) return globalThis.__kutipStore;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("missing env DATABASE_URL");
-  globalThis.__kutipStore = createStore(connect(url, { max: 3 }).db, { appUrl: appUrl() });
+  // A page fires 5 to 9 independent queries at once; with fewer connections they queue in waves.
+  // The BNM rate changes once a day (the worker records it at noon), so it is kept for a minute.
+  globalThis.__kutipStore = createStore(connect(url, { max: 10 }).db, { appUrl: appUrl(), rateTtlMs: 60_000 });
   return globalThis.__kutipStore;
 }
 

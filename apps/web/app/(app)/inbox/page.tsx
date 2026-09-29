@@ -19,14 +19,16 @@ export default async function InboxPage({ searchParams }: PageProps<"/inbox">) {
   if (MOCK) return <>{header}<EmptyState title="The inbox needs the real database" body="Turn off NEXT_PUBLIC_KUTIP_MOCK to see buyer messages." /></>;
 
   const { thread } = await searchParams;
-  const [threads, buyers, invoices, treasury] = await Promise.all([
+  const asked = typeof thread === "string" ? thread : undefined;
+  const [threads, buyers, invoices, treasury, askedDetail] = await Promise.all([
     inbox().listThreads(data.exporterId),
     data.listBuyers(),
     data.listInvoices({ status: "all" }),
     data.getTreasury(),
+    asked ? inbox().getThread(data.exporterId, asked) : null,
   ]);
-  const selected = (typeof thread === "string" ? thread : undefined) ?? threads[0]?.invoiceId;
-  const detail = selected ? await inbox().getThread(data.exporterId, selected) : null;
+  const selected = asked ?? threads[0]?.invoiceId;
+  const detail = asked ? askedDetail : selected ? await inbox().getThread(data.exporterId, selected) : null;
 
   return (
     <>

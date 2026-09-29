@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Providers } from "@/app/providers";
 import { Onboarding } from "@/components/onboarding/onboarding";
 import { KutipMark } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -22,7 +23,7 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
         <ThemeToggle />
       </header>
       <main className="flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
-        <Onboarding exporter={exporter} rulebook={rulebook} next={next} />
+        <Providers><Onboarding exporter={exporter} rulebook={rulebook} next={next} /></Providers>
       </main>
     </div>
   );

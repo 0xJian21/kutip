@@ -3,8 +3,8 @@
 import type { ReactNode } from "react";
 import { Button } from "./button";
 
-export function Skeleton({ className = "" }: { className?: string }) {
-  return <div aria-hidden="true" className={`animate-pulse rounded-sm bg-paper-2 ${className}`} />;
+export function Skeleton({ className = "", width }: { className?: string; width?: string }) {
+  return <div aria-hidden="true" style={width ? { width } : undefined} className={`animate-pulse rounded-sm bg-paper-2 ${className}`} />;
 }
 
 export function SkeletonRows({ rows = 5 }: { rows?: number }) {

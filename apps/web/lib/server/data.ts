@@ -1,21 +1,36 @@
 import "server-only";
+import { cache } from "react";
 import { mockData } from "@/lib/mock";
 import type { KutipData } from "@/lib/ui/data";
 import { DEMO_EXPORTER_ID, MOCK, requireSession, sessionOrThrow, writeSessionOrThrow } from "./auth";
 import { store } from "./store";
 
-/** KutipData over @kutip/db, every owner call scoped to one exporter. */
+/** Calls `load` once and hands every later caller the same promise. */
+function once<T>(load: () => Promise<T>): () => Promise<T> {
+  let p: Promise<T> | undefined;
+  return () => (p ??= load());
+}
+
+/**
+ * KutipData over @kutip/db, every owner call scoped to one exporter. Reads are memoised for the
+ * life of the instance, so pages take one per request (`pageData`) and actions a fresh one.
+ */
 function forExporter(exporterId: string): KutipData {
   const s = store();
+  const invoices = new Map<string, ReturnType<KutipData["listInvoices"]>>();
   return {
-    async getExporter() {
+    getExporter: once(async () => {
       const e = await s.getExporter(exporterId);
       if (!e) throw new Error(`exporter not found: ${exporterId}`);
       return e;
+    }),
+    getDashboard: once(() => s.getDashboard(exporterId)),
+    listBuyers: once(() => s.listBuyers(exporterId)),
+    listInvoices: (filter) => {
+      const key = JSON.stringify(filter ?? {});
+      if (!invoices.has(key)) invoices.set(key, s.listInvoices(exporterId, filter));
+      return invoices.get(key)!;
     },
-    getDashboard: () => s.getDashboard(exporterId),
-    listBuyers: () => s.listBuyers(exporterId),
-    listInvoices: (filter) => s.listInvoices(exporterId, filter),
     getInvoice: (id) => s.getInvoice(exporterId, id),
     listAgentActions: () => s.listAgentActions(exporterId),
     decideAction: (id, decision) => s.decideAction(exporterId, id, decision),
@@ -26,10 +41,13 @@ function forExporter(exporterId: string): KutipData {
   };
 }
 
+/** One instance per page render (React `cache`): the layout and the page share the exporter, buyers and lists. */
+const pageData = cache(forExporter);
+
 /** Owner pages: data for the signed-in exporter (redirects to sign-in without a session). */
 export async function ownerData(next?: string): Promise<KutipData & { exporterId: string }> {
   const { exporterId } = await requireSession(next);
-  return { ...(MOCK ? mockData : forExporter(exporterId)), exporterId };
+  return { ...(MOCK ? mockData : pageData(exporterId)), exporterId };
 }
 
 /** Server actions: same, but throws instead of redirecting. `write` refuses DEMO_FALLBACK visitors (read-only role). */
