@@ -1,0 +1,14 @@
+node_modules
+dist
+.DS_Store
+.env
+out
+# Synced from docs/ by `pnpm sync` (see README). Never committed here.
+public/clips
+public/audio
+public/screens
+public/captions
+public/logs
+# Playwright session for the dashboard recorder.
+.pw-profile
+.pw-video

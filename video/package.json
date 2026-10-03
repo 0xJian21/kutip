@@ -1,0 +1,47 @@
+{
+  "name": "kutip-video",
+  "version": "1.0.0",
+  "description": "Kutip's videos, built with Remotion. Standalone package: not part of the pnpm workspace.",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "remotion studio",
+    "sync": "node scripts/sync-assets.ts",
+    "stills": "node scripts/stills.ts",
+    "render:hook": "remotion render Hook ../docs/video/out/hook-1920x1080.mp4 --codec=h264",
+    "render:hook-vertical": "remotion render HookVertical ../docs/video/out/hook-1080x1920.mp4 --codec=h264",
+    "render:pitch": "remotion render Pitch ../docs/video/out/pitch-1920x1080.mp4 --codec=h264",
+    "render:demo": "remotion render Demo ../docs/video/out/demo-1920x1080.mp4 --codec=h264",
+    "render:solami": "remotion render Solami ../docs/video/out/solami-1920x1080.mp4 --codec=h264",
+    "render:all": "pnpm render:hook && pnpm render:hook-vertical && pnpm render:pitch && pnpm render:demo && pnpm render:solami",
+    "record": "node scripts/record-dashboard.ts",
+    "typecheck": "tsc",
+    "lint": "eslint src && tsc"
+  },
+  "dependencies": {
+    "@remotion/captions": "4.0.532",
+    "@remotion/cli": "4.0.532",
+    "@remotion/fonts": "4.0.532",
+    "@remotion/google-fonts": "4.0.532",
+    "@remotion/media": "4.0.532",
+    "@remotion/transitions": "4.0.532",
+    "lucide-react": "^1.51.0",
+    "qrcode": "^1.5.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.532",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.532",
+    "@types/node": "^26.6.4",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.39.5",
+    "playwright": "^1.63.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  }
+}

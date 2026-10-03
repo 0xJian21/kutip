@@ -1,0 +1,8 @@
+# Rendered MP4s, your recordings and audio stay out of git. Captions and refs are committed.
+out/
+clips/
+*.mp3
+*.wav
+*.m4a
+stills/custom-*.png
+stills/_smoke-*.png
