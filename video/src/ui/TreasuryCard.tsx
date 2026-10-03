@@ -11,9 +11,9 @@ import { EASE } from "../lib/anim";
 
 /**
  * The dashboard's treasury hero (components/dashboard/treasury-hero.tsx), with the seeded
- * demo balance from the screenshots. `meterFrom` animates the daily-cap meter in (450 ms).
+ * demo balance from the screenshots (`showBalance={false}` hides the figure). `meterFrom` animates the daily-cap meter in (450 ms).
  */
-export const TreasuryCard: React.FC<{ scale?: number; width?: number; meterFrom?: number; meterValue?: number; style?: React.CSSProperties }> = ({ scale = 1, width = 360, meterFrom, meterValue = 0, style }) => {
+export const TreasuryCard: React.FC<{ scale?: number; width?: number; meterFrom?: number; meterValue?: number; /** The hook hides the seeded balance; the kit preview shows it. */ showBalance?: boolean; style?: React.CSSProperties }> = ({ scale = 1, width = 360, meterFrom, meterValue = 0, showBalance = true, style }) => {
   const frame = useCurrentFrame();
   const meter = meterFrom === undefined ? meterValue : interpolate(frame, [meterFrom, meterFrom + 13.5], [0, meterValue], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE });
   return (
@@ -24,11 +24,15 @@ export const TreasuryCard: React.FC<{ scale?: number; width?: number; meterFrom?
           Verified on Solana <ArrowUpRight size={12 * scale} />
         </Chip>
       </div>
-      <Amount myr={DEMO.treasury.myr} size={44 * scale} tone="hero" style={{ marginTop: 8 * scale }} />
-      <p style={{ margin: `${6 * scale}px 0 0`, fontSize: 14 * scale, color: C.onHero2, ...TABULAR }}>
-        {DEMO.treasury.usdc} USDC · BNM rate {DEMO.bnmRate}
-      </p>
-      <p style={{ margin: `${4 * scale}px 0 0`, fontSize: 12 * scale, color: C.onHero2 }}>Live on Solana mainnet · demo funds. All payments arrive as USD (USDC).</p>
+      {showBalance ? (
+        <>
+          <Amount myr={DEMO.treasury.myr} size={44 * scale} tone="hero" style={{ marginTop: 8 * scale }} />
+          <p style={{ margin: `${6 * scale}px 0 0`, fontSize: 14 * scale, color: C.onHero2, ...TABULAR }}>
+            {DEMO.treasury.usdc} USDC · BNM rate {DEMO.bnmRate}
+          </p>
+        </>
+      ) : null}
+      <p style={{ margin: `${(showBalance ? 4 : 12) * scale}px 0 0`, fontSize: 12 * scale, color: C.onHero2 }}>Live on Solana mainnet. All payments arrive as USD (USDC).</p>
       <div style={{ marginTop: 20 * scale }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 * scale, color: C.onHero2 }}>
           <span>Waiting in buyer accounts</span>

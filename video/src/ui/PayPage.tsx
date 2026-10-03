@@ -11,13 +11,14 @@ import { APP_HTTPS, DEMO } from "../data/proof";
 
 /**
  * The buyer's pay page, recreated from apps/web/components/pay/pay-card.tsx and the
- * docs/screenshots/v2/pay-light-mobile.png screenshot, at its native 375px width.
+ * docs/screenshots/v2/pay-light-mobile.png screenshot, at its native 375px width, showing
+ * INV-2026-0154 (USD 1.00): the invoice the rehearsal really paid, so it matches the flip card.
  * `stage`: "document" (Amount due + Confirm and pay) or "qr" (Pay 11,437.50 USDC + QR + Open in wallet).
  */
 export const PayPage: React.FC<{ stage: "document" | "qr"; token?: "USDC" | "SOL"; style?: React.CSSProperties }> = ({ stage, token = "USDC", style }) => {
-  const inv = DEMO.invoice0142;
+  const inv = DEMO.invoice0154;
   const tint = avatarTint(DEMO.exporter);
-  const solanaPayUrl = `solana:${encodeURIComponent(`${APP_HTTPS}/api/pay/inv_0142${token === "SOL" ? "?token=SOL" : ""}`)}`;
+  const solanaPayUrl = `solana:${encodeURIComponent(`${APP_HTTPS}/api/pay/inv_0154${token === "SOL" ? "?token=SOL" : ""}`)}`;
   return (
     <div style={{ width: 375, minHeight: 812, background: C.paper, fontFamily: FONT, color: C.ink, padding: "0 16px 24px", ...style }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 60 }}>
@@ -37,7 +38,7 @@ export const PayPage: React.FC<{ stage: "document" | "qr"; token?: "USDC" | "SOL
             <div style={{ marginTop: 14, textAlign: "right" }}>
               <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.04em", color: C.ink3 }}>INVOICE</div>
               <div style={{ fontSize: 15, fontWeight: 500, ...TABULAR }}>{inv.number}</div>
-              <StatusPill status="overdue" style={{ marginTop: 6 }} />
+              <StatusPill status="sent" style={{ marginTop: 6 }} />
             </div>
             <div style={{ marginTop: 14 }}>
               <div style={{ fontSize: 13, color: C.ink3 }}>Billed to</div>
@@ -50,7 +51,7 @@ export const PayPage: React.FC<{ stage: "document" | "qr"; token?: "USDC" | "SOL
               </div>
               <div>
                 <div style={{ fontSize: 13, color: C.ink3 }}>Due</div>
-                <div style={{ fontSize: 15, color: C.overdueFg }}>{inv.due}</div>
+                <div style={{ fontSize: 15 }}>{inv.due}</div>
               </div>
             </div>
             <table style={{ width: "100%", marginTop: 18, borderCollapse: "collapse", fontSize: 14 }}>
@@ -99,7 +100,7 @@ export const PayPage: React.FC<{ stage: "document" | "qr"; token?: "USDC" | "SOL
               <Qr value={solanaPayUrl} size={184} />
             </div>
           </Inset>
-          <p style={{ margin: "8px 0 0", textAlign: "center", fontSize: 14, color: C.ink2 }}>Scan with Phantom or Solflare</p>
+          <p style={{ margin: "8px 0 0", textAlign: "center", fontSize: 14, color: C.ink2 }}>Scan with Phantom or any Solana wallet</p>
           <Button variant="primary" size="lg" style={{ marginTop: 16, width: "100%" }}>
             <Wallet size={18} /> Open in wallet
           </Button>

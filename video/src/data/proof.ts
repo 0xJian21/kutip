@@ -95,14 +95,20 @@ export const DEMO = {
   invoice0154: {
     number: "INV-2026-0154",
     buyer: "Harbourline Interiors Pty Ltd",
+    buyerAddress: "Level 3, 48 Pirrama Road, Pyrmont NSW 2009, Australia",
+    usdc: "1.00",
     usdcExact: "1.000000",
     myr: "4.08",
     solPaid: "0.008361",
+    /** scripts/demo-reset.ts: issued the day of the run (29 Sep 2026), due 7 days later, one line item. */
+    issued: "29 Sept 2026",
+    due: "6 Oct 2026",
+    items: [{ item: "LIVE DEMO · teak side table sample (pay by wallet)", qty: 1, unit: "1.00", amount: "1.00" }],
   },
   /** Agent activity rows, verbatim from the agent screenshot. */
   cashOutProposal: {
     kind: "Cash-out alert",
-    decision: "Proposed moving USDC 1.5 from the treasury to HATA USDC deposit (Solana)",
+    decision: "Proposed moving 1.50 USDC from the treasury to HATA USDC deposit (Solana)",
     reason: "Any movement other than the daily sweep needs the owner's approval",
     rule: "T4",
     confidence: "100%",

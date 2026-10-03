@@ -29,7 +29,7 @@ export const S8Agent: React.FC = () => {
         </Line>
       </div>
       <div style={{ position: "absolute", left: portrait ? (width - cardW) / 2 : width - gutter - cardW, top: portrait ? height * 0.4 : height * 0.1, opacity: inA, translate: `0px ${(1 - inA) * 60}px` }}>
-        <TreasuryCard scale={s} width={cardW} meterFrom={8} meterValue={0.0} />
+        <TreasuryCard scale={s} width={cardW} meterFrom={8} meterValue={0.0} showBalance={false} />
       </div>
       <div style={{ position: "absolute", left: colLeft, top: portrait ? height * 0.68 : height * 0.56, opacity: inB, translate: `0px ${(1 - inB) * 60}px` }}>
         <AgentRow scale={s * 0.78} width={rowW} touchAt={tTouch} />
