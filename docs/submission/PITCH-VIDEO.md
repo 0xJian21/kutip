@@ -26,7 +26,7 @@ Clips referenced by name are defined in `SHOT-LIST.md` (file name, device, what 
 | 1:26–1:40 | Why Solana / Solami | Why Solana? Solana Pay builds the payment; Kutip pays the fee. Jupiter turns SOL into exact USDC inside the buyer's transaction. Squads holds the treasury: the owner's passkey has the keys, the agent an on-chain daily limit. And a Solami gRPC stream is how we see it land. **(cut first: "the agent an on-chain daily limit")** | Solana Pay tx requests · Jupiter ExactOut · Squads v4 · x402 · sub-cent fees · Solami gRPC 19 ms | Kit `WhySolanaCard` (six points from `video/src/data/proof.ts`) |
 | 1:40–1:48 | Go-to-market | First ten customers: furniture exporters in Muar and Batu Pahat, through the Muar Furniture Association, their accountants, and Superteam MY. Free until their tenth settled invoice. | First 10: Muar & Batu Pahat · MFA / MFC · accountants · Superteam MY · free until invoice #10 | Kit `GtmCard`. Footnote on screen: "Targets to approach, not partners" |
 | 1:48–1:54 | Trust | Non-custodial. Touch ID on every approval. Wallets screened. Ringgit never touches Kutip: you cash out at an SC-registered exchange. | Non-custodial Squads · Touch ID · OFAC screening · cash-out at an SC-registered DAX · MYRC when BNM approves | Kit `TrustCard` |
-| 1:54–1:58 | Team | [NAME], [role]. Built in Malaysia, [solo,] in seven days of commits. **(cut first: "in seven days of commits")** | [NAME] · [role] · [city], Malaysia · first commit 27 Sep 2026 | Kit `TeamCard` (`members` prop, see below) |
+| 1:54–1:58 | Team | Jian Wei, Web3 engineer. Built in Malaysia, solo, in seven days of commits. **(cut first: "in seven days of commits")** | Jian Wei · Web3 engineer · Malaysia · first commit 27 Sep 2026 | Kit `TeamCard` (`members` prop, see below) |
 | 1:58–2:00 | Close | Kutip. Get paid like a message. | kutip-app.vercel.app · github.com/0xJian21/kutip | Kit `EndCard` |
 
 ## Team card (for `TeamCard` in `video/src/pitch/Pitch.tsx`)
@@ -34,7 +34,7 @@ Clips referenced by name are defined in `SHOT-LIST.md` (file name, device, what 
 <!-- TODO owner: fill in; the video session reads this block. -->
 ```
 members: [
-  { name: "[NAME]", role: "[ROLE] · [city], Malaysia", note: "GitHub 0xJian21 · built [solo] for this hackathon, first commit 27 Sep 2026" },
+  { name: "Jian Wei", role: "Web3 engineer · Malaysia", note: "GitHub 0xJian21 · built solo for this hackathon, first commit 27 Sep 2026" },
 ]
 ```
 

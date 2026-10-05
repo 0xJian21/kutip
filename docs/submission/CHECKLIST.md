@@ -18,13 +18,13 @@
 ## Eligibility (tick before submitting)
 
 - [ ] Base country on the Colosseum entry: **Malaysia**.
-- [ ] At least one Malaysian team member: TODO name (the owner), based in Malaysia.
+- [ ] At least one Malaysian team member: Jian Wei, based in Malaysia.
 - [ ] Pre-existing code disclosure: **none**. First commit 27 Sep 2026 (`git log --reverse`); the whole codebase was written during the hackathon window. State this verbatim where the form asks.
 - [ ] Superteam MY registration form filled in: TODO (link from the track listing).
 - [ ] Joined the Superteam MY Telegram builder group: TODO.
 - [ ] Demo Day attendance confirmed: **date TBC with Superteam MY** (D7: the original 4 Oct date moved when the deadline moved to 11 Oct). TODO: ask in the builder group and put the date here.
 - [ ] Repo public and the README runs end to end on a fresh machine with the three Solami env vars (Solami requirement).
-- [ ] Team details filled into `WRITEUP.md`, the deck's last slide and the pitch video's team card (all three say `[NAME]` today).
+- [x] Team details filled into `WRITEUP.md`, the deck's last slide and `PITCH-VIDEO.md` (2026-10-06). The video package's `TeamCard` in `video/src/pitch/Pitch.tsx` still needs the same values (video session).
 - [ ] Videos ≤ 2:00 each (pitch 1:58, demo 1:58); Solami demo 2:30.
 - [ ] Fee payer topped up (≥ 0.1 SOL) and the x402 test buyer holds ≥ 0.50 USDC, so judges who scan the QR or run the bot see it work.
 - [ ] Leave the demo data as it is after the last recording (judges will open the live app).
@@ -43,7 +43,7 @@
 
 **Country:** Malaysia
 
-**Team:** TODO name · TODO role · GitHub 0xJian21 · TODO email · TODO X/Telegram handle. Solo: TODO yes/no.
+**Team:** Jian Wei · Web3 engineer, Solana builder since 2024 · GitHub 0xJian21 · TODO email · TODO X/Telegram handle. Solo: yes.
 
 **Repository:** https://github.com/0xJian21/kutip
 
@@ -77,7 +77,7 @@
 *Regulatory awareness:* non-custodial (exporter's passkey owns the multisig); no ringgit touches Kutip (cash-out to the owner's own whitelisted address at an SC-registered DAX, HATA), so outside MSBA 2011; stablecoins treated as an agreed settlement asset, not legal tender; OFAC screening on every paying wallet; full audit trail; MyInvois export next; would apply to BNM's Digital Asset Innovation Hub before any custody or MYR conversion; MYRC shown as "when BNM approves".
 *Team can keep shipping:* 7 days of commits across spikes, payments, treasury, worker, agent, inbox, hardening and a production rehearsal, with signatures and timings recorded for every session in `docs/PLAN.md`.
 
-**Team member(s) and location:** TODO name, TODO city, Malaysia.
+**Team member(s) and location:** Jian Wei (solo), Malaysia.
 
 **Pre-existing code:** none before 27 Sep 2026.
 
@@ -99,7 +99,7 @@
 
 **Interesting use of the stack:** one stream at `processed` plus slot-status updates gives all three commitment levels for every watched account; the filter set is live-edited instead of reconnecting; detection, balances and catch-up share one worker; x402 settlements and agent sweeps are sent and confirmed through the same RPC, so the entire money path (detect, verify, sweep, settle) runs on Solami.
 
-**GitHub:** https://github.com/0xJian21/kutip · **Team:** TODO · **Country:** Malaysia
+**GitHub:** https://github.com/0xJian21/kutip · **Team:** Jian Wei (solo) · **Country:** Malaysia
 
 ## Day-of-submission order
 

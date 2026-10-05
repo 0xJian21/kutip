@@ -72,6 +72,8 @@ If Chrome's passkey picker does not show iCloud Keychain, use the email sign-in 
 ## Swapping things
 
 - **Music:** replace `docs/video/music.mp3`, set `BPM`/`OFFSET_FRAMES` in `video/src/lib/beat.ts`, `pnpm sync`, re-render the hook. Scene cuts are expressed in beats (`HOOK` in the same file), so they follow the tempo.
+- **Hook music:** the hook has its own bed, `music-hook.wav`, synthesized on its beat grid by `pnpm music` (`video/scripts/make-music.ts`, which also runs `pnpm sync`). It is gitignored like all audio, so run `pnpm music` once before rendering the hook. To use a real track, save it as `docs/video/music-hook.mp3`, delete the `.wav`, and run `pnpm sync`. The `music` slot used by pitch, demo and Solami is separate.
+- **Sound effects (hook):** synthesized by `pnpm sfx` (`video/scripts/make-sfx.ts`) into `video/public/sfx/`, nothing to license. Cues and volumes live in `video/src/hook/Sfx.tsx`, tied to the `HOOK` beats and the flip card's real Paid/Settled timings.
 - **Voice-over:** replace the `vo-*.mp3`, `pnpm sync`, re-render that timeline. Ducking follows the file's length automatically.
 - **Timings:** `PITCH` (`video/src/pitch/Pitch.tsx`), `DEMO_SHOTS` (`video/src/demo/Demo.tsx`), `SOLAMI` (`video/src/solami/Solami.tsx`) hold every segment start in seconds. Pitch and demo are capped at 2:00; the composition length follows the constants.
 - **Captions:** `.srt` or `Caption[]` JSON per timeline in `docs/video/captions/`. Style lives in `video/src/kit/Captions.tsx`.

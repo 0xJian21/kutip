@@ -78,7 +78,7 @@ Proposed business model (not yet charged to anyone): **0.5 % of each settled inv
 ## Team
 
 <!-- TODO: fill in from the owner. Nothing below should be submitted until it is. -->
-- **[NAME]** — [ROLE], [one-line background], [city], Malaysia. [Built solo / with …]. GitHub: 0xJian21.
+- **Jian Wei** — Web3 engineer, Solana builder since 2024, Malaysia. Built solo. GitHub: 0xJian21.
 - Pre-existing code: none. The first commit is 27 Sep 2026; everything was built for this hackathon.
 
 ---

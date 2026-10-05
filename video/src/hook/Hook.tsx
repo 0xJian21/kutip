@@ -6,6 +6,7 @@ import { C } from "../theme/tokens";
 import { EASE, useLayout } from "../lib/anim";
 import { FlipCard } from "../ui/FlipCard";
 import { EndCard } from "../kit/EndCard";
+import { Music } from "../kit/Slots";
 import { S1Muar } from "./scenes/S1Muar";
 import { S2Waiting } from "./scenes/S2Waiting";
 import { S3Cost } from "./scenes/S3Cost";
@@ -14,6 +15,7 @@ import { S5Kutip } from "./scenes/S5Kutip";
 import { S6Phone } from "./scenes/S6Phone";
 import { S7Lands } from "./scenes/S7Lands";
 import { S8Agent } from "./scenes/S8Agent";
+import { HookSfx } from "./Sfx";
 
 /**
  * The 30-second hook. Every scene starts on a beat (lib/beat.ts HOOK); the flip card is a
@@ -55,6 +57,8 @@ export const Hook: React.FC = () => {
       <Sequence name="9 End card" from={beat(HOOK.s9End)} durationInFrames={dur("s9End", "end")} premountFor={fps}>
         <EndCard markAt={0} taglineAt={beat(HOOK.s9Tagline) - beat(HOOK.s9End)} urlAt={beat(HOOK.s9Url) - beat(HOOK.s9End)} footerAt={beat(HOOK.s9Malaysia) - beat(HOOK.s9End)} />
       </Sequence>
+      <Music name="music-hook" level={0.35} />
+      <HookSfx />
     </AbsoluteFill>
   );
 };

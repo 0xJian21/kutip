@@ -9,6 +9,8 @@
     "dev": "remotion studio",
     "sync": "node scripts/sync-assets.ts",
     "stills": "node scripts/stills.ts",
+    "sfx": "node scripts/make-sfx.ts",
+    "music": "node scripts/make-music.ts && pnpm sync",
     "render:hook": "remotion render Hook ../docs/video/out/hook-1920x1080.mp4 --codec=h264",
     "render:hook-vertical": "remotion render HookVertical ../docs/video/out/hook-1080x1920.mp4 --codec=h264",
     "render:pitch": "remotion render Pitch ../docs/video/out/pitch-1920x1080.mp4 --codec=h264",
