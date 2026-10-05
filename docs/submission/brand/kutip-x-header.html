@@ -1,0 +1,49 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;box-sizing:border-box}
+body{width:1500px;height:500px;overflow:hidden;font-family:'Plus Jakarta Sans',sans-serif;
+ background:linear-gradient(125deg, oklch(54% 0.22 300) 0%, oklch(44% 0.22 290) 45%, oklch(26% 0.14 276) 100%);
+ color:oklch(99% 0.005 292);position:relative}
+.grid{position:absolute;inset:0;background-image:radial-gradient(oklch(100% 0 0 / .13) 1.4px,transparent 1.6px);background-size:28px 28px;
+ -webkit-mask-image:linear-gradient(100deg,transparent 25%,#000 70%);mask-image:linear-gradient(100deg,transparent 25%,#000 70%)}
+.glow{position:absolute;width:700px;height:700px;right:-120px;top:-260px;border-radius:50%;background:radial-gradient(oklch(70% 0.2 300 / .45),transparent 65%)}
+.k{position:absolute;right:560px;bottom:-200px;opacity:.06}
+.left{position:absolute;left:96px;top:56px;width:700px}
+.eyebrow{font-weight:600;font-size:19px;letter-spacing:.14em;text-transform:uppercase;color:oklch(90% 0.05 292)}
+h1{font-weight:800;font-size:70px;line-height:1.02;letter-spacing:-.035em;margin-top:18px}
+.sub{margin-top:18px;font-size:22px;font-weight:500;line-height:1.4;color:oklch(93% 0.025 292);max-width:640px}
+.card{position:absolute;right:96px;top:84px;width:470px;padding:26px 28px;border-radius:24px;
+ background:oklch(100% 0 0 / .1);border:1px solid oklch(100% 0 0 / .2);backdrop-filter:blur(8px);
+ box-shadow:0 30px 60px -24px oklch(15% 0.1 280 / .6)}
+.row{display:flex;justify-content:space-between;align-items:baseline}
+.inv{font-size:16px;font-weight:600;color:oklch(90% 0.04 292);letter-spacing:.02em}
+.amt{font-size:44px;font-weight:800;letter-spacing:-.03em;margin-top:6px}
+.amt small{font-size:20px;font-weight:700;opacity:.8;margin-left:8px;letter-spacing:0}
+.steps{display:flex;align-items:center;gap:10px;margin-top:22px}
+.pill{padding:8px 14px;border-radius:999px;font-size:16px;font-weight:700;display:flex;align-items:center;gap:7px}
+.pill i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
+.seen{background:oklch(93% 0.035 255);color:oklch(44% 0.13 255)}
+.paid{background:oklch(93% 0.05 150);color:oklch(42% 0.12 150)}
+.settled{background:oklch(44% 0.13 150);color:oklch(99% 0.005 150)}
+.arrow{opacity:.55;font-weight:700}
+.foot{margin-top:20px;padding-top:16px;border-top:1px solid oklch(100% 0 0 / .18);font-size:16px;font-weight:600;color:oklch(92% 0.03 292);display:flex;justify-content:space-between}
+.foot b{color:#fff}
+</style></head><body>
+<div class="glow"></div><div class="grid"></div>
+<div class="left">
+  <div class="eyebrow">Collections agent · Built on Solana</div>
+  <h1>Get paid<br>like a message.</h1>
+  <div class="sub">Malaysian exporters chase invoices, get paid in USDC and settle to their own treasury, in seconds.</div>
+</div>
+<div class="card">
+  <div class="row"><div class="inv">INV-0154 · Sydney → Muar</div><div class="inv">USDC</div></div>
+  <div class="amt">$4,820.00<small>paid</small></div>
+  <div class="steps">
+    <span class="pill seen"><i></i>Seen</span><span class="arrow">→</span>
+    <span class="pill paid"><i></i>Paid</span><span class="arrow">→</span>
+    <span class="pill settled"><i></i>Settled</span>
+  </div>
+  <div class="foot"><span>Seen → Paid</span><b>0.15 s on mainnet</b></div>
+</div>
+</body></html>

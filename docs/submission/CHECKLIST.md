@@ -2,6 +2,15 @@
 
 **Submit by Friday 10 Oct 2026** (submissions close 11 Oct; Colosseum main closes 12 Oct, DECISIONS D7). Three submissions: the Colosseum portal, the Superteam Earn track listing ("Build Global, Buatan Malaysia") and the Superteam Earn Solami listing. Everything below is paste-ready; `TODO` marks what only the owner can fill in. The exact field names on each form may differ; the blocks here cover every field those forms are known to ask for.
 
+## Update from Superteam MY (received 2026-10-06)
+
+- **Track listing renamed:** "Superteam MY x Superscrypt: Build Global, Buatan Malaysia" → https://superteam.fun/earn/listing/superteam-my-x-superscrypt-build-global-buatan-malaysia (use this link wherever this file says "track listing").
+- **Solami listing:** https://superteam.fun/earn/listing/superteam-my-x-solami-build-global-buatan-malaysia
+- **NEW: Colosseum Week 4 video (required, one per team).** Submissions open **9 Oct, 11:00 PM MYT**, due **12 Oct, 11:00 PM MYT**. Content: what you built, what you learned, what you'll work on next. YouTube, Loom or Vimeo, viewable without requesting access. **Links can't be changed or deleted after submitting** — double-check first. Plan: a ~2–3 min talking-head + screen recording (can reuse demo clips and the hook).
+- [ ] X account live; post updates tagging **@SuperteamMY @solana @colosseum** through the week (pinned post with the 30 s hook).
+- [ ] Optional: X Premium (blue tick) — recommended by the organisers.
+- Help: @hanstmy or @tuakdotsol on Telegram.
+
 ## Links (one place)
 
 | What | Link |
