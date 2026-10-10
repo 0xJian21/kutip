@@ -1,0 +1,21 @@
+/** Buyer countries the Add buyer form offers: Malaysia's main export markets, each with the business-hours timezone reminders use. */
+export const BUYER_COUNTRIES: Array<{ code: string; name: string; timezone: string }> = [
+  { code: "US", name: "United States", timezone: "America/New_York" },
+  { code: "SG", name: "Singapore", timezone: "Asia/Singapore" },
+  { code: "CN", name: "China", timezone: "Asia/Shanghai" },
+  { code: "HK", name: "Hong Kong", timezone: "Asia/Hong_Kong" },
+  { code: "JP", name: "Japan", timezone: "Asia/Tokyo" },
+  { code: "KR", name: "South Korea", timezone: "Asia/Seoul" },
+  { code: "TW", name: "Taiwan", timezone: "Asia/Taipei" },
+  { code: "TH", name: "Thailand", timezone: "Asia/Bangkok" },
+  { code: "ID", name: "Indonesia", timezone: "Asia/Jakarta" },
+  { code: "VN", name: "Vietnam", timezone: "Asia/Ho_Chi_Minh" },
+  { code: "PH", name: "Philippines", timezone: "Asia/Manila" },
+  { code: "IN", name: "India", timezone: "Asia/Kolkata" },
+  { code: "AE", name: "United Arab Emirates", timezone: "Asia/Dubai" },
+  { code: "AU", name: "Australia", timezone: "Australia/Sydney" },
+  { code: "GB", name: "United Kingdom", timezone: "Europe/London" },
+  { code: "NL", name: "Netherlands", timezone: "Europe/Amsterdam" },
+  { code: "DE", name: "Germany", timezone: "Europe/Berlin" },
+  { code: "MY", name: "Malaysia", timezone: "Asia/Kuala_Lumpur" },
+];

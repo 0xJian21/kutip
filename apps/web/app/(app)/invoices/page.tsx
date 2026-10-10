@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { InvoiceFilters } from "@/components/invoices/invoice-filters";
-import { InvoiceTable } from "@/components/invoices/invoice-table";
+import { InvoiceBrowser } from "@/components/invoices/invoice-filters";
 import { ButtonLink } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/panel";
 import { EmptyState } from "@/components/ui/states";
 import { ownerData } from "@/lib/server/data";
@@ -23,50 +20,27 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
   const buyerId = typeof sp.buyer === "string" ? sp.buyer : undefined;
   const query = typeof sp.q === "string" ? sp.q : undefined;
 
-  const [invoices, all, buyers, summary] = await Promise.all([
-    data.listInvoices({ status, buyerId, query }, { scenario }),
-    data.listInvoices(),
-    data.listBuyers(),
-    data.getDashboard(),
-  ]);
-
-  const OPEN = new Set(["sent", "seen", "overdue", "partially_paid", "disputed"]);
-  const ATTN = new Set(["overdue", "disputed", "partially_paid", "seen"]);
-  const counts = {
-    all: all.length,
-    needs_attention: all.filter((i) => ATTN.has(i.status)).length,
-    overdue: all.filter((i) => i.status === "overdue").length,
-    open: all.filter((i) => OPEN.has(i.status)).length,
-    settled: all.filter((i) => i.status === "settled").length,
-    draft: all.filter((i) => i.status === "draft").length,
-  };
-
-  const filtered = Boolean(buyerId || query || status !== "all");
+  const [invoices, buyers, summary] = await Promise.all([data.listInvoices(undefined, { scenario }), data.listBuyers(), data.getDashboard()]);
 
   return (
     <>
       <PageHeader title="Invoices" actions={<ButtonLink href="/invoices/new">New invoice</ButtonLink>} />
-      <Suspense>
-        <InvoiceFilters buyers={buyers} counts={counts} />
-      </Suspense>
-      <Card padded={false} className="overflow-hidden">
-        <InvoiceTable
-          invoices={invoices}
-          buyers={buyers}
-          rate={summary.rate}
-          empty={
-            filtered ? (
-              <EmptyState title="No invoices match" body="Try another status or buyer, or clear the search." compact />
-            ) : (
-              <EmptyState
-                title="No invoices yet"
-                body="Fill in the form or import a PDF. Kutip creates the pay link and starts chasing on the due date."
-                action={<ButtonLink href="/invoices/new">Create your first invoice</ButtonLink>}
-              />
-            )
-          }
-        />
-      </Card>
+      {/* Keyed by the URL filter: a link to another filtered view (dashboard, nav) starts from it. */}
+      <InvoiceBrowser
+        key={`${status}|${buyerId}|${query}`}
+        invoices={invoices}
+        buyers={buyers}
+        rate={summary.rate}
+        initial={{ status: status ?? "all", buyerId: buyerId ?? "", query: query ?? "" }}
+        noMatch={<EmptyState title="No invoices match" body="Try another status or buyer, or clear the search." compact />}
+        empty={
+          <EmptyState
+            title="No invoices yet"
+            body="Fill in the form or import a PDF. Kutip creates the pay link and starts chasing on the due date."
+            action={<ButtonLink href="/invoices/new">Create your first invoice</ButtonLink>}
+          />
+        }
+      />
     </>
   );
 }

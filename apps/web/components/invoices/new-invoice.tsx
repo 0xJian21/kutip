@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Copy, FileText, MessageCircle, Plus, Send, Trash2, Upload } from "lucide-react";
+import { Check, Copy, FileText, MessageCircle, Plus, Send, Trash2, Upload, UserPlus } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
 import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { Card, CardHeader, Inset } from "@/components/ui/card";
 import { Checkbox, Field, Input, PrefixedInput, Select, DateInput } from "@/components/ui/field";
 import { CopyField } from "@/components/ui/copy-field";
 import { QrCode } from "@/components/pay/qr-code";
+import { AddBuyer } from "@/components/invoices/add-buyer";
 import { InvoiceDocument } from "@/components/invoices/invoice-document";
 import { createInvoice, readInvoicePdf } from "@/lib/data/actions";
 import { unwrap } from "@/lib/data/result";
@@ -33,7 +34,10 @@ const EMAIL = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
  * `emailRestricted`: no verified sending domain yet (EMAIL_ALLOWLIST is not "*"), so only the
  * owner's own inbox gets mail; anyone else gets a pay link to share instead. Said up front.
  */
-export function NewInvoice({ buyers, exporter, rate, emailRestricted }: { buyers: Buyer[]; exporter: Exporter; rate: BnmRate; emailRestricted: boolean }) {
+export function NewInvoice({ buyers: initialBuyers, exporter, rate, emailRestricted }: { buyers: Buyer[]; exporter: Exporter; rate: BnmRate; emailRestricted: boolean }) {
+  const [buyers, setBuyers] = useState(initialBuyers);
+  // A new account has no buyers: adding one is step one, shown open. `name` pre-fills it from an imported PDF.
+  const [adding, setAdding] = useState<{ name: string } | null>(initialBuyers.length ? null : { name: "" });
   const [phase, setPhase] = useState<Phase>("edit");
   const [fileName, setFileName] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -70,7 +74,8 @@ export function NewInvoice({ buyers, exporter, rate, emailRestricted }: { buyers
       const form = new FormData();
       form.set("pdf", file);
       const x = unwrap(await readInvoicePdf(form));
-      if (x.buyerId) setBuyerId(x.buyerId);
+      if (x.buyerId) chooseBuyer(x.buyerId);
+      else if (x.buyerName) setAdding({ name: x.buyerName });
       setNumber(x.invoiceNumber);
       if (x.dueDate) setDueDate(x.dueDate);
       setLines(x.lineItems.length ? x.lineItems.map((l) => ({ description: l.description, quantity: String(l.quantity), unitPrice: priceInput(l.unitPriceUsdc) })) : EMPTY_LINES);
@@ -118,11 +123,19 @@ export function NewInvoice({ buyers, exporter, rate, emailRestricted }: { buyers
   const changedAddress = !!buyer && sendTo.trim().toLowerCase() !== buyer.email.toLowerCase();
   const sendToError = sendToTouched && !EMAIL.test(sendTo.trim()) ? "Enter the buyer's email, like accounts@buyer.com" : undefined;
 
-  function chooseBuyer(id: string) {
+  function chooseBuyer(id: string, list = buyers) {
     setBuyerId(id);
-    setSendTo(buyers.find((b) => b.id === id)?.email ?? "");
+    setSendTo(list.find((b) => b.id === id)?.email ?? "");
     setSendToTouched(false);
     setSaveForBuyer(true);
+  }
+
+  function buyerAdded(b: Buyer) {
+    const list = [...buyers, b];
+    setBuyers(list);
+    chooseBuyer(b.id, list);
+    setAdding(null);
+    setWarnings((ws) => ws.filter((w) => !w.startsWith("No buyer called")));
   }
 
   // What the preview shows: every line the form has, even half-filled.
@@ -259,11 +272,24 @@ export function NewInvoice({ buyers, exporter, rate, emailRestricted }: { buyers
         ) : null}
 
         <fieldset disabled={reading} className="mt-5 grid gap-5">
-          <Field label="Buyer" required>
-            <Select value={buyerId} onChange={(e) => chooseBuyer(e.target.value)}>
-              {buyers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </Select>
-          </Field>
+          {buyers.length ? (
+            <div className="flex items-end gap-2">
+              <Field label="Buyer" required className="flex-1">
+                <Select value={buyerId} onChange={(e) => chooseBuyer(e.target.value)}>
+                  {buyers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </Select>
+              </Field>
+              {adding ? null : (
+                <Button variant="outline" onClick={() => setAdding({ name: "" })}>
+                  <UserPlus size={15} aria-hidden="true" />
+                  New buyer
+                </Button>
+              )}
+            </div>
+          ) : null}
+          {adding ? (
+            <AddBuyer key={adding.name} first={!buyers.length} initialName={adding.name} onAdded={buyerAdded} onCancel={buyers.length ? () => setAdding(null) : undefined} />
+          ) : null}
           <div className="grid gap-2.5">
             <Field
               label="Send to"
@@ -338,7 +364,7 @@ export function NewInvoice({ buyers, exporter, rate, emailRestricted }: { buyers
           <div className="flex flex-wrap gap-2">
             <Link href="/invoices" className="inline-flex h-10 items-center rounded-full px-3.5 text-base font-medium text-ink-2 hover:bg-paper-2 hover:text-ink">Cancel</Link>
             <Button variant="outline" disabled title="Drafts arrive with the invoice update">Save draft</Button>
-            <Button variant="secondary" onClick={create} disabled={creating || reading}>
+            <Button variant="secondary" onClick={create} disabled={creating || reading || !buyerId} title={buyerId ? undefined : "Add a buyer first"}>
               <Send size={15} aria-hidden="true" />
               {creating ? "Sending…" : "Send invoice"}
             </Button>

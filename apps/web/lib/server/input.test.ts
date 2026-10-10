@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkLogo, recipientEmail, signupLogoPrefix, sniffImage, validateCompany } from "./input";
+import { checkLogo, recipientEmail, signupLogoPrefix, sniffImage, validateBuyer, validateCompany } from "./input";
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]);
@@ -60,5 +60,19 @@ describe("recipientEmail", () => {
     for (const bad of ["", "ap", "ap@", "ap@host", "a b@x.com", "a@x.com, b@y.com", "a@x.com\nBcc: c@z.com", `${"a".repeat(250)}@x.com`]) {
       expect(() => recipientEmail(bad)).toThrow(/Enter the buyer's email/);
     }
+  });
+});
+
+describe("validateBuyer", () => {
+  const ok = { name: "  Harbourline Imports ", contactName: "Dana Lee", email: "ap@harbourline.com", country: "US", city: "Seattle", address: "" };
+  it("trims, fills country name and timezone from the code", () => {
+    expect(validateBuyer(ok)).toEqual({ name: "Harbourline Imports", contactName: "Dana Lee", email: "ap@harbourline.com", country: "US", countryName: "United States", timezone: "America/New_York", city: "Seattle", address: "" });
+  });
+  it("refuses a missing name, contact, city, a bad email or an unknown country", () => {
+    expect(() => validateBuyer({ ...ok, name: " " })).toThrow(/company name/);
+    expect(() => validateBuyer({ ...ok, contactName: "" })).toThrow(/contact/);
+    expect(() => validateBuyer({ ...ok, city: "" })).toThrow(/city/);
+    expect(() => validateBuyer({ ...ok, email: "ap@harbourline" })).toThrow(/email/);
+    expect(() => validateBuyer({ ...ok, country: "ZZ" })).toThrow(/country/);
   });
 });

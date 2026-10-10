@@ -9,6 +9,7 @@ import { createMailer, explainAction, extractInvoice, haikuClassifier, jevClassi
 import { Keypair } from "@kutip/solana";
 import { refresh } from "next/cache";
 import { MOCK, signIn, signOut } from "@/lib/server/auth";
+import { addBuyer as addBuyerImpl } from "@/lib/server/buyers";
 import { getPayInvoice, ownerDataOrThrow } from "@/lib/server/data";
 import { validateRulebook } from "@/lib/server/access";
 import { recipientEmail } from "@/lib/server/input";
@@ -185,6 +186,9 @@ export async function readInvoicePdf(form: FormData) {
 }
 export async function createInvoice(input: Parameters<typeof createInvoiceImpl>[0]) {
   return toResult(() => createInvoiceImpl(input), { duplicate: `Invoice number ${input.number} is already used. Change it, or clear it to use the next number.` });
+}
+export async function addBuyer(input: Parameters<typeof addBuyerImpl>[0]) {
+  return toResult(() => addBuyerImpl(input));
 }
 export async function simulateBuyerReply(invoiceId: string, body: string) {
   return toResult(() => simulateBuyerReplyImpl(invoiceId, body));

@@ -1,5 +1,6 @@
 /** Input checks for onboarding and the company profile. Pure, so they are testable; the server files apply them. */
 import { UserError } from "../data/result";
+import { BUYER_COUNTRIES } from "../ui/countries";
 
 export const LOGO_MAX_BYTES = 512 * 1024;
 /** Raster types only: an SVG in a public bucket can carry scripts and render on the storage origin. */
@@ -49,4 +50,22 @@ export function recipientEmail(raw: string): string {
   const v = (raw ?? "").trim();
   if (v.length > 254 || !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(v)) throw new UserError("Enter the buyer's email, like accounts@buyer.com");
   return v;
+}
+
+export type BuyerInput = { name: string; contactName: string; email: string; country: string; city: string; address: string };
+
+/** Add buyer: the country must be one the form offers; its name and timezone come from that list, never the client. */
+export function validateBuyer(input: BuyerInput) {
+  const trim = (v: string | undefined, max: number) => (v ?? "").trim().slice(0, max);
+  const name = trim(input.name, 120);
+  const contactName = trim(input.contactName, 80);
+  const city = trim(input.city, 80);
+  const address = trim(input.address, 240);
+  if (!name) throw new UserError("Enter the buyer's company name");
+  if (!contactName) throw new UserError("Enter a contact person at the buyer");
+  const email = recipientEmail(input.email);
+  const country = BUYER_COUNTRIES.find((c) => c.code === input.country);
+  if (!country) throw new UserError("Choose the buyer's country");
+  if (!city) throw new UserError("Enter the buyer's city");
+  return { name, contactName, email, country: country.code, countryName: country.name, timezone: country.timezone, city, address };
 }

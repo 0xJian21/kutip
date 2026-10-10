@@ -23,6 +23,7 @@ export default function LandingPage() {
           <a href="#how" className="hidden rounded-full px-3.5 py-2 text-base text-ink-2 transition-colors duration-(--dur-fast) hover:bg-surface hover:text-ink sm:inline">How it works</a>
           <a href="#compare" className="hidden rounded-full px-3.5 py-2 text-base text-ink-2 transition-colors duration-(--dur-fast) hover:bg-surface hover:text-ink sm:inline">Versus a wire</a>
           <a href="#proof" className="hidden rounded-full px-3.5 py-2 text-base text-ink-2 transition-colors duration-(--dur-fast) hover:bg-surface hover:text-ink md:inline">Live proof</a>
+          <a href="https://drive.google.com/drive/folders/1UTg01YZzdoJ5mxgPBNUJiL9UoZZmaySg" target="_blank" rel="noopener noreferrer" className="rounded-full px-3.5 py-2 text-base text-ink-2 transition-colors duration-(--dur-fast) hover:bg-surface hover:text-ink">Pitch &amp; demo</a>
           <Link href="/onboarding?next=/dashboard" className={buttonClass("outline", "md")}>Sign in</Link>
           <ThemeToggle />
         </nav>
@@ -51,6 +52,7 @@ export default function LandingPage() {
             <a href="#how" className="hover:text-ink">How it works</a>
             <a href="#proof" className="hover:text-ink">Live proof</a>
             <a href="#faq" className="hover:text-ink">FAQ</a>
+            <a href="https://drive.google.com/drive/folders/1UTg01YZzdoJ5mxgPBNUJiL9UoZZmaySg" target="_blank" rel="noopener noreferrer" className="hover:text-ink">Pitch &amp; demo</a>
             <a href="https://github.com/0xJian21/kutip" target="_blank" rel="noopener noreferrer" className="hover:text-ink">GitHub</a>
           </nav>
         </div>
