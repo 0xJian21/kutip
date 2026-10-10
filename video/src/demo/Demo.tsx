@@ -17,19 +17,20 @@ import { C } from "../theme/tokens";
  * Durations below are seconds; keep the sum ≤ 120. Captions here are the on-screen captions
  * for each shot; the voice-over (audio/vo-demo.mp3) can say more.
  */
-type Shot = { name: string; sec: number; caption: string; lower?: [string, string]; proof?: string; phone?: string; terminal?: string; describe?: string };
+type Shot = { name: string; sec: number; caption: string; clip?: string; trim?: number; rate?: number; lower?: [string, string]; proof?: string; phone?: string; terminal?: string; describe?: string };
 
+/** Cut from the 10 Oct 2026 recording: `clip` overrides the file, `trim` skips into the take, `rate` speeds it up. */
 export const DEMO_SHOTS: Shot[] = [
-  { name: "D1-dashboard", sec: 10, caption: "Sign in with Touch ID. Overdue invoices and the treasury, in ringgit.", lower: ["Overview", "kutip-app.vercel.app, Solana mainnet"], describe: "Sign-in → Overview" },
-  { name: "D2-new-invoice", sec: 12, caption: "Drop the PDF. The agent reads it, you check it, one pay link goes out.", describe: "New invoice: PDF drop → fields → Create & send" },
-  { name: "D3-invoice-overdue", sec: 10, caption: "Reminders in the buyer's hours, each with the rule it followed.", describe: "An overdue invoice: reminders, rule ids, then the Rulebook" },
-  { name: "D4-live-flip", sec: 18, caption: "The buyer pays in SOL with 0 gas. Seen → Paid → Settled, live.", phone: "P1-phone-pay", proof: "pay-sol", describe: "Invoice page flipping live while the phone pays" },
-  { name: "D4b-receipt", sec: 8, caption: "Execution receipt: exact USDC, the rate against BNM, the Solscan link.", describe: "Scroll to the execution receipt card" },
-  { name: "D5-agent-activity", sec: 8, caption: "Reminders cancelled, receipt emailed. Logged with rule C6.", describe: "Agent activity after the payment" },
-  { name: "D6-inbox", sec: 16, caption: "A buyer question becomes a draft in seconds. You approve, it sends.", phone: "P2-phone-message", describe: "Inbox: thread jumps to the top, draft ready, Approve & send" },
-  { name: "D7-x402-flip", sec: 12, caption: "The buyer's AP bot pays over x402: HTTP 402 to 200 in 4.5 s.", terminal: "x402-bot", proof: "x402", describe: "INV-0155 flipping Paid while the bot runs" },
-  { name: "D8-command-bar", sec: 9, caption: "Ask in plain words. Nothing moves until you confirm.", describe: "Command bar: What's due this week? → Sweep now" },
-  { name: "D9-cash-out", sec: 8, caption: "Cash out: a proposal the agent prepares, approved with Touch ID.", proof: "cash-out", describe: "Treasury → Cash out → Touch ID" },
+  { name: "D1-dashboard", clip: "D8-command-bar", trim: 2, sec: 6, caption: "Signed in with Touch ID: what came in, what's overdue, in ringgit.", lower: ["Overview", "kutip-app.vercel.app, Solana mainnet"], describe: "Overview" },
+  { name: "D2-new-invoice", trim: 10, rate: 2.2, sec: 12, caption: "Drop the PDF. The agent reads it, you check it, one pay link goes out.", describe: "New invoice: PDF drop → fields → Create & send" },
+  { name: "D3-invoice-overdue", trim: 52, rate: 3, sec: 12, caption: "Reminders in the buyer's hours, each with the rule it followed.", describe: "An overdue invoice: reminders, rule ids, then the Rulebook" },
+  { name: "D4-live-flip", trim: 156, sec: 20, caption: "The buyer pays from Phantom with 0 gas. Payment received, then final. No refresh.", phone: "P1-phone-pay", proof: "pay-oct10", describe: "Pay page flipping live while the phone pays" },
+  { name: "D4b-receipt", trim: 8.5, sec: 7, caption: "Exactly 1.00 USDC, network fee paid by Kutip, the Solscan link.", describe: "The receipt card" },
+  { name: "D5-agent-activity", trim: 2, sec: 6, caption: "Reminders cancelled, each action logged with its rule.", describe: "Agent activity after the payment" },
+  { name: "D6-inbox", trim: 152, rate: 2.2, sec: 14, caption: "A buyer question becomes a draft from that invoice only. You approve, it sends.", describe: "Inbox: message arrives, draft ready, Approve & send" },
+  { name: "D7-x402-flip", trim: 28, sec: 13, caption: "The buyer's AP bot pays over x402: HTTP 402, pay, 200.", terminal: "x402-bot", proof: "x402-oct10", describe: "INV-0155 flipping Paid while the bot runs" },
+  { name: "D8-command-bar", trim: 8, rate: 1.6, sec: 10, caption: "Ask in plain words. Nothing moves until you confirm.", describe: "Command bar: What's due this week?" },
+  { name: "D9-cash-out", trim: 5, rate: 3.2, sec: 12, caption: "Cash out: the agent prepares it, you approve with Touch ID.", proof: "cash-out-oct10", describe: "Treasury → Cash out → Touch ID" },
 ];
 
 const INTRO = 3;
@@ -55,11 +56,11 @@ export const Demo: React.FC = () => {
         <Sequence key={s.name} name={`Shot ${i + 1}: ${s.name}`} from={sec(starts[i])} durationInFrames={sec(s.sec)} premountFor={fps}>
           {s.terminal ? (
             <>
-              <ClipSlot name={s.name} describe={s.describe} box={{ left: width / 2, top: 0, width: width / 2, height }} />
+              <ClipSlot name={s.clip ?? s.name} trimBeforeSec={s.trim} rate={s.rate} describe={s.describe} box={{ left: width / 2, top: 0, width: width / 2, height }} />
               <LogTerminal name={s.terminal} title="pnpm --filter @kutip/solana bot … --yes" width={width / 2 - 48} height={height - 96} style={{ position: "absolute", left: 48, top: 48 }} />
             </>
           ) : (
-            <ClipSlot name={s.name} describe={s.describe} />
+            <ClipSlot name={s.clip ?? s.name} trimBeforeSec={s.trim} rate={s.rate} describe={s.describe} />
           )}
           {s.phone ? (
             <div style={{ position: "absolute", left: 96, top: (height - 824 * 0.9) / 2, filter: "drop-shadow(0 24px 48px oklch(25% 0.03 290 / 0.25))" }}>

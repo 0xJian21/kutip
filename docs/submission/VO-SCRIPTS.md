@@ -45,19 +45,21 @@ I'm Jian Wei, a Web3 engineer in Malaysia, and I built Kutip solo. Kutip. Get pa
 
 ---
 
-## 2. Demo (save as `docs/video/vo-demo.mp3`)
+## 2. Demo (matches `docs/video/out/demo-draft-1920x1080.mp4`, 1:59)
 
-1. Sign in with Touch ID. This is the exporter's overview: what came in, what's overdue, and the treasury, in ringgit at Bank Negara's rate.
-2. Drop the PDF you already send. The agent reads it, you check the lines, and one pay link goes out with the invoice email.
-3. The buyer opens the link on a phone and pays in SOL. Phantom shows the network fee: zero. Kutip pays it. Watch the invoice: payment seen, paid in a fifth of a second, settled in under eight. No refresh.
-4. The receipt: exactly one USDC received, what the buyer spent, the rate against Bank Negara's, and the Solscan link.
-5. Reminders for this invoice stop, and the receipt is emailed. Every step is logged with the rule the agent followed.
-6. A buyer asks a question on the pay page. The agent reads it and drafts a reply from this invoice only. You edit a word, approve, and it appears on the buyer's phone.
-7. Ask in plain words. What's due this week? Remind a buyer. The agent shows a preview; nothing goes out until you press Send.
-8. Sweep now. Tick the accounts you want, check the amounts and the daily cap. Signed by the agent, on Solana, recorded. The agent can only move money into your own treasury.
-9. Cash out to ringgit. The agent prepares a transfer to your own exchange account; you approve with Touch ID. Kutip never holds ringgit.
-10. And when the buyer is software, the invoice is an x402 endpoint. The bot gets a four-oh-two, pays, and gets a two-hundred with a receipt.
-11. Kutip. Get paid like a message.
+One recording per line, or one file with a 1-second pause between lines. The time in brackets is how long that scene is on screen: stay inside it (about 2.5 words a second). The first 3 s is a title card: start speaking at 0:03.
+
+1. **Overview** (0:03, 6 s): This is Kutip, live on Solana mainnet. Signed in with Touch ID.
+2. **New invoice** (0:09, 12 s): Drop the PDF you already send. The agent reads it, you check the lines, and one pay link goes out.
+3. **Overdue + rulebook** (0:21, 12 s): Late payers get polite reminders in their own hours, each logged with the rule it followed.
+4. **Live payment** (0:33, 20 s): The buyer scans the QR and pays from Phantom. Kutip pays the network fee. Watch the page: payment received in a tenth of a second, final in under seven. No refresh.
+5. **Receipt** (0:53, 7 s): Exactly one dollar received, zero gas, and the Solscan link.
+6. **Agent activity** (1:00, 6 s): The agent stops the reminders and logs why.
+7. **Inbox** (1:06, 14 s): A buyer asks a question on the pay page. The agent drafts a reply from that invoice only. You approve, and it sends.
+8. **x402** (1:20, 13 s): When the buyer is software, the invoice is an endpoint. The bot gets a four-oh-two, pays, and gets a two-hundred.
+9. **Command bar** (1:33, 10 s): Ask in plain words. What's due this week? Nothing moves until you confirm.
+10. **Cash out** (1:43, 12 s): Cash out to ringgit. The agent prepares it, you approve with Touch ID, and it goes to your own exchange account.
+11. **End card** (1:55, 4 s): Kutip. Get paid like a message.
 
 ---
 

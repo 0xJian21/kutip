@@ -28,6 +28,28 @@ export type Proof = {
 };
 
 export const PROOFS: Proof[] = [
+  // Demo recording, 10 Oct 2026, production on mainnet (payments / agent_actions rows).
+  {
+    id: "pay-oct10",
+    label: "Buyer pays INV-2026-0154 from Phantom; exactly 1.000000 USDC lands",
+    signature: "3mRq6ZcmvXU6bpbAsPAGJPX1C42QaLsZcfLt7BrWmmdPJWM8hKQRQHsXqSXc4FcERwN9AzadHskSk8u7AMmsZ9fk",
+    timing: "Seen → Paid 0.10 s · Settled 6.6 s · buyer fee 0 SOL",
+    date: "10 Oct 2026",
+  },
+  {
+    id: "x402-oct10",
+    label: "An AP bot pays INV-2026-0155 over x402",
+    signature: "2uu4L4a932gLMY3rk7Dm7fpMtS16Lx5DMMTgMmmSGhxJbHmrwJkwUaJ1iTjnX3e5zstEjet86217dLcptF2Spjoe",
+    timing: "HTTP 402 → 200 · Settled 6.9 s after Seen",
+    date: "10 Oct 2026",
+  },
+  {
+    id: "cash-out-oct10",
+    label: "Cash-out of 0.25 USDC to the owner's HATA address, approved with Touch ID",
+    signature: "4gMuoj7m9divrcYncBjk6g45Wd4wd44wkSQUioAsE5wChuNp4fPwVzikFDsYsFnAZ6A1cj7dZ8VJ6UDjFJMXRG7p",
+    timing: "Squads proposal #4 → approve + execute",
+    date: "10 Oct 2026",
+  },
   {
     id: "pay-sol",
     label: "Buyer pays INV-2026-0154 in SOL; exactly 1.000000 USDC lands",

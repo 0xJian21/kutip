@@ -24,8 +24,9 @@ const RAW = path.join(ROOT, ".pw-video");
 
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) => (a.startsWith("--") ? [a.slice(2), all[i + 1]?.startsWith("--") || all[i + 1] === undefined ? "true" : all[i + 1]] : [])).filter((p) => p.length)) as Record<string, string>;
 const BASE = args.base ?? "https://kutip-app.vercel.app";
-const INV154 = args.inv154;
-const INV155 = args.inv155;
+// Defaults: the pair from the Oct 10 demo-reset, so a bare `pnpm record` opens the right invoices.
+const INV154 = args.inv154 && args.inv154 !== "true" ? args.inv154 : "inv_vAweoKgNCCB2tJvL7a1a";
+const INV155 = args.inv155 && args.inv155 !== "true" ? args.inv155 : "inv_hajpQwJ3k5GYQyGc6rWk";
 const ONLY = args.only ? args.only.split(",") : null;
 
 type Shot = {

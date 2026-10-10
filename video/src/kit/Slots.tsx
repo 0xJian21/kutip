@@ -18,17 +18,19 @@ export const ClipSlot: React.FC<{
   describe?: string;
   frame?: "none" | "browser" | "phone";
   trimBeforeSec?: number;
+  /** Speed-up for long takes (2 = twice as fast). */
+  rate?: number;
   fit?: "cover" | "contain";
   muted?: boolean;
   style?: React.CSSProperties;
   /** Box the clip is drawn into; default is the full frame. */
   box?: { left: number; top: number; width: number; height: number };
-}> = ({ name, describe, frame = "none", trimBeforeSec = 0, fit = "cover", muted = true, style, box }) => {
+}> = ({ name, describe, frame = "none", trimBeforeSec = 0, rate = 1, fit = "cover", muted = true, style, box }) => {
   const { fps, width, height } = useVideoConfig();
   const info = clip(name);
   const b = box ?? { left: 0, top: 0, width, height };
   const body = info ? (
-    <Video src={clipSrc(info)} trimBefore={Math.round(trimBeforeSec * fps)} premountFor={fps} muted={muted} style={{ width: "100%", height: "100%", objectFit: fit }} />
+    <Video src={clipSrc(info)} trimBefore={Math.round(trimBeforeSec * fps)} playbackRate={rate} premountFor={fps} muted={muted} style={{ width: "100%", height: "100%", objectFit: fit }} />
   ) : (
     <Slate name={name} describe={describe} compact={frame === "phone" || b.width < 700} />
   );
