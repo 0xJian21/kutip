@@ -12,46 +12,36 @@ Read calmly, ~150 words a minute. A pause = one breath. Numbers: "point one five
 
 ---
 
-## 1. Pitch (save as `docs/video/vo-pitch.mp3`)
+## 1. Pitch (matches `docs/video/out/pitch-ai-voice-1920x1080.mp4`)
 
-**Hook (0:00–0:25, fast, music carries it)**
-A furniture maker in Muar just shipped to Sydney.
-Now the waiting begins.
-Days for the wire. Fees taken on the way. A spreadsheet of who still owes.
-What if getting paid… took one second?
-Kutip.
-The buyer scans. Pays from any wallet. Zero gas.
-Exact USD lands on Solana. Paid in point one five seconds.
-An AI agent chases the rest, and asks you before it moves a cent.
-Kutip. Get paid like a message.
-Built in Malaysia. For every exporter.
+The first 25 s is the motion hook with music: **don't speak over it**. Then one recording per slide, in this order. Save each as its own file (`vo-pitch-01.m4a` … `vo-pitch-09.m4a`) or one file with a 1-second pause between slides; each slide stays on screen as long as your line lasts.
 
-**The user (0:25–0:40)**
-This is the finance admin of a furniture exporter. Invoices in US dollars, sixty-day terms. Every wire takes up to five days, and twenty to fifty dollars disappear on the way. And someone still chases late payers by hand.
+**1. Who it is for** (slide `user`)  
+This is the finance admin of a furniture exporter. Invoices in US dollars, sixty day terms. Every wire takes up to five days, and twenty to fifty dollars disappear on the way. And someone still chases late payers by hand.
 
-**Send the invoice (0:40–0:52)**
-With Kutip, you sign in with Touch ID. Drop the PDF you already send. The agent reads it, you check it, and one pay link goes out.
+**2. How Kutip compares** (slide `compare`)  
+Faster ways to get paid exist. But none of them collect for you. With Kutip, nothing is taken on the way, and the money stays in your own treasury.
 
-**The money moment (0:52–1:08)**
-The buyer opens it on a phone and pays in SOL. Zero gas. Exactly one dollar lands as USDC. Seen. Paid in point one five seconds. Settled in under eight. Live on mainnet, no refresh.
+**3. How it works** (slide `one-sentence`)  
+You send the invoice you already have. The buyer pays from any wallet, with zero gas. And the agent does the rest.
 
-**Inbox (1:08–1:18)**
-A buyer asks a question. The agent understands it, drafts a reply from the invoice, and you approve. Nothing goes out on its own.
+**4. The money moment** (slide `money-moment`)  
+On Solana mainnet, the buyer scanned and paid in SOL. Exactly one US dollar landed as USDC. Paid in point one five seconds. Settled in under eight. No refresh.
 
-**x402 (1:18–1:26)**
-When the buyer is software, the invoice is an endpoint. Four-oh-two, pay, two-hundred. Four and a half seconds.
+**5. The AI agent** (slide `agent`)  
+An AI agent chases late payers in the buyer's own hours, drafts replies from the invoice, and asks you before it moves a cent. A rules engine always has the final say.
 
-**Why Solana (1:26–1:40)**
-Why Solana? Solana Pay builds the payment and Kutip pays the fee. Jupiter turns SOL into exact USDC in the same transaction. Squads holds the treasury, and only your passkey controls it. And a Solami gRPC stream is how we see every payment land.
+**6. Why Solana** (slide `why-solana`)  
+Why Solana? Solana Pay builds the payment, and Kutip pays the fee. Jupiter turns SOL into exact USDC. Squads holds the treasury. And a Solami gRPC stream sees every payment land.
 
-**Go-to-market (1:40–1:48)**
-Our first ten customers are exporters already paid in US dollars, reached through trade associations, their accountants and Superteam Malaysia. Free for their first ten invoices.
+**7. Trust** (slide `trust`)  
+It is non-custodial. Touch ID approves every cash-out, every wallet is screened, and ringgit never touches Kutip.
 
-**Trust (1:48–1:54)**
-Non-custodial. Touch ID on every approval. Every wallet screened. Ringgit never touches Kutip.
+**8. First customers** (slide `gtm`)  
+Our first ten customers are exporters already paid in US dollars, reached through trade associations, their accountants, and Superteam Malaysia.
 
-**Team + close (1:54–2:00)**
-I'm Jian Wei, a Web3 engineer in Malaysia, and I built this solo. Kutip. Get paid like a message.
+**9. Team + close** (slide `team`)  
+I'm Jian Wei, a Web3 engineer in Malaysia, and I built Kutip solo. Kutip. Get paid like a message.
 
 ---
 
