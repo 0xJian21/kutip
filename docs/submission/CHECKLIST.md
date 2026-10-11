@@ -17,8 +17,8 @@
 |---|---|
 | Live app | https://kutip-app.vercel.app |
 | GitHub (public) | https://github.com/0xJian21/kutip |
-| Pitch video (≤ 2:00) | TODO: upload `docs/video/out/pitch-1920x1080.mp4` to YouTube (unlisted is fine) and paste the link |
-| Demo video (≤ 2:00) | TODO: upload `docs/video/out/demo-1920x1080.mp4` |
+| Pitch video (≤ 2:00) | https://www.youtube.com/watch?v=TMCeyUXafUQ |
+| Demo video (≤ 2:00) | https://www.youtube.com/watch?v=l5CWYFW1gv8 |
 | Solami demo (2:30) | TODO: upload `docs/video/out/solami-1920x1080.mp4` |
 | Pitch deck | https://claude.ai/artifact/UzmmGo2rRV6TLzT5FYNATD (TODO: export to PDF from the deck's Share menu and attach the PDF; the artifact link is private until shared) |
 | Write-up | `docs/submission/WRITEUP.md` (also in the repo) |
@@ -58,7 +58,7 @@
 
 **Demo / live link:** https://kutip-app.vercel.app
 
-**Pitch video:** TODO link · **Demo video:** TODO link
+**Pitch video:** https://www.youtube.com/watch?v=TMCeyUXafUQ · **Demo video:** https://www.youtube.com/watch?v=l5CWYFW1gv8
 
 **Technical description (if asked):** pnpm monorepo, TypeScript, Node 22. `apps/web` Next.js 16 on Vercel: owner app, buyer pay page, `/api/pay` (Solana Pay transaction request, fee-payer partial signing, Jupiter v1 ExactOut for SOL), `/api/x402` (x402 v2 `exact` SVM scheme, self-hosted facilitator). `apps/worker` Node on Fly: Solami Yellowstone gRPC listener (processed/confirmed/finalized → Seen/Paid/Settled, verified from tx meta), RPC catch-up, collections scheduler, BNM rate, daily randomised sweep. `packages/solana`: tx builders, OFAC screening, Squads v4 provisioning (one multisig per buyer + treasury, agent spending limits), sweeps, proposals. `packages/agent`: rules engine (final authority), Jev via OpenRouter for classification, Claude Haiku for writing and PDF extraction, buyer-scoped context. `packages/db`: Drizzle on Supabase Postgres, RLS, Realtime Broadcast triggers. Privy passkeys as the Squads owner with transaction MFA (Touch ID). Money is `bigint` base units everywhere.
 
@@ -74,7 +74,7 @@
 
 **GitHub:** https://github.com/0xJian21/kutip
 
-**Pitch video:** TODO · **Demo video:** TODO · **Deck (PDF):** TODO
+**Pitch video:** https://www.youtube.com/watch?v=TMCeyUXafUQ · **Demo video:** https://www.youtube.com/watch?v=l5CWYFW1gv8 · **Deck (PDF):** TODO
 
 **Short write-up (paste `WRITEUP.md` sections "One-liner", "The user", "The problem", "Why Solana", "What's next"; or this condensed version):**
 

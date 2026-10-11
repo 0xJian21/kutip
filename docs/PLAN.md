@@ -170,9 +170,12 @@ Target: submissions close **Oct 11** (was Oct 3; see DECISIONS D7). Each session
 - [ ] impeccable polish/audit: empty/loading/error states, mobile, dark mode
 
 ## Session 9 — Submission (Oct 2) · Opus
-- [ ] Pitch deck, demo script, 2-min pitch + 2-min demo videos (+ 2–3 min Solami demo)
-- [ ] Write-up: 1-liner, user, problem, why Solana, what's next
-- [ ] Submit Colosseum + Superteam Earn (both listings) by **Oct 10** (a day before the Oct 11 close)
+- [x] Pitch deck (Slides artifact, see `docs/submission/CHECKLIST.md`), scripts (`docs/submission/PITCH-VIDEO.md`, `DEMO-VIDEO.md`, `SOLAMI-DEMO.md`, `VO-SCRIPTS.md`, `LIVE-PITCH.md`), Remotion package in `video/`
+- [x] Pitch + demo videos rendered (`docs/video/out/pitch-final-1920x1080.mp4`, `demo-final-1920x1080.mp4`, Oct 11); hook rendered
+- [ ] Solami demo video (2:30): not rendered (`pnpm render:solami` in `video/`; needs `vo-solami` audio and `worker-stream.log` / `worker-catchup.log` in `docs/video/clips/`)
+- [ ] Colosseum Week 4 video (required, due 12 Oct 23:00 MYT; see CHECKLIST "Update from Superteam MY")
+- [x] Write-up: `docs/submission/WRITEUP.md` (team filled Oct 6; customer-evidence block still a TODO)
+- [ ] Upload videos, export the deck PDF, fill the remaining TODOs in CHECKLIST.md, push `main`, submit Colosseum + Superteam Earn (both listings) by **Oct 11**
 
 ## Requests (cross-session interface changes)
 <!-- "Session N needs X from package Y" -->

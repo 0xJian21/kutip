@@ -73,7 +73,7 @@ export function AddBuyer({ first, initialName = "", onAdded, onCancel }: { first
       </fieldset>
       {error ? <p role="alert" className="mt-3 text-sm text-disputed-fg">{error}</p> : null}
       <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-        {saving ? <span className="mr-auto text-sm text-ink-2" aria-live="polite">Opening the buyer's payment account on Solana…</span> : null}
+        {saving ? <span className="mr-auto text-sm text-ink-2" aria-live="polite">Opening the buyer’s payment account on Solana…</span> : null}
         {onCancel ? <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>Cancel</Button> : null}
         <Button size="sm" onClick={save} disabled={saving}>
           {saving ? "Adding…" : "Add buyer"}

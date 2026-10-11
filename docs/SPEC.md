@@ -3,7 +3,7 @@
 > **One-liner:** An AI agent that chases a Malaysian exporter's overseas invoices, knows the second the money lands on Solana, and settles it into their treasury — within rules the owner sets and without ever holding the keys.
 
 Hackathon: Colosseum Crypto World's Fair (Solana track) + Superteam MY "Build Global, Buatan Malaysia" side track + Solami prize.
-Deadline assumption: **demo-ready Oct 3, 5pm MYT** (Demo Day KL Oct 4). See `DECISIONS.md` D7.
+Deadline: **submissions close Oct 11** (Colosseum main closes Oct 12; Demo Day date TBC with Superteam MY). See `DECISIONS.md` D7.
 
 ---
 

@@ -52,7 +52,7 @@ pnpm install
 cp .env.example .env                           # fill it in; every variable is explained there
 ln -s ../../.env apps/web/.env.local           # Next.js reads env from apps/web
 
-pnpm --filter @kutip/db db:migrate             # 0000–0006: schema, RLS, Realtime Broadcast triggers, accounts (0005), inbox (0006)
+pnpm --filter @kutip/db db:migrate             # 0000–0007: schema, RLS, Realtime Broadcast triggers, accounts (0005), inbox (0006), invoice delivery (0007)
 pnpm --filter @kutip/db db:seed                # demo exporter "Teratai Woodworks", buyers, invoice history
 
 pnpm --filter web dev                          # http://localhost:3000
